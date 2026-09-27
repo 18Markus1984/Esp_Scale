@@ -1,0 +1,92 @@
+# ============================================================
+#  Firmware der Waage automatisch bauen und veröffentlichen
+#
+#  - Push eines Tags "v1.2.3"  -> kompilieren, Release "v1.2.3" mit
+#    Waage.ino.bin anlegen. Die Waage findet es unter
+#    Setup -> Waage -> Firmware -> "Online suchen".
+#  - "Run workflow" im Reiter Actions -> nur kompilieren (Probelauf),
+#    die .bin liegt dann als Artefakt beim Lauf.
+# ============================================================
+name: Firmware bauen
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # zum Anlegen des Releases
+
+env:
+  # Board wie in der Arduino-IDE: Waveshare ESP32-S3-Touch-LCD-1.46, PSRAM an,
+  # Partitionsschema "16M Flash (3MB APP/9.9MB FATFS)".
+  # Mit Spracherkennung (USE_VOICE 1) stattdessen PartitionScheme=esp_sr_16.
+  FQBN: esp32:esp32:waveshare_esp32_s3_touch_lcd_146:PSRAM=enabled,PartitionScheme=app3M_fat9M_16MB
+  ESP32_CORE: "3.1.1"
+  LVGL: "8.3.10"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Arduino CLI einrichten
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: ESP32-Boardpaket installieren
+        run: |
+          arduino-cli config init
+          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@${ESP32_CORE}
+
+      - name: Bibliotheken installieren
+        run: |
+          arduino-cli lib install "lvgl@${LVGL}" "HX711 Arduino Library"
+          # eigene LVGL-Einstellungen (LV_MEM_CUSTOM 1, LV_USE_QRCODE 1 …)
+          LIB="$HOME/Arduino/libraries"
+          # Optional: eigene Bibliotheken im Repository-Ordner "libraries"
+          # (z. B. die LVGL-Fassung aus dem Waveshare-Paket) ersetzen die installierten
+          if [ -d libraries ]; then cp -r libraries/* "$LIB/"; fi
+          cp lv_conf.h "$LIB/lv_conf.h"
+          cp lv_conf.h "$LIB/lvgl/src/lv_conf.h"
+
+      - name: Version festlegen
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"            # v1.2.3 -> 1.2.3
+          else
+            V="0.0.0-test.${GITHUB_SHA::7}"     # Probelauf
+          fi
+          echo "#define FW_VERSION \"$V\"" > Waage/version.h
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "Baue Version $V"
+
+      - name: Weboberfläche packen
+        run: python3 Waage/web/build.py
+
+      - name: Kompilieren
+        run: |
+          arduino-cli compile --fqbn "$FQBN" --warnings default --output-dir build Waage
+          ls -l build
+
+      - name: Als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Waage-${{ env.VERSION }}
+          path: |
+            build/Waage.ino.bin
+            build/Waage.ino.merged.bin
+
+      - name: Release anlegen
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Waage ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            build/Waage.ino.bin
+            build/Waage.ino.merged.bin

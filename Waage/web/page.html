@@ -1,0 +1,1504 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Waage</title>
+<style>
+/* Farben wie auf dem Display (ui_theme.h), damit Waage und Browser gleich aussehen */
+:root{--bg:#0E0F0D;--card:#1E1F1B;--card2:#171815;--line:#2A2B26;--line2:#242520;--text:#F3F0E8;
+--text2:#BDBAB0;--mut:#A6A398;--faint:#6F6D64;--acc:#3DDC97;--acc2:#2FB77C;--on-acc:#0B1F16;
+--accbg:#14281F;--bar:#2FB77C;--warn:#F5B83D;--warnbg:#2A2214;--dan:#FF6B5E;--danbg:#2B1714;--track:#2A2B26}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+font:16px/1.45 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);-webkit-tap-highlight-color:transparent}
+.wrap{max-width:560px;margin:0 auto;padding:14px 16px 34px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font:600 24px/1.2 "Space Grotesk",system-ui,sans-serif}
+h2{margin:0;font:600 17px/1.3 "Space Grotesk",system-ui,sans-serif}
+/* Kopfzeile: runder Zurück-Knopf, Titel mittig, Aktion rechts */
+.hdr{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;min-height:48px}
+.hdr .t{text-align:center;font:600 20px/1.2 "Space Grotesk",system-ui,sans-serif}
+.back{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+color:var(--text);display:flex;align-items:center;justify-content:center;text-decoration:none;padding:0}
+.back svg{display:block;width:22px;height:22px}
+a.tile .ic svg{width:26px;height:26px;display:block}
+a.chip svg{display:block;color:var(--acc)}
+.act{color:var(--acc);text-decoration:none;font-size:15px;font-weight:500;padding:6px 2px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pill{font-size:13px;padding:5px 11px;border-radius:14px;background:var(--accbg);color:var(--acc);white-space:nowrap}
+.pill.w{background:var(--warnbg);color:var(--warn)}.pill.d{background:var(--danbg);color:var(--dan)}
+.pill.n{background:var(--line);color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;
+display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.flat{background:var(--card2)}
+.mut{color:var(--mut);font-size:14px}.faint{color:var(--faint);font-size:13px}
+.big{font:500 54px/1 "Space Grotesk",system-ui,sans-serif;letter-spacing:-1px}
+.big small{font-size:22px;color:var(--mut);letter-spacing:0;margin-left:6px}
+.mid{font:500 28px/1.1 "Space Grotesk",system-ui,sans-serif}
+.center{text-align:center;align-items:center}
+/* Ringanzeige wie auf dem Display */
+.ring{position:relative;width:230px;height:230px;margin:2px auto}
+.ring svg{transform:rotate(-90deg);width:230px;height:230px;display:block}
+.ring .tr{fill:none;stroke:var(--track);stroke-width:12}
+.ring .in{fill:none;stroke:var(--acc);stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .3s}
+.ring .mid2{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.bar{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.bar>div{height:8px;background:var(--acc);width:0;transition:width .3s}
+.bar.over>div{background:var(--dan)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button,.btn{min-height:46px;padding:0 18px;border-radius:14px;border:1px solid var(--line);background:var(--card2);
+color:var(--text);font-family:inherit;font-size:16px;font-weight:500;line-height:1;cursor:pointer;
+display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+button.p,.btn.p{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+button.d{color:var(--dan)}button.g,.btn.g{flex:1}
+button:disabled{opacity:.4}
+button.sm,.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+/* runde Aktionsknöpfe wie am Gerät */
+.rnd{display:flex;gap:14px;justify-content:center;align-items:center}
+.rnd button{width:74px;height:74px;border-radius:50%;padding:0;font-size:15px}
+.rnd button.p{box-shadow:0 6px 18px rgba(61,220,151,.18)}
+input,select,textarea{min-height:46px;border:1px solid var(--line);border-radius:12px;padding:0 12px;
+font-family:inherit;font-size:16px;background:var(--card2);color:var(--text);width:100%;min-width:0}
+select{-webkit-appearance:none;appearance:none;padding-right:34px;
+background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);
+background-position:calc(100% - 18px) 21px,calc(100% - 12px) 21px;background-size:6px 6px,6px 6px;background-repeat:no-repeat}
+select option{background:#1E1F1B;color:#F3F0E8}
+input[type=checkbox]{width:0;height:0;opacity:0;position:absolute}
+input[type=range]{accent-color:var(--acc);min-height:28px;border:0;padding:0;background:transparent}
+/* Schalter */
+.sw{width:52px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:0 0 52px;cursor:pointer}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--faint);transition:.2s}
+.sw.on{background:var(--accbg)}.sw.on:after{left:25px;background:var(--acc)}
+.set{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid var(--line2)}
+.set:last-child{border-bottom:0}
+.set>span:first-child{flex:1}.set input:not([type=checkbox]),.set select{width:auto;max-width:170px}
+/* Kacheln und Chips */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+a.tile{text-decoration:none;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:7px;font-size:13px;text-align:center}
+a.tile .ic{width:56px;height:56px;border-radius:18px;background:var(--card);border:1px solid var(--line);
+display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)}
+a.tile:active .ic{background:var(--accbg)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+a.chip,button.chip,span.chip{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border-radius:14px;
+background:var(--card);border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:14px;min-height:0}
+button.chip.on{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.sec{font:600 15px/1.3 "Space Grotesk",system-ui,sans-serif;color:var(--text);margin:6px 2px -2px}
+.list .it{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:50px;border-bottom:1px solid var(--line2)}
+.list .it:last-child{border-bottom:0}
+.dot{width:14px;height:14px;border-radius:50%;flex:0 0 14px}
+.seg{display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card2)}
+.seg button{flex:1;border:0;border-radius:0;min-height:44px;white-space:nowrap;padding:0 8px;background:transparent;color:var(--text2)}
+.seg button.on{background:var(--acc);color:var(--on-acc)}
+.ing{display:grid;grid-template-columns:minmax(0,1fr) 92px 44px;gap:8px;align-items:center}
+.ing button{padding:0}
+table{width:100%;border-collapse:collapse}td,th{padding:10px 12px 10px 0;border-bottom:1px solid var(--line2);text-align:left;font-weight:400;vertical-align:top}
+td:last-child,th:last-child{padding-right:0}.nw{white-space:nowrap}
+th{font-size:13px;color:var(--mut)}td.r,th.r{text-align:right;white-space:nowrap}  /* Zahlen mit Einheit nie umbrechen */tr:last-child td{border-bottom:0}
+.chart{display:flex;align-items:flex-end;gap:8px;height:96px}
+.chart div{flex:1;background:var(--track);border-radius:5px 5px 0 0;min-height:3px}
+.chart div.on{background:var(--acc)}
+.chartl{display:flex;gap:8px}.chartl span{flex:1;text-align:center;font-size:12px;color:var(--mut)}
+.info{background:var(--accbg);color:var(--acc);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;border:1px solid #1E3B2C}
+.info input{background:var(--card2);color:var(--text)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);
+background:var(--acc);color:var(--on-acc);padding:11px 18px;border-radius:14px;font-size:15px;font-weight:500;
+opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
+.toast.on{opacity:1}
+.stepper{display:flex;align-items:center;gap:10px}.stepper input{text-align:center;font-size:20px}
+.stepper button{width:46px;padding:0;font-size:22px}
+.foot{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);margin-top:4px}
+.col{display:flex;flex-direction:column;gap:12px}
+.set .stepper{max-width:200px}.set .stepper input{width:80px}
+.frow{display:flex;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid var(--line2)}
+.frow:last-child{border-bottom:0}
+.fico{width:36px;height:36px;border-radius:12px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 36px;color:var(--mut)}
+.fico.d{background:var(--accbg);color:var(--acc)}
+.fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fname a,.list a{color:var(--text);text-decoration:none}
+.fsize{font-size:13px;color:var(--faint);white-space:nowrap}
+.crumb{display:flex;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--mut)}
+.crumb a{color:var(--acc);text-decoration:none}
+.swatch{display:flex;gap:8px;flex-wrap:wrap}
+.swatch button{width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;border:2px solid transparent}
+.swatch button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+// ============================================================
+//  Zustand und Hilfen
+// ============================================================
+let S={g:0,gross:0,disp:"–",unit:"g",stable:false,over:false,pot:"",off:0,time:"",bat:-1,ble:false,max:3000};
+let page=null, poll=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=(v,d=1)=>Number(v).toFixed(d).replace(".",",");
+const COLORS=["#3DDC97","#F5B83D","#7FB2F0","#E88AB4"];
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2000)}
+// Der Webserver der Waage bedient immer nur eine Verbindung. Deshalb schicken
+// wir Anfragen nacheinander statt parallel: das ist auf dem ESP32 deutlich
+// schneller, weil sich die Anfragen sonst gegenseitig blockieren.
+let AUTONEXT=true;  // Einstellung "Auto-Weiter" der Waage
+let q=Promise.resolve(), busy=0;
+function req(u,body){
+ busy++;
+ const run=()=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);
+   return fetch(u,Object.assign({signal:ac.signal},body===undefined?{}:{method:"POST",
+     body:typeof body=="string"?body:JSON.stringify(body)}))
+    .then(r=>r.json()).catch(()=>({ok:0,msg:"keine Verbindung"})).finally(()=>clearTimeout(to))};
+ const p=q.then(run,run);
+ q=p.catch(()=>{}).then(()=>{busy--});
+ return p}
+function api(u,body){return req(u,body)}
+// Textdatei holen, ebenfalls in der Warteschlange (der Server bedient nur eine Verbindung)
+function getText(u){busy++;const run=()=>fetch(u).then(r=>r.ok?r.text():"").catch(()=>"");
+ const p=q.then(run,run);q=p.catch(()=>{}).then(()=>{busy--});return p}
+function get(u){return req(u)}
+const SVG=(d,extra="")=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+// Strichsymbole (24er Raster), passend zu den Symbolen auf dem Display
+const ICON={
+ ziel:SVG('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'),
+ rezept:SVG('<rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
+ cocktail:SVG('<path d="M4 5h16l-8 8.5L4 5Z"/><path d="M12 13.5V19"/><path d="M8.5 19.5h7"/>'),
+ spule:SVG('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/>'),
+ zaehlen:SVG('<path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h15M3.5 15h15"/>'),
+ porto:SVG('<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m3.8 7 8.2 6 8.2-6"/>'),
+ spiel:SVG('<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>'),
+ trink:SVG('<path d="M5.5 7.5h10v11a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-11Z"/><path d="M15.5 10h2.2a1.8 1.8 0 0 1 1.8 1.8v3.4a1.8 1.8 0 0 1-1.8 1.8h-2.2"/><path d="M5.5 11h10"/><path d="M6.5 7.5c0-1.7 1.6-2.6 2.8-2 .7-1.3 3-1.5 3.8-.2 1.3-.5 2.6.5 2.4 2.2"/>'),
+ portion:SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6M12 12l-6 6"/>'),
+ timer:SVG('<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5M18.5 6.5l1.5-1.5"/>'),
+ tassen:SVG('<path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8.5 3.5c0 1.2 1 1.3 1 2.5M12 3.5c0 1.2 1 1.3 1 2.5"/>'),
+ mix:SVG('<path d="M5 4h5v12a2.5 2.5 0 0 1-5 0V4ZM14 4h5v12a2.5 2.5 0 0 1-5 0V4Z"/><path d="M5 11h5M14 13h5"/>'),
+ langzeit:SVG('<path d="M3.5 19.5h17M3.5 4.5v15"/><path d="m6.5 15 4-5 3.5 3 5.5-7"/>'),
+ muenzen:SVG('<ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>'),
+ blind:SVG('<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/><path d="M4.5 4.5l15 15"/>'),
+ halb:SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor" stroke="none" opacity=".35"/>'),
+ zurueck:SVG('<path d="m14.5 5-7 7 7 7"/>','style="width:22px;height:22px"'),
+ chip:(d)=>SVG(d,'style="width:17px;height:17px"')};
+function head(title,back=true,right=""){return `<div class="hdr">${back?`<a class="back" href="#/" aria-label="Zurück">${ICON.zurueck}</a>`:'<span></span>'}<div class="t">${title}</div>${right||"<span></span>"}</div>`}
+// Ringanzeige wie auf dem Display
+function ring(pct,inner,color){const r=103,c=2*Math.PI*r,off=c*(1-Math.max(0,Math.min(1,pct)));
+ return `<div class="ring"><svg viewBox="0 0 230 230"><circle class="tr" cx="115" cy="115" r="${r}"></circle>
+ <circle class="in" cx="115" cy="115" r="${r}" stroke-dasharray="${c}" stroke-dashoffset="${off}" ${color?`style="stroke:${color}"`:""}></circle></svg>
+ <div class="mid2">${inner}</div></div>`}
+// Schalter im Stil des Displays
+function swi(id,on){return `<span class="sw ${on?"on":""}" onclick="this.classList.toggle('on');$('${id}').checked=this.classList.contains('on')"><input type="checkbox" id="${id}" ${on?"checked":""}></span>`}
+function stepper(id,val,step=1,min=0,max=99999){return `<div class="stepper"><button onclick="stepBy('${id}',-${step},${min},${max})">−</button><input id="${id}" type="number" value="${val}" inputmode="numeric"><button onclick="stepBy('${id}',${step},${min},${max})">+</button></div>`}
+function stepBy(id,d,min,max){const e=$(id);let v=(+e.value||0)+d;e.value=Math.max(min,Math.min(max,v));e.dispatchEvent(new Event("input"))}
+function statePill(){return S.over?'<span class="pill d">Überlast</span>':(S.stable?'<span class="pill">stabil</span>':'<span class="pill n">misst …</span>')}
+function ls(k,v){if(v===undefined){try{return JSON.parse(localStorage.getItem("waage_"+k))}catch(e){return null}}try{localStorage.setItem("waage_"+k,JSON.stringify(v))}catch(e){}}
+// ============================================================
+//  Sprache (Deutsch / English)
+//  Die Seite ist auf Deutsch geschrieben. Ist English eingestellt,
+//  übersetzt tr() jeden sichtbaren Text: erst über die Tabelle EN
+//  (ganzer Text), sonst über die Muster ENP (Texte mit Zahlen oder
+//  Namen; im Ersatz ist $1 die Gruppe, T$1 die übersetzte Gruppe).
+//  Ein MutationObserver erledigt das für alles, was ins Dokument
+//  kommt. Bereiche mit translate="no" bleiben unverändert.
+//  Neuer Text: Zeile in EN ergänzen, fertig.
+// ============================================================
+let LANG=ls("lang")||0;  // 0 Deutsch, 1 English (maßgeblich ist die Einstellung der Waage)
+const EN={"verbunden":"connected","keine Verbindung":"no connection","Überlast":"Overload","stabil":"stable","misst …":"measuring …","Tara gesetzt":"Tare set","Im Protokoll gespeichert":"Saved to log","Tara":"Tare","Speichern":"Save","Gespeichert":"Saved","Keine SD-Karte":"No SD card","Zurück":"Back","Lade …":"Loading …","Fehler":"Error","Abbrechen":"Cancel","Löschen":"Delete","Weiter":"Next","Fertig":"Done","Starten":"Start","Übernehmen":"Apply","Hinzufügen":"Add","Bearbeiten":"Edit","Name":"Name","Noch nicht stabil":"Not stable yet","Bitte Namen eingeben":"Please enter a name","Übersicht":"Overview","ohne":"none","Eintrag steht im Protokoll.":"Entry saved to the log.","Gewicht":"Weight","Ziel":"Target","Runden":"Rounds","Mitspieler":"Players","Los":"Go","Endstand":"Final score","Nächste Runde":"Next round","Neues Spiel":"New game","Auflösung":"Result","Ergebnis":"Result","Waage":"Scale","Modi":"Modes","Rezept":"Recipe","Cocktail":"Cocktail","Spule":"Spool","Zählen":"Count","Porto":"Postage","Schätzen":"Guess","Trinken":"Drink","Verwalten":"Manage","Rezepte":"Recipes","Cocktailkarte":"Cocktail menu","Töpfe und Spulen":"Pots and spools","Protokoll":"Log","Akku":"Battery","Dateien":"Files","Einstellungen":"Settings","Toepfe":"Pots","Zaehlen":"Count","Msa":"Gauge study","Spiel":"Guessing game","Trink":"Drinking game","Cocktails":"Cocktails","Portoklassen":"Postage classes","Spieler":"Players","Firmware":"Firmware","Neues Ziel":"New target","Zielgewicht":"Target weight","Los, Parkpiepser starten":"Go, start parking beeper","Je näher am Ziel, desto schneller piept die Waage. Im Ziel ein langer Ton, darüber ein Warnton.":"The closer to the target, the faster the scale beeps. On target a long tone, above it a warning tone.","Ziel erreicht":"Target reached","Wählen":"Choose","Noch keine Rezepte.":"No recipes yet.","Rezept anlegen":"Create recipe","Portionen":"Servings","Nach jeder Zutat wird automatisch tariert.":"The scale tares automatically after each ingredient.","Zutaten":"Ingredients","passt":"spot on","Restfilament":"Filament left","Auf der Waage":"On the scale","Leerspule":"Empty spool","Netto Filament":"Net filament","Restmeter ins Protokoll":"Save length to log","Material":"Material","Durchmesser":"Diameter","Neue Leerspule anlegen: leere Spule auflegen, Namen eingeben.":"New empty spool: place the empty spool, enter a name.","Hersteller oder Name":"Brand or name","Anlegen":"Create","Ohne Leerspule":"Without empty spool","Leerspule gespeichert":"Empty spool saved","Bluetooth":"Bluetooth","kein BT":"no BT","Referenz: so viele Teile liegen auf der Waage":"Reference: this many parts are on the scale","Stückgewicht":"Piece weight","Tara (Schale)":"Tare (tray)","Je mehr Teile in der Referenz, desto genauer wird gezählt. Übernehmen geht erst, wenn das Gewicht stabil ist.":"The more parts in the reference, the more accurate the count. Apply only works once the weight is stable.","Stück":"pcs","Senden":"Send","Neue Referenz":"New reference","Zählliste":"Count list","Bezeichnung, z. B. M3×12":"Label, e.g. M3×12","Liste als CSV":"List as CSV","Leeren":"Clear","noch leer":"empty","unsicher · Referenz prüfen":"uncertain · check reference","Referenz übernommen":"Reference applied","Erst Referenz übernehmen":"Apply a reference first","Gesendet":"Sent","Bluetooth nicht verbunden":"Bluetooth not connected","Klassen":"Classes","über der größten Klasse":"above the largest class","bis Gramm · Preis":"up to grams · price","Grenzen und Preise pflegst du unter Einstellungen → Portoklassen.":"Edit limits and prices under Settings → Postage classes.","Standardbrief":"Standard letter","Kompaktbrief":"Compact letter","Großbrief":"Large letter","Maxibrief":"Maxi letter","Päckchen":"Small parcel","Paket":"Parcel","Postkarte":"Postcard","Warensendung":"Goods mail","Neue Klasse":"New class","+ Neuer Spieler":"+ New player","Name des neuen Spielers":"Name of the new player","kleiner ist besser":"lower is better","Noch keine Ergebnisse gespeichert.":"No results saved yet.","Bestenliste Schätzspiel":"Leaderboard guessing game","Bestenliste Trinkspiel":"Leaderboard drinking game","Bestenliste":"Leaderboard","Schätzspiel":"Guessing game","Namen pflegst du einmal unter Einstellungen → Spielernamen.":"Manage names once under Settings → Player names.","Waage leer lassen und starten. Das Gewicht wird dann auch auf dem Display der Waage versteckt.":"Leave the scale empty and start. The weight is then also hidden on the scale's display.","Spiel starten":"Start game","Mindestens zwei Mitspieler wählen.":"Choose at least two players.","Tipps in Gramm":"Guesses in grams","Auflösen":"Reveal","Gegenstand abnehmen":"Remove the object","Gegenstand verdeckt auflegen":"Place the object hidden","Bereit – Tipps eingeben":"Ready – enter guesses","Summe der Abweichungen über alle Runden":"Sum of deviations over all rounds","Mixen":"Mix","Keine Cocktails auf der Karte.":"No cocktails on the menu.","Cocktail anlegen":"Create cocktail","in Milliliter":"in millilitres","Gläser":"Glasses","Glas draufstellen und starten":"Put the glass on and start","Die Waage rechnet Milliliter über die Dichte in Gramm um.":"The scale converts millilitres to grams using the density.","eingießen":"pour","Fertig gemixt":"Mixed","+ Neu":"+ New","Noch keine Cocktails auf der Karte.":"No cocktails on the menu yet.","+ Neuer Cocktail":"+ New cocktail","Cocktail bearbeiten":"Edit cocktail","Name des Cocktails":"Cocktail name","Zutaten von unten nach oben · Menge in ml":"Ingredients bottom to top · amount in ml","+ Zutat":"+ Ingredient","Menge abwiegen":"Weigh amount","Zutat ins Glas geben, Zeile antippen und übernehmen. Die Waage rechnet Gramm über die Dichte in ml um.":"Pour the ingredient into the glass, tap the row and apply. The scale converts grams to ml using the density.","Zutat":"Ingredient","Name und mindestens eine Zutat nötig":"Name and at least one ingredient required","Fehler beim Speichern":"Error while saving","Cocktail löschen?":"Delete cocktail?","Trinkspiel":"Drinking game","Zielschluck":"Target sip","K.o.":"KO","Jede Runde gibt es ein Ziel in ml. Wer am Ende insgesamt am wenigsten daneben liegt, gewinnt.":"Each round has a target in ml. Whoever is off the least in total at the end wins.","Wer weiter daneben liegt als die Toleranz, scheidet aus. Die Toleranz wird jede Runde kleiner.":"Whoever is further off than the tolerance is out. The tolerance shrinks every round.","Ablauf: Getränk abstellen, trinken, zurückstellen – die Waage misst den Schluck. Waage vor dem Start leer lassen. Bitte verantwortungsvoll trinken.":"How it works: put the drink down, drink, put it back – the scale measures the sip. Leave the scale empty before starting. Please drink responsibly.","Getränk abstellen":"Put the drink down","Jetzt trinken!":"Drink now!","Zurückstellen":"Put it back","Nichts getrunken? Nochmal":"Nothing drunk? Again","Und …":"And …","Sieg!":"Victory!","Status":"Status","Summe daneben":"Total off","getrunken":"drunk","raus":"out","Sieg":"win","+ Neues Rezept":"+ New recipe","Rezept bearbeiten":"Edit recipe","Neues Rezept":"New recipe","Portionen (Grundrezept)":"Servings (base recipe)","Zutaten · Menge in g":"Ingredients · amount in g","Rezept löschen?":"Delete recipe?","Töpfe":"Pots","Leerspulen":"Empty spools","Noch keine Töpfe.":"No pots yet.","Noch keine Leerspulen.":"No empty spools yet.","Neuer Topf":"New pot","Neue Leerspule":"New empty spool","Waage leeren und Tara drücken, dann den leeren Topf auflegen und übernehmen.":"Empty the scale and press Tare, then place the empty pot and apply.","Waage leeren und Tara drücken, dann die leere Spule auflegen und übernehmen.":"Empty the scale and press Tare, then place the empty spool and apply.","Gewicht übernehmen":"Apply weight","Wirklich löschen?":"Really delete?","Vorheriger Tag":"Previous day","Nächster Tag":"Next day","Zeit":"Time","Topf / Modus":"Pot / mode","Letzte 7 Tage · Wägungen pro Tag":"Last 7 days · weighings per day","Tag als TXT":"Day as TXT","Alles als CSV":"All as CSV","Noch keine Einträge":"No entries yet","keine Einträge":"no entries","So":"Su","Mo":"Mo","Di":"Tu","Mi":"We","Do":"Th","Fr":"Fr","Sa":"Sa","lädt am USB":"charging on USB","voll geladen":"fully charged","kein Akku":"no battery","Akkubetrieb":"on battery","Ladestand erst ohne Kabel messbar":"Unplug the cable to measure charge","wird gemessen":"being measured","noch keine Messpunkte":"no data points yet","Senkrecht: Ladestand in %, Zahl über dem Balken = Wert · Waagerecht: Stunden zurück":"Vertical: charge in %, number above the bar = value · Horizontal: hours back","Entladetest":"Discharge test","läuft":"running","Test beenden":"Stop test","Misst einmal komplett durch, von voll bis zur Abschaltung, und schreibt jede Minute Spannung und Ladestand als CSV auf die SD-Karte. Daraus siehst du die echte Laufzeit.":"Measures once all the way from full to shutdown and writes voltage and charge to the SD card as CSV every minute. This shows the real runtime.","Entladetest starten":"Start discharge test","Messmittelprüfung":"Gauge study","Verfahren 1":"Type 1 study","Dasselbe Normal wird n-mal aufgelegt und abgenommen. Daraus berechnet die Waage Mittelwert, Bias, Standardabweichung, Cg und Cgk.":"The same standard is placed and removed n times. From this the scale calculates mean, bias, standard deviation, Cg and Cgk.","Sollgewicht des Normals":"Nominal weight of the standard","Toleranz T":"Tolerance T","Messungen":"Measurements","Prüfung starten":"Start study","Waage vor dem Start leeren. Der Wert wird übernommen, sobald das Gewicht ruhig liegt – oder von Hand über den Knopf.":"Empty the scale before starting. The value is taken as soon as the weight is steady – or manually with the button.","Normal auflegen":"Place standard","Wert übernehmen":"Take value","Normal auflegen, ruhig werden lassen, übernehmen, abnehmen.":"Place the standard, let it settle, take the value, remove.","Bisher erfasst":"Recorded so far","noch keine Werte":"no values yet","Erst das Normal auflegen":"Place the standard first","fertig – bitte abnehmen":"done – please remove","Normal abnehmen":"Remove standard","stabilisieren …":"settling …","ruhig – wird übernommen":"steady – taking value","Ergebnis Cg / Cgk":"Result Cg / Cgk","Messmittel fähig: Cg und Cgk über 1,33":"Gauge capable: Cg and Cgk above 1,33","nicht fähig: unter 1,33":"not capable: below 1,33","Mittelwert":"Mean","Streuung s":"Spread s","Spanne":"Range","Neue Prüfung":"New study","Einzelwerte":"Individual values","+ Ordner":"+ Folder","↑ eine Ebene":"↑ one level up","Ordner":"Folder","Ordner ist leer":"Folder is empty","Hochladen nach":"Upload to","Rezepte und Cocktails als .txt, Sprachdateien als .wav (16 kHz, Mono). Gleiche Namen werden überschrieben.":"Recipes and cocktails as .txt, voice files as .wav (16 kHz, mono). Files with the same name are overwritten.","Hochladen":"Upload","SD-Karte":"SD card","Gelöscht":"Deleted","Name des neuen Ordners":"Name of the new folder","Angelegt":"Created","Erst Dateien wählen":"Choose files first","Datei löschen?":"Delete file?","Name, Gewichtsgrenze und Preis je Klasse. Gespeichert in /Waage/Porto/porto.txt.":"Name, weight limit and price per class. Stored in /Waage/Porto/porto.txt.","bis g":"up to g","Euro":"Euro","+ Klasse":"+ Class","Spielernamen":"Player names","Gilt für Schätzspiel und Trinkspiel, an der Waage und hier.":"Applies to the guessing and drinking game, on the scale and here.","Neuer Name":"New name","Firmware-Update":"Firmware update","Über den Browser":"Via the browser","In der Arduino-IDE „Sketch → Kompilierte Binärdatei exportieren“, dann hier die Datei Waage.ino.bin hochladen. Die Waage piept beim Start, spielt am Ende die Fertig-Melodie und startet neu.":"In the Arduino IDE use \"Sketch → Export Compiled Binary\", then upload the file Waage.ino.bin here. The scale beeps at the start, plays the done melody at the end and restarts.","Firmware hochladen":"Upload firmware","Über die Arduino-IDE":"Via the Arduino IDE","Im Heimnetz erscheint die Waage unter Werkzeuge → Port als Netzwerk-Port „waage“. Der Update-Modus hält WLAN und OTA 15 Minuten wach, ohne Abschalttimer.":"On the home network the scale appears under Tools → Port as network port \"waage\". Update mode keeps Wi-Fi and OTA awake for 15 minutes, without the shutdown timer.","Update-Modus (15 min)":"Update mode (15 min)","Während des Updates die Waage nicht ausschalten und das WLAN nicht trennen.":"Do not switch off the scale or disconnect Wi-Fi during the update.","Update-Modus an – 15 Minuten":"Update mode on – 15 minutes","Update-Modus aus":"Update mode off","Wiegen":"Weighing","Auto-Tara":"Auto-tare","Ton":"Sound","Zeit und Funk":"Time and wireless","Einheit":"Unit","gilt für Wiegeseite und Protokoll":"applies to weighing page and log","Auto-Speichern":"Auto-save","einmal pro Auflegen, ab 5 g":"once per placement, from 5 g","Auto-Weiter":"Auto-next","in Rezept und Cocktail bei stabilem, erreichtem Gewicht":"in recipe and cocktail once the weight is reached and stable","Zur Wiegeseite nach":"Back to weighing after","ohne Bedienung zurück zur Startseite":"return to the start page when idle","aus":"off","Auto-Aus nach":"Auto-off after","ohne Bedienung und Gewichtsänderung":"without use or weight change","nie":"never","Topferkennung":"Pot detection","erkennt einen leeren Topf und tariert nach dem Countdown":"detects an empty pot and tares after the countdown","Countdown":"Countdown","Sekunden bis zum Tarieren":"seconds until taring","Toleranz":"Tolerance","oder 1 %, je nachdem was größer ist":"or 1 %, whichever is larger","Lautstärke":"Volume","Tonschema":"Sound scheme","Sanft: tiefer und weicher · Retro: 8 Bit · Minimal: nur Piepser und Warnungen":"Soft: lower and gentler · Retro: 8 bit · Minimal: only beeps and warnings","Klassisch":"Classic","Sanft":"Soft","Retro":"Retro","Minimal":"Minimal","Ansage":"Announce","liest stabile Werte vor":"reads out stable values","Stimme":"Voice","Sprachpakete liegen unter /Waage/Stimme":"Voice packs are in /Waage/Stimme","Speichern und Hörprobe":"Save and preview","Uhrzeit":"Time","Stand der Uhr in der Waage":"Clock of the scale","WLAN":"Wi-Fi","Netzwerk, mit dem sich die Waage verbindet":"Network the scale connects to","eigenes WLAN":"own Wi-Fi","Uhrzeit jetzt abgleichen":"Sync time now","Abgleich gestartet":"Sync started","Kalibrierung":"Calibration","nur an der Waage, weil Gewichte aufgelegt werden":"only on the scale, since weights have to be placed","Verfahren 1: Cg und Cgk":"Type 1 study: Cg and Cgk","Prüfen ›":"Check ›","Libelle":"Level","Versatz des Displays auf null setzen":"Reset the display offset to zero","Zurücksetzen":"Reset","Nullpunkt zurückgesetzt":"Zero point reset","Namen, Grenzen und Preise":"Names, limits and prices","Klassen ›":"Classes ›","gilt für alle Spiele":"applies to all games","Namen ›":"Names ›","ohne Kabel über die Weboberfläche":"wirelessly via the web interface","Update ›":"Update ›","Einstellungen speichern":"Save settings","Sprache":"Language","Präzision":"Precision","Auto-Null":"Auto-zero","Flüssigkeit für ml":"Liquid for ml","Dichte für die Einheit ml · an der Waage: Einheit antippen":"density for the unit ml · on the scale: tap the unit","Öl":"Oil","Olivenöl":"Olive oil","Honig":"Honey","Sirup":"Syrup","Wein":"Wine","Bier":"Beer","Essig":"Vinegar","Sojasauce":"Soy sauce","Brühe":"Broth","Messung":"Measurements","Neu laden":"Reload","Noch keine Messungen.":"No measurements yet.","Starten an der Waage: Modi → Werkstatt → Langzeit.":"Start on the scale: Modes → Workshop → Long-term.","Messung wählen":"Choose measurement","Noch zu wenige Werte.":"Not enough values yet.","Dauer":"Duration","Start · Ende":"Start · end","Differenz":"Difference","Trend":"Trend","Kleinster · größter Wert":"Smallest · largest value","CSV herunterladen":"Download CSV","folgt langsamer Drift der leeren Waage, damit sie auf 0,0 bleibt":"follows slow drift of the empty scale so it stays at 0.0","mittelt ruhige Werte, zeigt zwei Nachkommastellen (nur g) · am Gerät: Gewicht lange drücken":"averages steady readings, shows two decimals (g only) · on the scale: long-press the weight","gilt für Display, Weboberfläche und Ansage":"applies to display, web interface and voice","Wodka":"Vodka","Rum weiß":"White rum","Rum braun":"Dark rum","Wermut":"Vermouth","Kokoslikör":"Coconut liqueur","Kaffeelikör":"Coffee liqueur","Pfirsichlikör":"Peach liqueur","Orangensaft":"Orange juice","Ananassaft":"Pineapple juice","Maracujasaft":"Passion fruit juice","Cranberrysaft":"Cranberry juice","Limettensaft":"Lime juice","Zitronensaft":"Lemon juice","Zuckersirup":"Sugar syrup","Holundersirup":"Elderflower syrup","Sahne":"Cream","Milch":"Milk","Minzblätter":"Mint leaves","Eiswürfel":"Ice cubes","Mehl":"Flour","Zucker":"Sugar","Eier":"Eggs","Salz":"Salt","Butter":"Butter","Wasser":"Water","Hefe":"Yeast","Pfannkuchen":"Pancakes","Großer Topf":"Large pot","Kleiner Topf":"Small pot","Pfanne":"Pan","Schüssel":"Bowl","Gespeicherte WLAN-Netze":"Saved Wi-Fi networks","zuletzt verbunden":"last connected","Entfernen":"Remove","Kein Netzwerk gespeichert":"No network saved","Netz hinzufügen":"Add network","Netzwerkname (SSID)":"Network name (SSID)","Passwort (leer bei offenem Netz)":"Password (empty for open network)","Netz entfernen?":"Remove network?","Die aktuelle Verbindung bleibt bestehen. Das neue Netz wird beim nächsten Verbinden genutzt, zum Beispiel an einem anderen Ort.":"The current connection stays. The new network is used the next time the scale connects, for example at another place.","Name oder Passwort ungültig":"Invalid name or password","+ Summe":"+ Total","2K mischen":"2K mixing","A fertig":"A done","Abweichung von 50 % in Prozentpunkten":"Deviation from 50 % in percentage points","Alarm aus":"Alarm off","Timer abgelaufen":"Timer finished","Bestenliste Blindgießen":"Leaderboard blind pour","Bestenliste Halbe-Halbe":"Leaderboard half & half","Bisher":"So far","Blindgießen":"Blind pour","Halbe-Halbe":"Half & half","Brauner Zucker":"Brown sugar","Puderzucker":"Powdered sugar","Haferflocken":"Oats","Kakao":"Cocoa","Reis":"Rice","Nüsse gehackt":"Chopped nuts","Schokotropfen":"Chocolate chips","Danach Glas leeren":"Empty the glass afterwards","Datei":"File","Intervall":"Interval","Laufzeit":"Running time","Die Timer laufen auf der Waage, auch wenn diese Seite zu ist. Abgelaufen klingelt die Waage auf jeder Seite.":"The timers run on the scale, even when this page is closed. When one finishes, the scale rings on every page.","Die Waage schreibt das Gewicht in festen Abständen als CSV auf die SD-Karte, auch wenn der Browser zu ist. Dabei schaltet sie sich nicht ab.":"The scale writes the weight to the SD card as CSV at fixed intervals, even when the browser is closed. It does not switch off meanwhile.","Ein Glas für alle. Jeder gießt die Zielmenge ein, ohne die Anzeige zu sehen – auch das Display der Waage bleibt verdeckt. Aufgelöst wird am Ende.":"One glass for everyone. Everyone pours the target amount without seeing the display – the scale's display stays hidden too. The result is revealed at the end.","Fertig portioniert":"Portioning done","Für amerikanische Rezepte: 1 Tasse = 236,6 ml, 1 EL = 1/16 Tasse, 1 TL = 1/48 Tasse. Gramm je Tasse locker eingefüllt.":"For American recipes: 1 cup = 236.6 ml, 1 tbsp = 1/16 cup, 1 tsp = 1/48 cup. Grams per cup, loosely filled.","Ganzes auflegen":"Place the whole piece","Gemischt":"Mixed","Jeder bekommt ein Lebensmittel (Banane, Brot, Käse …). Ganz auflegen, abnehmen, teilen, eine Hälfte auflegen. Am nächsten an 50 % gewinnt.":"Everyone gets a piece of food (banana, bread, cheese …). Place it whole, remove it, cut it, place one half. Closest to 50 % wins.","Kassensturz":"Cash count","Kleinstes · größtes Stück":"Smallest · largest piece","Komponente A eingießen":"Pour component A","Küche":"Kitchen","Werkstatt":"Workshop","Spiele":"Games","Langzeit":"Long-term","Langzeitmessung":"Long-term log","Leeren Becher auflegen, dann Start":"Place the empty cup, then Start","Messer und Brett bereitlegen. Die Anzeige bleibt bis zur Auflösung verdeckt, auch auf der Waage.":"Have a knife and board ready. The display stays hidden until the reveal, on the scale too.","Messung beenden":"Stop log","Messung beendet":"Log stopped","Messung gestartet":"Log started","Messung läuft":"Log running","Messung starten":"Start log","Oben starten oder an der Waage: Modi → Werkstatt → Langzeit.":"Start above or on the scale: Modes → Workshop → Long-term.","Minuten":"Minutes","Münzen":"Coins","Name (optional), z. B. Nudeln":"Name (optional), e.g. Pasta","Nochmal":"Again","Nächster":"Next","Portionieren":"Portioning","Schüssel vorher tarieren. Danach die Waage leeren und die Stücke einzeln auflegen. Das Soll jedes Stücks wird aus dem Rest neu berechnet.":"Tare the bowl first. Then empty the scale and place the pieces one by one. Each piece's target is recalculated from what is left.","So geht's":"How it works","Sorte":"Coin","Stopp":"Stop","Stück auflegen":"Place a piece","Stückzahl":"Pieces","Summe":"Total","Summe löschen":"Clear total","Tassen & Löffel":"Cups & spoons","Teile B je 100 Teile A":"parts B per 100 parts A","Topfzeit":"Pot life","Verhältnis A : B":"Ratio A : B","Ziel in Tassen":"Target in cups","Zielmenge":"Target amount","Zufall":"Random","Zur Summe addiert":"Added to total","abgelaufen":"finished","läuft danach als Timer auf der Waage":"then runs as a timer on the scale","Zutat auflegen":"Place ingredient","unter 1/8 Tasse":"under 1/8 cup","Kein Timer frei für die Topfzeit":"No free timer for the pot life","Leeres Glas auflegen":"Place the empty glass","Waage leeren":"Empty the scale","Ganzes Stück auflegen":"Place the whole piece","Abnehmen und teilen":"Remove and cut","Eine Hälfte auflegen":"Place one half","Online-Update":"Online update","Neue Version auf GitHub suchen":"Look for a new version on GitHub","Verbinde mit WLAN …":"Connecting to Wi-Fi …","Suche Update …":"Checking for update …","Aktuell, nichts zu tun":"Up to date","Fertig, starte neu …":"Done, restarting …","lokal gebaut":"built locally","Online suchen":"Check online","Installieren":"Install","Die Waage lädt die neueste Version aus den GitHub-Releases und startet danach neu.":"The scale downloads the latest version from the GitHub releases and restarts afterwards.","Kein WLAN":"No Wi-Fi","Kein WLAN gespeichert":"No network saved","GitHub nicht erreichbar":"GitHub not reachable","Kein Release gefunden":"No release found","Keine Firmware im Release":"No firmware in the release","Download fehlgeschlagen":"Download failed","Zu wenig Platz für das Update":"Not enough space for the update","Update fehlgeschlagen":"Update failed","Repository in config.h eintragen":"Set the repository in config.h","Zu wenig Speicher":"Not enough memory"};
+const ENP=[[/^verbunden · Akku (\d+) %$/,"connected · battery $1 %"],
+ [/^waage\.local · aus in (.+)$/,"waage.local · off in $1"],
+ [/^Topf abgezogen: (.+)$/,"Pot subtracted: $1"],
+ [/^noch (\S+) (g|ml)$/,"$1 $2 to go"],
+ [/^(\S+) (g|ml) zu viel$/,"$1 $2 too much"],
+ [/^Ziel (\S+) g · Toleranz ±(\S+) g$/,"Target $1 g · tolerance ±$2 g"],
+ [/^Ziel (\S+) g · danach (.+)$/,"Target $1 g · then T$2"],
+ [/^Ziel (\S+) g$/,"Target $1 g"],
+ [/^Ziel (\S+) ml \((\S+) g, Dichte (\S+)\)$/,"Target $1 ml ($2 g, density $3)"],
+ [/^(\d+) Zutaten$/,"$1 ingredients"],
+ [/^(\S+) g gesamt$/,"$1 g total"],
+ [/^Schritt (\d+) von (\d+)$/,"Step $1 of $2"],
+ [/^(\d+) von (\d+)$/,"$1 of $2"],
+ [/^([✓›–]) (.+)$/,"$1 T$2"],
+ [/^(\d+) Zutaten · (\d+) Portionen · (.+)$/,"$1 ingredients · $2 servings · $3"],
+ [/^Rezept: (.+)$/,"Recipe: T$1"],
+ [/^Cocktail: (.+)$/,"Cocktail: $1"],
+ [/^Aktuell auf der Waage: (.+)$/,"Currently on the scale: $1"],
+ [/^Spule (.+): (\d+) m$/,"Spool $1: $2 m"],
+ [/^Stückgewicht (\S+) g$/,"Piece weight $1 g"],
+ [/^(\S+) g auf der Waage$/,"$1 g on the scale"],
+ [/^Zählen: (\d+) Stk$/,"Count: $1 pcs"],
+ [/^(\d+) Position$/,"$1 item"],
+ [/^(\d+) Positionen$/,"$1 items"],
+ [/^Position (\d+)$/,"Item $1"],
+ [/^noch (\S+) g Luft bis (\d+) g$/,"$1 g to spare up to $2 g"],
+ [/^bis (\d+) g$/,"up to $1 g"],
+ [/^Porto (.+) (\S+) EUR$/,"Postage T$1 $2 EUR"],
+ [/^Porto: (.+) (\S+) €$/,"Postage: T$1 $2 €"],
+ [/^Spieler (\d+)$/,"Player $1"],
+ [/^(\d+) gewählt$/,"$1 selected"],
+ [/^Runde (\d+) \/ (\d+)$/,"Round $1 / $2"],
+ [/^Auflösung Runde (\d+)$/,"Result round $1"],
+ [/^(\S+) g daneben$/,"$1 g off"],
+ [/^Schätzspiel: Sieger (.+)$/,"Guessing game: winner $1"],
+ [/^Trinkspiel: Sieger (.+)$/,"Drinking game: winner $1"],
+ [/^(\S+) ml im Glas$/,"$1 ml in the glass"],
+ [/^Zutat (\d+) von (\d+) · (.+)$/,"Ingredient $1 of $2 · $3"],
+ [/^(\S+) ml · (\d+) Gläser$/,"$1 ml · $2 glasses"],
+ [/^(\S+) ml · (\d+) Glas$/,"$1 ml · $2 glass"],
+ [/^In Zeile (\d+) übernehmen$/,"Apply to row $1"],
+ [/^Runde (\d+)( \/ \d+)? · Ziel (\d+) ml( · ±\d+)?$/,"Round $1$2 · target $3 ml$4"],
+ [/^(\d+) ml daneben · raus!$/,"$1 ml off · out!"],
+ [/^(\d+) ml daneben · weiter$/,"$1 ml off · still in"],
+ [/^Volltreffer! (\d+) ml daneben$/,"Bullseye! $1 ml off"],
+ [/^(\d+) ml daneben$/,"$1 ml off"],
+ [/^(\d+) daneben · raus$/,"$1 off · out"],
+ [/^(\d+) daneben$/,"$1 off"],
+ [/^Töpfe · (\d+)$/,"Pots · $1"],
+ [/^Leerspulen · (\d+)$/,"Empty spools · $1"],
+ [/^Farbe (\d+)$/,"Colour $1"],
+ [/^(\d+) Wägung · (.+)$/,"$1 weighing · $2"],
+ [/^(\d+) Wägungen · (.+)$/,"$1 weighings · $2"],
+ [/^(\S+) V · noch ca\. (\S+) h$/,"$1 V · approx. $2 h left"],
+ [/^Verlauf · ein Balken je (\d+) min$/,"History · one bar per $1 min"],
+ [/^(\S+) h · von (\S+) auf (\S+) V · (\d+) Messpunkte$/,"$1 h · from $2 to $3 V · $4 data points"],
+ [/^Messung (\d+) von (\d+)$/,"Measurement $1 of $2"],
+ [/^(\d+) bei Soll (\d+) g, T (\d+) g$/,"$1 at nominal $2 g, T $3 g"],
+ [/^Messmittel Cg (\S+) Cgk (\S+)$/,"Gauge Cg $1 Cgk $2"],
+ [/^(\S+ [MG]B) von (\S+ [MG]B) belegt · (\S+ [MG]B) frei$/,"$1 of $2 used · $3 free"],
+ [/^(\d+) Dateien übertragen$/,"$1 files transferred"],
+ [/^Fehler bei (.+)$/,"Error with $1"],
+ [/^nach (\d+) min$/,"after $1 min"],
+ [/^Faktor (.+)$/,"Factor $1"],
+ [/^Halbe-Halbe: Sieger (.+)$/,"Half & half: winner $1"],
+ [/^Blindgießen: Sieger (.+)$/,"Blind pour: winner $1"],
+ [/^2K (.+) · A (.+) · B (.+)$/,"2K $1 · A $2 · B $3"],
+ [/^Münzen: (.+)$/,"Coins: $1"],
+ [/^Portionen: (.+)$/,"Portions: $1"],
+ [/^(.+) abgelaufen$/,"$1 finished"],
+ [/^(\d+) Werte$/,"$1 values"],
+ [/^Langzeitmessung: (\d+) Werte$/,"Long-term log: $1 values"],
+ [/^Portionen: (\d+) × (.+)$/,"Portions: $1 × $2"],
+ [/^(.+) · Waage$/,"T$1 · Scale"],
+ [/^Die Waage verbindet sich mit dem stärksten gespeicherten Netz in Reichweite\. Bis zu (\d+) Netze\.$/,"The scale connects to the strongest saved network in range. Up to $1 networks."],
+ [/^1 Tasse = (\d+) g$/,"1 cup = $1 g"],
+ [/^(\S+) h · (\d+) Werte$/,"$1 h · $2 values"],
+ [/^(.+) \(Soll (.+)\)$/,"$1 (target $2)"],
+ [/^(\S+) %-Punkte daneben$/,"$1 %-points off"],
+ [/^(\S+) g je Münze · immer nur eine Sorte auf einmal$/,"$1 g per coin · only one kind at a time"],
+ [/^(\S+) g · unsicher, Sorte prüfen$/,"$1 g · uncertain, check the coin"],
+ [/^Gieß (\d+) g ein$/,"Pour $1 g"],
+ [/^Hälfte (\S+) g von (\S+) g$/,"Half $1 g of $2 g"],
+ [/^Komponente B · Ziel (\S+) g$/,"Component B · target $1 g"],
+ [/^Stück (\d+) \/ (\d+)$/,"Piece $1 / $2"],
+ [/^Zug (\d+) \/ (\d+)$/,"Turn $1 / $2"],
+ [/^Topfzeit (\d+) min läuft$/,"Pot life $1 min running"],
+ [/^Ziel (\S+) g · Rest (\S+) g$/,"Target $1 g · left $2 g"],
+ [/^Ziel (\S+) g · letztes Stück$/,"Target $1 g · last piece"],
+ [/^ca\. (.+) Tassen$/,"approx. $1 cups"],
+ [/^je Stück (\S+) g$/,"$1 g each"],
+ [/^= (\S+) TL$/,"= $1 tsp"],
+ [/^= (\S+) EL · (\d+) TL$/,"= $1 tbsp · $2 tsp"],
+ [/^Version (\S+)$/,"Version $1"],
+ [/^Neu: Version (\S+)$/,"New: version $1"],
+ [/^Lade … (\d+) %$/,"Loading … $1 %"]];
+function tr(t){if(!LANG||typeof t!="string")return t;
+ const m=t.match(/^(\s*)([\s\S]*?)(\s*)$/),core=m[2];if(!core)return t;
+ let r=EN[core];
+ if(r===undefined)for(const[re,rep]of ENP){const g=core.match(re);
+  if(g){r=rep.replace(/T?\$(\d)/g,(x,k)=>{const v=g[k]||"";return x[0]=="T"?tr(v):v});break}}
+ return r===undefined?t:m[1]+r+m[3]}
+function trLines(t){return String(t).split("\n").map(tr).join("\n")}
+function trNode(n){if(!LANG)return;
+ if(n.nodeType==3){const p=n.parentElement;if(p&&p.closest("[translate=no],script,style"))return;
+  const v=n.nodeValue,t=tr(v);if(t!==v)n.nodeValue=t;return}
+ if(n.nodeType!=1||n.closest("[translate=no],script,style"))return;
+ const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT),l=[];let x;while(x=w.nextNode())l.push(x);l.forEach(trNode);
+ [n,...n.querySelectorAll("[placeholder],[title],[aria-label]")].forEach(e=>["placeholder","title","aria-label"].forEach(a=>{
+  if(e.hasAttribute(a)&&!e.closest("[translate=no]")){const v=e.getAttribute(a),t=tr(v);if(t!==v)e.setAttribute(a,t)}}))}
+new MutationObserver(ms=>{if(!LANG)return;for(const m of ms){if(m.type=="characterData")trNode(m.target);else m.addedNodes.forEach(trNode)}})
+ .observe(document.body,{childList:true,subtree:true,characterData:true});
+{const c=window.confirm.bind(window),p=window.prompt.bind(window);
+ window.confirm=m=>c(trLines(m));window.prompt=(m,d)=>p(tr(m),d)}
+function setLang(l){LANG=l?1:0;ls("lang",LANG);document.documentElement.lang=LANG?"en":"de"}
+function tick(){
+ if(busy>0)return;  // keine Zustandsabfrage dazwischenschieben
+ req("/api/state").then(s=>{if(!s||s.g===undefined)return;S=s;if(page&&page.live)page.live();
+  const f=$("foot");if(f)f.innerHTML=foot()})}
+function foot(){const m=Math.floor(S.off/60),s=String(S.off%60).padStart(2,"0");return `<span>waage.local · aus in ${m}:${s}</span><span>${S.time||""}</span>`}
+function tare(){return get("/api/tara").then(()=>toast("Tara gesetzt"))}
+function park(goal){get("/api/park?goal="+(goal||0))}
+function sound(s){get("/api/sound?s="+s)}
+function logAdd(g,note){return get("/api/log_add?g="+g+"&note="+encodeURIComponent(tr(note||"")))}  // Notiz in der eingestellten Sprache
+// Ergebnis der Modi einmal pro Auflegen ins Protokoll (wenn ruhig), wie an der Waage
+const trk={done:false,since:0};
+function trackReset(){trk.done=false;trk.since=0}
+function track(g,note){if(Math.abs(g)<3){trackReset();return}if(trk.done||g<5)return;if(!S.stable){trk.since=0;return}
+ if(!trk.since)trk.since=Date.now();if(Date.now()-trk.since<1500)return;trk.done=true;logAdd(g,note).then(()=>toast("Im Protokoll gespeichert"))}
+function dl(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download=name;a.click()}
+
+// ============================================================
+//  Seiten
+// ============================================================
+const P={};
+
+// ---------- Übersicht ----------
+P[""]={title:"Waage",render(){
+ return `<div class="top"><h1>Waage</h1><span class="pill" id="conn">verbunden</span></div>
+ <div class="card center">${ring(0,`<div class="big" id="w">${S.disp}<small>${S.unit}</small></div><span id="st">${statePill()}</span>`)}
+ <div class="rnd"><button class="p" onclick="tare()">Tara</button><button onclick="get('/api/save').then(r=>toast(r.ok?'Gespeichert':'Keine SD-Karte'))">Speichern</button></div>
+ <span class="faint" id="potline"></span></div>
+ <div id="svc"></div>
+ <div class="sec">Küche</div>
+ <div class="grid">${tiles([["rezept","Rezept"],["cocktail","Cocktail"],["ziel","Ziel"],["portion","Portionieren"],["timer","Timer"],["tassen","Tassen & Löffel"]])}</div>
+ <div class="sec">Werkstatt</div>
+ <div class="grid">${tiles([["spule","Spule"],["zaehlen","Zählen"],["porto","Porto"],["mix","2K mischen"],["langzeit","Langzeit","messung"],["muenzen","Münzen"]])}</div>
+ <div class="sec">Spiele</div>
+ <div class="grid">${tiles([["spiel","Schätzen"],["trink","Trinken"],["blind","Blindgießen"],["halb","Halbe-Halbe"]])}</div>
+ <div class="sec">Verwalten</div>
+ <div class="chips">
+ <a class="chip" href="#/rezepte">${ICON.chip('<rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>')} Rezepte</a>
+ <a class="chip" href="#/cocktails">${ICON.chip('<path d="M4 5h16l-8 8.5L4 5Z"/><path d="M12 13.5V19"/><path d="M8.5 19.5h7"/>')} Cocktailkarte</a>
+ <a class="chip" href="#/toepfe">${ICON.chip('<path d="M4 9h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9Z"/><path d="M2.5 9h19"/>')} Töpfe und Spulen</a>
+ <a class="chip" href="#/protokoll">${ICON.chip('<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.2 2"/>')} Protokoll</a>
+ <a class="chip" href="#/messung">${ICON.chip('<path d="M3.5 18.5h17"/><path d="m4.5 15 4.5-5 4 3 6-7"/>')} Messungen</a>
+ <a class="chip" href="#/akku">${ICON.chip('<rect x="3" y="7" width="15" height="10" rx="2.5"/><path d="M20 10.5v3"/>')} Akku</a>
+ <a class="chip" href="#/dateien">${ICON.chip('<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.6l2 2.4h7.4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>')} Dateien</a>
+ <a class="chip" href="#/einstellungen">${ICON.chip('<circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>')} Einstellungen</a></div>
+ <div class="foot" id="foot">${foot()}</div>`},
+ live(){$("w").innerHTML=`${S.disp}<small>${S.unit}</small>`;$("st").innerHTML=statePill();
+  const r=document.querySelector(".ring .in");
+  if(r){const c=2*Math.PI*103;r.style.strokeDashoffset=c*(1-Math.max(0,Math.min(1,S.gross/S.max)));
+   r.style.stroke=S.over?"var(--dan)":"var(--acc)"}
+  $("potline").textContent=S.pot?"Topf abgezogen: "+S.pot:"";
+  $("conn").textContent="verbunden"+(S.bat>=0?" · Akku "+S.bat+" %":"");
+  // Hintergrunddienste der Waage: abgelaufener Timer, laufender Timer, Langzeitmessung
+  const h=S.ring?`<div class="info" style="background:var(--warnbg);color:var(--warn);border-color:#4A3A1A"><b>Timer abgelaufen</b>
+   <button class="p" onclick="get('/api/timer?ringoff=1')">Alarm aus</button></div>`
+   :((S.tm>=0||S.lt)?`<div class="chips">${S.tm>=0?`<a class="chip" href="#/timer">${ICON.chip('<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5"/>')} Timer ${tfmt(S.tm)}</a>`:""}
+   ${S.lt?`<a class="chip" href="#/messung">${ICON.chip('<path d="m4.5 15 4.5-5 4 3 6-7"/>')} Messung läuft</a>`:""}</div>`:"");
+  const e=$("svc");if(e&&e._h!==h){e._h=h;e.innerHTML=h}}};
+function tiles(a){return a.map(t=>`<a class="tile" href="#/${t[2]||t[0]}"><span class="ic">${ICON[t[0]]}</span>${t[1]}</a>`).join("")}
+
+// ---------- Ziel ----------
+P.ziel={goal:ls("ziel")||250,run:false,logged:false,render(){
+ const presets=[50,100,250,500,1000];
+ return head("Ziel",true,this.run?`<a class="act" href="#" onclick="P.ziel.stop();return false">Neues Ziel</a>`:"")+
+ `<div class="card hide" id="zset"><span class="mut">Zielgewicht</span>${stepper("zg",this.goal,10,1,3000)}
+ <div class="seg">${[1,10,100].map(x=>`<button onclick="P.ziel.step(${x})" class="${x==10?"on":""}" id="zs${x}">±${x} g</button>`).join("")}</div>
+ <div class="chips">${presets.map(p=>`<button class="chip" onclick="$('zg').value=${p};P.ziel.goal=${p}">${p} g</button>`).join("")}</div>
+ <button class="p" onclick="P.ziel.start()">Los, Parkpiepser starten</button>
+ <span class="faint">Je näher am Ziel, desto schneller piept die Waage. Im Ziel ein langer Ton, darüber ein Warnton.</span></div>
+ <div class="card center hide" id="zrun">${ring(0,`<div class="big" id="zw">0</div><span class="pill" id="zr">–</span>`)}
+ <span class="faint" id="zt"></span>
+ <div class="rnd"><button onclick="tare()">Tara</button><button class="p" id="zsave" onclick="P.ziel.save()">Speichern</button></div></div>`},
+ enter(){this.show()},
+ show(){$("zset").classList.toggle("hide",this.run);$("zrun").classList.toggle("hide",!this.run)},
+ step(x){this.st=x;[1,10,100].forEach(k=>$("zs"+k).classList.toggle("on",k==x))},
+ start(){this.goal=+$("zg").value||250;ls("ziel",this.goal);tare();park(this.goal);this.run=true;this.logged=false;
+  $("app").innerHTML=this.render();this.show()},
+ stop(){park(0);this.run=false;$("app").innerHTML=this.render();this.show()},
+ save(){logAdd(S.g,"Ziel "+this.goal+" g").then(()=>toast("Im Protokoll gespeichert"))},
+ leave(){if(this.run)park(0);this.run=false},
+ live(){if(!this.run||!$("zw"))return;const g=S.g,rest=this.goal-g,tol=2;
+  $("zw").textContent=fmt(g);
+  const r=document.querySelector("#zrun .ring .in"),c=2*Math.PI*103;
+  if(r){r.style.strokeDashoffset=c*(1-Math.max(0,Math.min(1,g/this.goal)));
+   r.style.stroke=rest<-tol?"var(--dan)":"var(--acc)"}
+  const p=$("zr");
+  if(rest>tol){p.textContent="noch "+Math.round(rest)+" g";p.className="pill n"}
+  else if(rest>=-tol){p.textContent="Ziel erreicht";p.className="pill"}
+  else{p.textContent=Math.round(-rest)+" g zu viel";p.className="pill d"}
+  $("zt").textContent="Ziel "+this.goal+" g · Toleranz ±"+tol+" g";
+  if(rest<=tol&&rest>=-tol&&S.stable&&!this.logged){this.logged=true;
+   logAdd(g,"Ziel "+this.goal+" g").then(()=>toast("Im Protokoll gespeichert"))}}};
+
+// ---------- Rezept (Modus) ----------
+P.rezept={list:[],rec:null,por:2,step:0,done:[],auto:true,render(){
+ return head("Rezept",true,this.rec?`<a class="act" href="#" onclick="P.rezept.pick();return false">Rezepte</a>`:"")+`<div class="col" id="rbody"><div class="card">Lade …</div></div>`},
+ enter(){get("/api/recipes").then(l=>{this.list=l;this.pick()})},
+ pick(){this.rec=null;park(0);
+  $("rbody").innerHTML=this.list.length?`<div class="card list">${this.list.map((r,i)=>
+   `<div class="it"><span><b>${esc(r.name)}</b><br><span class="faint">${r.count} Zutaten</span></span>
+    <button class="sm p" onclick="P.rezept.open(${i})">Wählen</button></div>`).join("")}</div>`:
+  `<div class="card">Noch keine Rezepte.<a class="btn p" href="#/rezepte">Rezept anlegen</a></div>`},
+ open(i){get("/api/recipe?file="+encodeURIComponent(this.list[i].file)).then(r=>{this.rec=r;this.por=r.portions;this.prev()})},
+ amount(i){return this.rec.ing[i].grams*this.por/this.rec.portions},
+ total(){return this.rec.ing.reduce((a,z,i)=>a+this.amount(i),0)},
+ prev(){const r=this.rec;
+  $("rbody").innerHTML=`<div class="card"><div class="top"><h2>${esc(r.name)}</h2><span class="mut" id="rt">${Math.round(this.total())} g gesamt</span></div>
+   <div class="set"><span>Portionen</span>${stepper("rp",this.por,1,1,20)}</div>
+   <table>${r.ing.map((z,i)=>`<tr><td class="faint" style="width:22px">${i+1}</td><td>${esc(z.name)}</td><td class="r" id="ra${i}">${Math.round(this.amount(i))} g</td></tr>`).join("")}</table>
+   <button class="p" onclick="P.rezept.begin()">Starten</button>
+   <span class="faint">Nach jeder Zutat wird automatisch tariert.</span></div>`;
+  $("rp").oninput=()=>{this.por=Math.max(1,+$("rp").value||1);
+   r.ing.forEach((z,i)=>$("ra"+i).textContent=Math.round(this.amount(i))+" g");
+   $("rt").textContent=Math.round(this.total())+" g gesamt"}},
+ begin(){this.step=0;this.done=[];tare();this.show()},
+ show(){const r=this.rec,z=r.ing[this.step],goal=this.amount(this.step);park(goal);
+  const nxt=r.ing[this.step+1];
+  $("rbody").innerHTML=`<div class="card center">
+   <span class="mut">Schritt ${this.step+1} von ${r.ing.length}</span>
+   <h2 style="font-size:24px">${esc(z.name)}</h2>
+   ${ring(0,`<div class="big" id="rw">0<small>g</small></div><span class="pill" id="rr">–</span>`)}
+   <span class="faint">Ziel ${fmt(goal)} g${nxt?" · danach "+esc(nxt.name):""}</span>
+   <div class="rnd"><button onclick="tare()">Tara</button><button onclick="P.rezept.back()">Zurück</button>
+   <button class="p" onclick="P.rezept.next()">${this.step+1>=r.ing.length?"Fertig":"Weiter"}</button></div></div>
+   <div class="card"><div class="top"><span class="mut">Zutaten</span><span class="faint">${this.step+1} von ${r.ing.length}</span></div>
+   <div class="list">${r.ing.map((x,i)=>`<div class="it" style="${i==this.step?"color:var(--acc)":(i<this.step?"":"opacity:.55")}">
+    <span>${i<this.step?"✓":(i==this.step?"›":"–")} ${esc(x.name)}</span><span>${fmt(this.amount(i))} g</span></div>`).join("")}</div></div>`},
+ next(){this.done[this.step]=S.g;if(this.step+1>=this.rec.ing.length){this.finish();return}this.step++;tare();this.show()},
+ back(){if(this.step==0){park(0);this.prev();return}this.step--;tare();this.show()},
+ finish(){park(0);const sum=this.done.reduce((a,b)=>a+b,0);logAdd(sum,"Rezept: "+this.rec.name);sound("done");
+  $("rbody").innerHTML=`<div class="card center">${ring(1,`<div class="mid" style="color:var(--acc)">Fertig</div>`)}
+   <h2>${esc(this.rec.name)}</h2>
+   <span class="mut">${this.rec.ing.length} Zutaten · ${this.por} Portionen · ${fmt(sum)} g</span>
+   <span class="faint">Eintrag steht im Protokoll.</span>
+   <div class="btns"><button class="g" onclick="P.rezept.pick()">Rezepte</button><a class="btn p g" href="#/">Übersicht</a></div></div>`},
+ leave(){park(0)},
+ live(){if(!this.rec||!$("rw"))return;const goal=this.amount(this.step),g=S.g,tol=Math.max(.5,Math.min(2,goal*.05));
+  $("rw").innerHTML=fmt(g)+"<small>g</small>";
+  const col=g>goal+tol?"var(--dan)":(g>=goal-tol?"var(--acc)":"var(--text)");
+  $("rw").style.color=col;
+  const r=document.querySelector(".ring .in");
+  if(r){const c=2*Math.PI*103;r.style.strokeDashoffset=c*(1-Math.max(0,Math.min(1,g/goal)));r.style.stroke=col}
+  const pill=$("rr");
+  if(g>goal+tol){pill.textContent=fmt(g-goal)+" g zu viel";pill.className="pill d"}
+  else if(g>=goal-tol){pill.textContent="passt";pill.className="pill"}
+  else{pill.textContent="noch "+fmt(goal-g)+" g";pill.className="pill n"}
+  this.auto(g>=goal-tol)},
+ // erreicht und ruhig -> nach 1,2 s zur nächsten Zutat (Einstellung Auto-Weiter)
+ auto(erreicht){if(!AUTONEXT||!erreicht||!S.stable){this.okSince=0;return}
+  const now=Date.now();if(!this.okSince)this.okSince=now;
+  if(now-this.okSince>1200){this.okSince=0;this.next()}}};
+
+// ---------- Spule ----------
+const MAT=[["PLA",1.24],["PETG",1.27],["ABS",1.04],["ASA",1.07],["TPU",1.21],["PC",1.20],["Nylon",1.14]];
+P.spule={spools:[],render(){const m=ls("mat")||0,d=ls("diam")||1.75;
+ return head("Spule")+`
+ <div class="card center">${ring(0,`<div class="big" id="sl">0<small>m</small></div><span class="pill">Restfilament</span>`)}
+ <table><tr><td>Auf der Waage</td><td class="r" id="sg">–</td></tr>
+ <tr><td>Leerspule</td><td class="r" id="ssp">ohne</td></tr>
+ <tr><td>Netto Filament</td><td class="r" id="sn">–</td></tr></table>
+ <button onclick="P.spule.save()">Restmeter ins Protokoll</button></div>
+ <div class="card"><div class="top"><span class="mut">Material</span><span class="mut" id="sd">${fmt(MAT[m][1],2)} g/cm³</span></div>
+ <div class="chips" id="smc">${MAT.map((x,i)=>`<button class="chip ${i==m?"on":""}" onclick="P.spule.mat(${i})">${x[0]}</button>`).join("")}</div>
+ <span class="mut">Durchmesser</span>
+ <div class="seg" style="max-width:230px"><button id="d175" class="${d<2?"on":""}" onclick="P.spule.diam(1.75)">1,75 mm</button><button id="d285" class="${d>2?"on":""}" onclick="P.spule.diam(2.85)">2,85 mm</button></div></div>
+ <div class="card"><span class="mut">Leerspule</span><div class="chips" id="ssc"></div>
+ <span class="faint">Neue Leerspule anlegen: leere Spule auflegen, Namen eingeben.</span>
+ <div class="btns"><input id="snew" placeholder="Hersteller oder Name"><button class="p" onclick="P.spule.add()">Anlegen</button></div>
+ <span class="faint" id="scur"></span></div>`},
+ enter(){trackReset();this.loadSpools()},
+ loadSpools(){get("/api/pots").then(p=>{this.spools=p.spools;this.drawSpools()})},
+ drawSpools(){const sel=ls("spool");if(!$("ssc"))return;
+  $("ssc").innerHTML=`<button class="chip ${(sel==null||sel<0)?"on":""}" onclick="P.spule.pick(-1)">Ohne Leerspule</button>`+
+   this.spools.map((x,i)=>`<button class="chip ${sel==i?"on":""}" onclick="P.spule.pick(${i})">${esc(x.name)} · ${Math.round(x.grams)} g</button>`).join("")},
+ pick(i){ls("spool",i);this.drawSpools()},
+ mat(i){ls("mat",i);$("smc").querySelectorAll("button").forEach((b,k)=>b.classList.toggle("on",k==i));$("sd").textContent=fmt(MAT[i][1],2)+" g/cm³"},
+ diam(d){ls("diam",d);$("d175").classList.toggle("on",d<2);$("d285").classList.toggle("on",d>2)},
+ spool(){const i=ls("spool");return i>=0&&this.spools[i]?this.spools[i]:null},
+ net(){const sp=this.spool();return Math.max(0,S.g-(sp?sp.grams:0))},
+ len(net){const d=ls("diam")||1.75,r=d/20,m=MAT[ls("mat")||0];return net/m[1]/(Math.PI*r*r)/100},
+ live(){if(!$("sl"))return;const n=this.net(),sp=this.spool(),m=MAT[ls("mat")||0];
+  track(n,"Spule "+m[0]+": "+Math.round(this.len(n))+" m");
+  $("sl").innerHTML=Math.round(this.len(n))+"<small>m</small>";
+  $("sg").textContent=fmt(S.g)+" g";
+  $("ssp").textContent=sp?esc(sp.name)+" · "+fmt(sp.grams)+" g":"ohne";
+  $("sn").textContent=fmt(n)+" g";
+  $("scur").textContent="Aktuell auf der Waage: "+fmt(S.g)+" g";
+  const r=document.querySelector(".ring .in");
+  if(r){const c=2*Math.PI*103;r.style.strokeDashoffset=c*(1-Math.min(1,n/1000))}},
+ save(){const n=this.net(),m=MAT[ls("mat")||0];
+  logAdd(n,"Spule "+m[0]+": "+Math.round(this.len(n))+" m").then(()=>toast("Im Protokoll gespeichert"))},
+ add(){const name=$("snew").value.trim();if(!name){toast("Bitte Namen eingeben");return}
+  api("/api/spool_add",{name}).then(r=>{toast(r.ok?"Leerspule gespeichert":r.msg);if(r.ok){$("snew").value="";this.loadSpools()}})}};
+
+// ---------- Zählen ----------
+P.zaehlen={render(){const pg=ls("piece")||0;
+ return head("Zählen",true,`<span class="pill ${S.ble?"":"n"}" id="zb">${S.ble?"Bluetooth":"kein BT"}</span>`)+
+ `<div class="card ${pg?"hide":""}" id="zref"><span class="mut">Referenz: so viele Teile liegen auf der Waage</span>
+  ${stepper("zn",10,1,1,500)}
+  <table><tr><td>Gewicht</td><td class="r" id="zrg">–</td></tr>
+  <tr><td>Stückgewicht</td><td class="r" id="zrp">–</td></tr></table>
+  <div class="btns"><button class="g" onclick="tare()">Tara (Schale)</button><button class="p g" onclick="P.zaehlen.ref()">Übernehmen</button></div>
+  <span class="faint">Je mehr Teile in der Referenz, desto genauer wird gezählt. Übernehmen geht erst, wenn das Gewicht stabil ist.</span></div>
+ <div class="card center ${pg?"":"hide"}" id="zrun"><div class="big" id="zc">–</div>
+  <span class="mut" id="zi"></span><span class="faint" id="zw"></span>
+  <div class="rnd"><button onclick="tare()">Tara</button><button class="p" onclick="P.zaehlen.ble()">Senden</button></div>
+  <button class="sm" onclick="ls('piece',0);P.zaehlen.reload()">Neue Referenz</button></div>
+ <div class="card ${pg?"":"hide"}" id="zlc"><div class="top"><span class="mut">Zählliste</span><span class="mut" id="zsum"></span></div>
+  <div class="btns"><input id="zl" placeholder="Bezeichnung, z. B. M3×12"><button class="p" onclick="P.zaehlen.add()">Hinzufügen</button></div>
+  <div class="list" id="zlist"></div>
+  <div class="btns"><button class="g" onclick="P.zaehlen.csv()">Liste als CSV</button><button class="d" onclick="ls('zlist',[]);P.zaehlen.draw()">Leeren</button></div></div>`},
+ enter(){trackReset();this.draw()},
+ reload(){$("app").innerHTML=this.render();this.draw()},
+ count(){const pg=ls("piece");return pg?Math.max(0,Math.round(S.g/pg)):0},
+ live(){const pg=ls("piece");
+  if($("zrg")){$("zrg").textContent=fmt(S.g)+" g";const n=+($("zn")?$("zn").value:10)||10;
+   $("zrp").textContent=S.g>0?fmt(S.g/n,3)+" g":"–"}
+  if(pg&&$("zc")){$("zc").innerHTML=this.count()+"<small>Stück</small>";
+   track(S.g,"Zählen: "+this.count()+" Stk");
+   const f=Math.abs(S.g/pg-this.count());
+   $("zi").textContent=f>.3&&this.count()>0?"unsicher · Referenz prüfen":"Stückgewicht "+fmt(pg,3)+" g";
+   $("zw").textContent=fmt(S.g)+" g auf der Waage"}
+  if($("zb")){$("zb").className="pill "+(S.ble?"":"n");$("zb").textContent=S.ble?"Bluetooth":"kein BT"}},
+ ref(){const n=+$("zn").value||10;if(!S.stable||S.g<.5){toast("Noch nicht stabil");return}
+  ls("piece",S.g/n);sound("save");toast("Referenz übernommen");this.reload()},
+ add(){if(!ls("piece")){toast("Erst Referenz übernehmen");return}const l=ls("zlist")||[];
+  l.push({name:$("zl").value||"Position "+(l.length+1),n:this.count(),t:S.time});ls("zlist",l);$("zl").value="";this.draw()},
+ draw(){if(!$("zlist"))return;const l=ls("zlist")||[];
+  $("zlist").innerHTML=l.length?l.map((x,i)=>`<div class="it"><span>${esc(x.name)}</span><span><b>${x.n}</b> <button class="sm d" onclick="P.zaehlen.del(${i})">×</button></span></div>`).join(""):'<span class="faint">noch leer</span>';
+  $("zsum").textContent=l.length+(l.length==1?" Position":" Positionen")},
+ del(i){const l=ls("zlist")||[];l.splice(i,1);ls("zlist",l);this.draw()},
+ csv(){const l=ls("zlist")||[];dl("zaehlliste.csv","Bezeichnung;Stueck;Uhrzeit\n"+l.map(x=>`${x.name};${x.n};${x.t}`).join("\n"))},
+ ble(){get("/api/ble_send?n="+this.count()).then(r=>toast(r.ok?"Gesendet":"Bluetooth nicht verbunden"))}};
+
+// ---------- Porto ----------
+P.porto={cls:[],render(){return head("Porto",true,`<a class="act" href="#/einstellungen">Klassen</a>`)+`
+ <div class="card center"><span class="mut" id="pn">–</span>
+ <div class="big" id="pw">0,0<small>g</small></div>
+ <span class="mid" style="font-size:22px;color:var(--warn)" id="pp"></span>
+ <span class="faint" id="pr"></span></div>
+ <div class="card"><div class="top"><span class="mut">Klassen</span><span class="mut">bis Gramm · Preis</span></div>
+ <table id="pt"></table>
+ <span class="faint">Grenzen und Preise pflegst du unter Einstellungen → Portoklassen.</span></div>`},
+ enter(){trackReset();get("/api/settings").then(s=>{this.cls=s.porto;this.live()})},
+ live(){if(!$("pw")||!this.cls.length)return;const g=Math.max(0,S.g);
+  $("pw").innerHTML=fmt(g)+"<small>g</small>";
+  let k=this.cls.findIndex(c=>g<=c.max);
+  const c=k>=0?this.cls[k]:null;
+  $("pn").textContent=c?c.name:"über der größten Klasse";
+  $("pp").textContent=c?fmt(c.ct/100,2)+" €":"";
+  $("pr").textContent=c?"noch "+fmt(Math.max(0,c.max-g))+" g Luft bis "+c.max+" g":"";
+  if(c)track(g,"Porto "+c.name+" "+fmt(c.ct/100,2)+" EUR");
+  $("pt").innerHTML=this.cls.map((x,i)=>`<tr style="${i==k?"color:var(--acc)":""}"><td>${esc(x.name)}</td><td class="r">bis ${x.max} g</td><td class="r">${fmt(x.ct/100,2)} €</td></tr>`).join("")}};
+
+// ---------- Spieler: einmal pflegen, in den Spielen nur auswählen ----------
+const PL={all:[],sel:[],
+ load(){return get("/api/players").then(n=>{PL.all=(n&&n.length)?n:["Spieler 1","Spieler 2"];
+  if(!PL.sel.length)PL.sel=PL.all.slice(0,Math.min(3,PL.all.length));
+  PL.sel=PL.sel.filter(x=>PL.all.includes(x));return PL.all})},
+ toggle(n){const i=PL.sel.indexOf(n);if(i<0)PL.sel.push(n);else PL.sel.splice(i,1)},
+ chips(cb){return `<div class="chips">${PL.all.map(n=>`<button class="chip ${PL.sel.includes(n)?"on":""}" onclick="PL.toggle('${esc(n).replace(/'/g,"")}');${cb}">${esc(n)}</button>`).join("")}
+  <button class="chip" onclick="PL.neu('${cb}')">+ Neuer Spieler</button></div>`},
+ neu(cb){const n=(prompt("Name des neuen Spielers")||"").trim();if(!n)return;
+  api("/api/player_add",{name:n}).then(()=>{PL.all.push(n);PL.sel.push(n);eval(cb)})},
+ scores(game){return get("/api/scores").then(rows=>{
+  if(!Array.isArray(rows))rows=[];  // Server ohne Bestenliste oder Fehler
+  const best={};
+  rows.filter(r=>!game||r.game==game).forEach(r=>{
+   const k=r.name+"|"+r.game;
+   if(!best[k]||r.value<best[k].value)best[k]={name:r.name,game:r.game,value:r.value,unit:r.unit,day:r.day}});
+  return Object.values(best).sort((a,b)=>a.value-b.value)})},
+ board(game,titel){return PL.scores(game).then(list=>list.length?
+  `<div class="card"><div class="top"><span class="mut">${titel}</span><span class="faint">kleiner ist besser</span></div>
+   <table>${list.slice(0,10).map((r,i)=>`<tr style="${i==0?"color:var(--acc)":""}"><td>${i+1}. ${esc(r.name)}</td>
+   <td class="r">${fmt(r.value,1)} ${esc(r.unit||"g")}</td><td class="r faint">${esc(r.day)}</td></tr>`).join("")}</table></div>`:
+  `<div class="card"><span class="mut">${titel}</span><span class="faint">Noch keine Ergebnisse gespeichert.</span></div>`)}};
+
+// ---------- Spiel ----------
+P.spiel={st:"setup",players:["Spieler 1","Spieler 2","Spieler 3"],rounds:5,round:0,tips:[],tot:[],weight:0,render(){return head("Schätzspiel")+`<div class="col" id="gb"></div>`},
+ enter(){if(this.st!="setup"){this.roundUi();return}PL.load().then(()=>this.setup())},
+ setup(){this.st="setup";get("/api/hide?on=0");
+  $("gb").innerHTML=`<div class="card"><div class="top"><h2>Mitspieler</h2><span class="mut">${PL.sel.length} gewählt</span></div>
+  ${PL.chips("P.spiel.setup()")}
+  <span class="faint">Namen pflegst du einmal unter Einstellungen → Spielernamen.</span></div>
+  <div class="card"><div class="set"><span>Runden</span><div class="seg" style="width:190px">${[3,5,10].map(r=>`<button class="${r==this.rounds?"on":""}" onclick="P.spiel.rounds=${r};P.spiel.setup()">${r}</button>`).join("")}</div></div>
+  <span class="faint">Waage leer lassen und starten. Das Gewicht wird dann auch auf dem Display der Waage versteckt.</span>
+  <button class="p" onclick="P.spiel.start()" ${PL.sel.length<2?"disabled":""}>Spiel starten</button>
+  ${PL.sel.length<2?'<span class="faint">Mindestens zwei Mitspieler wählen.</span>':""}</div>
+  <div id="gboard"></div>`;
+  PL.board("Schaetzspiel","Bestenliste Schätzspiel").then(h=>{if($("gboard"))$("gboard").innerHTML=h})},
+ start(){this.players=PL.sel.slice();this.round=0;this.tot=this.players.map(()=>0);tare();get("/api/hide?on=1");this.st="place";this.roundUi()},
+ roundUi(){this.tips=this.players.map(()=> "");$("gb").innerHTML=`<div class="card center"><span class="mut">Runde ${this.round+1} / ${this.rounds}</span><div class="big" style="color:var(--faint)">? ? ?</div><span id="gs" class="mid" style="font-size:18px"></span></div>
+  <div class="card"><h2>Tipps in Gramm</h2>${this.players.map((p,i)=>`<div class="set"><span>${esc(p)}</span><input type="number" inputmode="numeric" id="gt${i}" style="max-width:120px"></div>`).join("")}
+  <button class="p" id="gr" onclick="P.spiel.reveal()" disabled>Auflösen</button></div>`},
+ live(){if(this.st!="place"||!$("gs"))return;const ready=S.stable&&S.g>=5;$("gs").textContent=this.needEmpty?"Gegenstand abnehmen":(S.g<5?"Gegenstand verdeckt auflegen":(S.stable?"Bereit – Tipps eingeben":"misst …"));
+  if(this.needEmpty&&Math.abs(S.g)<3)this.needEmpty=false;$("gr").disabled=!(ready&&!this.needEmpty)},
+ reveal(){this.tips=this.players.map((_,i)=>+$("gt"+i).value||0);this.weight=S.g;this.st="reveal";sound("drum");
+  $("gb").innerHTML=`<div class="card center"><span class="mut">Auflösung</span><div class="big" style="color:var(--faint)">? ? ?</div></div>`;
+  setTimeout(()=>{const res=this.players.map((p,i)=>({p,i,d:Math.abs(this.tips[i]-this.weight)})).sort((a,b)=>a.d-b.d);
+   res.forEach(r=>this.tot[r.i]+=r.d);const last=this.round+1>=this.rounds;
+   $("gb").innerHTML=`<div class="card center"><span class="mut">Auflösung Runde ${this.round+1}</span><div class="big" style="color:var(--acc)">${Math.round(this.weight)}<small>g</small></div></div>
+   <div class="card"><table>${res.map((r,k)=>`<tr style="${k==0?"color:var(--acc);font-weight:600":""}"><td>${esc(r.p)}</td><td class="r">${this.tips[r.i]} g</td><td class="r">${Math.round(r.d)} g daneben</td></tr>`).join("")}</table>
+   <button class="p" onclick="P.spiel.${last?"board":"nextRound"}()">${last?"Endstand":"Nächste Runde"}</button></div>`},1300)},
+ nextRound(){this.round++;this.st="place";this.needEmpty=true;this.roundUi()},
+ board(){this.st="setup";get("/api/hide?on=0");sound("done");const res=this.players.map((p,i)=>({p,d:this.tot[i]})).sort((a,b)=>a.d-b.d);
+  api("/api/game",{line:new Date().toLocaleString("de-DE")+";"+this.rounds+" Runden;"+res.map(r=>r.p+":"+Math.round(r.d)).join(";")});
+  res.forEach(r=>api("/api/scores",{game:"Schaetzspiel",name:r.p,value:Math.round(r.d*10)/10,unit:"g"}));
+  logAdd(res[0].d,"Schätzspiel: Sieger "+res[0].p);
+  $("gb").innerHTML=`<div class="card"><h2>Bestenliste</h2><table>${res.map((r,k)=>`<tr style="${k==0?"color:var(--acc);font-weight:600":""}"><td>${k+1}. ${esc(r.p)}</td><td class="r">${Math.round(r.d)} g</td></tr>`).join("")}</table>
+  <span class="faint">Summe der Abweichungen über alle Runden</span><button class="p" onclick="P.spiel.setup()">Neues Spiel</button></div>`},
+ leave(){if(this.st!="setup")get("/api/hide?on=0")}};
+
+// ---------- Cocktail ----------
+// Rezepte in ml; gewogen wird in Gramm, umgerechnet über die Dichte der Zutat.
+const DENS=[["sirup",1.28],["syrup",1.28],["honig",1.42],["likör",1.08],["likor",1.08],["baileys",1.05],["sahne",1.01],
+ ["milch",1.03],["saft",1.05],["juice",1.05],["limette",1.03],["zitrone",1.03],["orange",1.05],["ananas",1.05],
+ ["cola",1.04],["tonic",1.04],["ginger",1.04],["soda",1.0],["wasser",1.0],["eis",0.92],["wodka",0.95],["vodka",0.95],
+ ["gin",0.94],["rum",0.94],["tequila",0.94],["whisk",0.94],["cachaca",0.94],["wermut",0.99],["vermouth",0.99],
+ ["aperol",1.06],["campari",1.06],["sekt",0.99],["prosecco",0.99],["wein",0.99],["espresso",1.0]];
+function dens(n){n=(n||"").toLowerCase();for(const[k,v]of DENS)if(n.includes(k))return v;return 1}
+function glasSvg(fill,color){ // fill 0..1
+ const y=170-120*Math.max(0,Math.min(1,fill));
+ return `<svg viewBox="0 0 160 220" width="150" height="205" aria-hidden="true">
+ <defs><clipPath id="cup"><path d="M30 50 L130 50 L88 150 L72 150 Z"/></clipPath></defs>
+ <path d="M30 50 L130 50 L88 150 L72 150 Z" fill="#fff" stroke="#CFCABD" stroke-width="3"/>
+ <g clip-path="url(#cup)"><rect x="20" y="${y}" width="120" height="200" fill="${color}" opacity=".85"/></g>
+ <rect x="76" y="150" width="8" height="45" fill="#CFCABD"/><rect x="50" y="193" width="60" height="8" rx="4" fill="#CFCABD"/>
+ </svg>`}
+P.cocktail={list:[],rec:null,glasses:1,step:0,done:[],
+ render(){return head("Cocktail",true,this.rec?`<a class="act" href="#" onclick="P.cocktail.pick();return false">Cocktails</a>`:"")+`<div class="col" id="cb"><div class="card">Lade …</div></div>`},
+ enter(){trackReset();get("/api/recipes?dir=cocktails").then(l=>{this.list=l;this.pick()})},
+ pick(){this.rec=null;park(0);
+  $("cb").innerHTML=this.list.length?`<div class="card list">${this.list.map((r,i)=>
+   `<div class="it"><span><b>${esc(r.name)}</b><br><span class="faint">${r.count} Zutaten</span></span>
+    <button class="sm p" onclick="P.cocktail.open(${i})">Mixen</button></div>`).join("")}</div>`:
+   `<div class="card">Keine Cocktails auf der Karte.<a class="btn p" href="#/cocktails">Cocktail anlegen</a></div>`},
+ open(i){get("/api/recipe?dir=cocktails&file="+encodeURIComponent(this.list[i].file)).then(r=>{this.rec=r;this.glasses=1;this.prev()})},
+ ml(i){return this.rec.ing[i].grams*this.glasses/(this.rec.portions||1)},
+ goal(i){return this.ml(i)*dens(this.rec.ing[i].name)},
+ total(){return this.rec.ing.reduce((a,z,i)=>a+this.ml(i),0)},
+ prev(){const r=this.rec;
+  $("cb").innerHTML=`<div class="card center">${glasLayers(r.ing.map((z,i)=>({name:z.name,ml:this.ml(i)})),this.total())}
+   <span class="mut" id="cg2">${Math.round(this.total())} ml im Glas</span></div>
+   <div class="card"><div class="top"><h2>${esc(r.name)}</h2><span class="mut">in Milliliter</span></div>
+   <div class="set"><span>Gläser</span>${stepper("cg",this.glasses,1,1,6)}</div>
+   <div class="list">${r.ing.map((z,i)=>`<div class="it"><span><span class="dot" style="background:${farbe(z.name)};display:inline-block;margin-right:8px"></span>${esc(z.name)}</span>
+    <span id="cm${i}">${Math.round(this.ml(i))} ml · ${fmt(this.goal(i))} g</span></div>`).join("")}</div>
+   <button class="p" onclick="P.cocktail.begin()">Glas draufstellen und starten</button>
+   <span class="faint">Die Waage rechnet Milliliter über die Dichte in Gramm um.</span></div>`;
+  $("cg").oninput=()=>{this.glasses=Math.max(1,Math.min(6,+$("cg").value||1));this.prev()}},
+ begin(){this.step=0;this.done=[];tare();this.show()},
+ show(){const z=this.rec.ing[this.step],goal=this.goal(this.step);park(goal);
+  const before=this.rec.ing.slice(0,this.step).map((x,i)=>({name:x.name,ml:this.ml(i)}));
+  $("cb").innerHTML=`<div class="card center"><span class="mut">Zutat ${this.step+1} von ${this.rec.ing.length} · ${esc(this.rec.name)}</span>
+   <div id="cglas">${glasLayers(before,this.total())}</div>
+   <h2 style="font-size:24px">${esc(z.name)}</h2>
+   <div class="big" id="cv">0<small>ml</small></div>
+   <span class="pill" id="cs">eingießen</span>
+   <span class="faint">Ziel ${Math.round(this.ml(this.step))} ml (${fmt(goal)} g, Dichte ${fmt(dens(z.name),2)})</span>
+   <div class="rnd"><button onclick="tare()">Tara</button><button onclick="P.cocktail.back()">Zurück</button>
+   <button class="p" onclick="P.cocktail.next()">${this.step+1>=this.rec.ing.length?"Fertig":"Weiter"}</button></div></div>
+   <div class="card"><div class="list">${this.rec.ing.map((x,i)=>`<div class="it" style="${i==this.step?"color:var(--acc)":(i<this.step?"":"opacity:.55")}">
+    <span><span class="dot" style="background:${farbe(x.name)};display:inline-block;margin-right:8px"></span>${esc(x.name)}</span>
+    <span>${Math.round(this.ml(i))} ml</span></div>`).join("")}</div></div>`},
+ next(){this.done[this.step]=S.g;if(this.step+1>=this.rec.ing.length){this.finish();return}this.step++;tare();this.show()},
+ back(){if(this.step==0){park(0);this.prev();return}this.step--;tare();this.show()},
+ finish(){park(0);sound("done");const g=this.done.reduce((a,b)=>a+b,0);
+  let ml=0;this.done.forEach((x,i)=>ml+=x/dens(this.rec.ing[i].name));
+  logAdd(g,"Cocktail: "+this.rec.name);
+  $("cb").innerHTML=`<div class="card center">${glasLayers(this.rec.ing.map((z,i)=>({name:z.name,ml:this.ml(i)})),this.total())}
+   <div class="mid" style="color:var(--acc)">Fertig gemixt</div><h2>${esc(this.rec.name)}</h2>
+   <span class="mut">${Math.round(ml)} ml · ${this.glasses} ${this.glasses>1?"Gläser":"Glas"}</span>
+   <span class="faint">Eintrag steht im Protokoll.</span>
+   <div class="btns"><button class="g" onclick="P.cocktail.pick()">Cocktails</button><a class="btn p g" href="#/">Übersicht</a></div></div>`},
+ live(){if(!this.rec||!$("cv"))return;const z=this.rec.ing[this.step],d=dens(z.name),soll=this.ml(this.step),ml=S.g/d;
+  const tol=Math.max(1,soll*0.03);
+  $("cv").innerHTML=Math.round(ml)+"<small>ml</small>";
+  const state=ml<soll-tol?0:(ml<=soll+tol?1:2),col=state==2?"var(--dan)":(state==1?"var(--acc)":"var(--text)");
+  $("cv").style.color=col;
+  const p=$("cs");
+  p.textContent=state==2?Math.round(ml-soll)+" ml zu viel":(state==1?"passt":"noch "+Math.round(soll-ml)+" ml");
+  p.className="pill "+(state==2?"d":(state==1?"":"n"));
+  const items=this.rec.ing.slice(0,this.step).map((x,i)=>({name:x.name,ml:this.ml(i)}));
+  items.push({name:z.name,ml:Math.min(ml,soll*1.2)});
+  $("cglas").innerHTML=glasLayers(items,this.total());
+  this.auto(state>0)},
+ // erreicht (oder leicht darüber) und ruhig -> automatisch weiter
+ auto(erreicht){if(!AUTONEXT||!erreicht||!S.stable){this.okSince=0;return}
+  const now=Date.now();if(!this.okSince)this.okSince=now;
+  if(now-this.okSince>1200){this.okSince=0;this.next()}},
+ leave(){park(0)}};
+
+// ---------- Cocktailkarte: eigene Cocktails anlegen ----------
+const ZUTATEN=["Gin","Wodka","Rum weiß","Rum braun","Tequila","Whisky","Cachaca","Aperol","Campari","Wermut",
+ "Triple Sec","Kokoslikör","Kaffeelikör","Pfirsichlikör","Prosecco","Tonic Water","Cola","Ginger Beer","Ginger Ale","Soda",
+ "Orangensaft","Ananassaft","Maracujasaft","Cranberrysaft","Limettensaft","Zitronensaft","Zuckersirup",
+ "Grenadine","Holundersirup","Sahne","Milch","Espresso","Minzblätter","Eiswürfel"];
+const FARBEN=[["cola","#4A2C17"],["rum braun","#8A4B1E"],["whisk","#B8701F"],["aperol","#F26B1D"],
+ ["campari","#C42B2B"],["grenadine","#C0264B"],["cranberry","#B0284A"],["orangensaft","#F2A03D"],
+ ["maracuja","#F0B02A"],["ananas","#F3D046"],["ginger","#D9A441"],["kaffee","#3B2415"],
+ ["espresso","#3B2415"],["sahne","#F3EDE0"],["milch","#F3EDE0"],["kokos","#F1E7D6"],
+ ["prosecco","#EFDD9B"],["sekt","#EFDD9B"],["wermut","#C9A15A"],["sirup","#D98CA8"],
+ ["limette","#8FC95B"],["zitrone","#E4E057"],["minz","#6FBF73"],["eis","#DDEAF2"],
+ ["tonic","#CFE3EA"],["soda","#CFE3EA"],["wasser","#CFE3EA"]];
+function farbe(n){n=(n||"").toLowerCase();for(const[k,c]of FARBEN)if(n.includes(k))return c;return "#8C8778"}
+// Glas mit farbigen Schichten je Zutat (von unten nach oben gefüllt)
+function glasLayers(items,total){
+ const top=50,boden=150,H=boden-top;let y=boden,parts="";
+ items.forEach(it=>{const ml=(it.ml!==undefined?it.ml:it.grams)||0;const h=total>0?H*ml/total:0;y-=h;
+  parts+=`<rect x="20" y="${y}" width="120" height="${h+0.5}" fill="${farbe(it.name)}"/>`});
+ return `<svg viewBox="0 0 160 215" width="150" height="200" aria-hidden="true">
+ <defs><clipPath id="cup2"><path d="M30 ${top} L130 ${top} L88 150 L72 150 Z"/></clipPath></defs>
+ <path d="M30 ${top} L130 ${top} L88 150 L72 150 Z" fill="#14150F" stroke="#4A4A44" stroke-width="3"/>
+ <g clip-path="url(#cup2)">${parts}</g>
+ <rect x="76" y="150" width="8" height="45" fill="#4A4A44"/><rect x="50" y="193" width="60" height="8" rx="4" fill="#4A4A44"/></svg>`}
+
+P.cocktails={list:[],rec:null,row:0,
+ render(){return head("Cocktailkarte",true,this.rec?"":`<a class="act" href="#" onclick="P.cocktails.neu();return false">+ Neu</a>`)+`<div class="col" id="kb"></div>`},
+ enter(){trackReset();get("/api/recipes?dir=cocktails").then(l=>{this.list=l;this.rec=null;this.draw()})},
+ draw(){if(this.rec){this.editor();return}
+  $("kb").innerHTML=(this.list.length?`<div class="card list">${this.list.map((r,i)=>
+   `<div class="it"><span><b>${esc(r.name)}</b><br><span class="faint">${r.count} Zutaten</span></span>
+    <span class="btns"><button class="sm" onclick="P.cocktails.open(${i})">Bearbeiten</button>
+    <a class="btn sm p" href="#/cocktail">Mixen</a></span></div>`).join("")}</div>`:
+   `<div class="card">Noch keine Cocktails auf der Karte.</div>`)+
+   `<button class="p" onclick="P.cocktails.neu()">+ Neuer Cocktail</button>`},
+ open(i){get("/api/recipe?dir=cocktails&file="+encodeURIComponent(this.list[i].file)).then(r=>{this.rec=r;this.editor()})},
+ neu(){this.rec={file:"",name:"",portions:1,ing:[{name:"",grams:40},{name:"",grams:100}]};this.editor()},
+ total(){return this.rec.ing.reduce((a,z)=>a+(+z.grams||0),0)},
+ editor(){const r=this.rec,items=r.ing.filter(z=>z.grams>0),tot=this.total();
+  $("app").innerHTML=head("Cocktail bearbeiten",true,"")+`<div class="col" id="kb"></div>`;
+  $("kb").innerHTML=`<div class="card center">${glasLayers(items,tot)}<span class="mut" id="ktot">${Math.round(tot)} ml im Glas</span></div>
+  <div class="card"><input id="kn" placeholder="Name des Cocktails" value="${esc(r.name)}" oninput="P.cocktails.rec.name=this.value">
+  <span class="mut">Zutaten von unten nach oben · Menge in ml</span>
+  <div class="col" id="kz" style="gap:10px"></div>
+  <button onclick="P.cocktails.rec.ing.push({name:'',grams:20});P.cocktails.editor()">+ Zutat</button></div>
+  <div class="card"><div class="top"><span class="mut">Menge abwiegen</span><span class="pill" id="kw">–</span></div>
+  <span class="faint">Zutat ins Glas geben, Zeile antippen und übernehmen. Die Waage rechnet Gramm über die Dichte in ml um.</span>
+  <div class="btns"><button class="g" onclick="tare()">Tara</button><button class="p g" onclick="P.cocktails.uebernehmen()">In Zeile ${this.row+1} übernehmen</button></div></div>
+  <div class="btns">${r.file?'<button class="d g" onclick="P.cocktails.del()">Löschen</button>':''}
+  <button class="g" onclick="P.cocktails.rec=null;P.cocktails.enter()">Abbrechen</button>
+  <button class="p g" onclick="P.cocktails.save()">Speichern</button></div>
+  <datalist id="kl">${ZUTATEN.map(z=>`<option value="${esc(tr(z))}">`).join("")}</datalist>`;
+  $("kz").innerHTML=r.ing.map((z,i)=>`<div class="ing" style="grid-template-columns:18px minmax(0,1fr) 88px 44px;align-items:center">
+   <span class="dot" style="background:${farbe(z.name)}"></span>
+   <input list="kl" placeholder="Zutat" value="${esc(z.name)}" onfocus="P.cocktails.row=${i}" oninput="P.cocktails.rec.ing[${i}].name=this.value;P.cocktails.refresh()">
+   <input type="number" inputmode="numeric" value="${z.grams}" onfocus="P.cocktails.row=${i}" oninput="P.cocktails.rec.ing[${i}].grams=+this.value;P.cocktails.refresh()">
+   <button class="d" onclick="P.cocktails.rec.ing.splice(${i},1);P.cocktails.editor()">×</button></div>`).join("")},
+ refresh(){const items=this.rec.ing.filter(z=>z.grams>0),tot=this.total(),c=$("kb").firstElementChild;
+  if(c)c.innerHTML=glasLayers(items,tot)+`<span class="mut">${Math.round(tot)} ml im Glas</span>`;
+  this.rec.ing.forEach((z,i)=>{const d=$("kz").children[i];if(d)d.firstElementChild.style.background=farbe(z.name)})},
+ live(){const e=$("kw");if(!e)return;const z=this.rec&&this.rec.ing[this.row];const d=z?dens(z.name):1;
+  e.textContent=Math.round(S.g/d)+" ml"+(S.stable?"":" …")},
+ uebernehmen(){const z=this.rec.ing[this.row];if(!z)return;if(!S.stable){toast("Noch nicht stabil");return}
+  z.grams=Math.max(1,Math.round(S.g/dens(z.name)));sound("save");this.editor()},
+ save(){const r=this.rec;r.ing=r.ing.filter(z=>z.name.trim()&&z.grams>0);r.portions=1;
+  if(!r.name.trim()||!r.ing.length){toast("Name und mindestens eine Zutat nötig");return}
+  api("/api/recipe?dir=cocktails",r).then(x=>{toast(x.ok?"Gespeichert":"Fehler beim Speichern");this.rec=null;
+   $("app").innerHTML=this.render();this.enter()})},
+ del(){if(!confirm("Cocktail löschen?"))return;
+  get("/api/recipe/del?dir=cocktails&file="+encodeURIComponent(this.rec.file)).then(()=>{this.rec=null;
+   $("app").innerHTML=this.render();this.enter()})}};
+
+// ---------- Trinkspiel ----------
+// Getränk abstellen -> trinken -> zurückstellen; die Waage misst den Schluck (1 g ≈ 1 ml)
+P.trink={mode:0,rounds:5,st:"setup",names:["Spieler 1","Spieler 2","Spieler 3"],render(){return head("Trinkspiel")+`<div class="col" id="tb"></div>`},
+ enter(){if(this.st!="setup"){this.turn();return}PL.load().then(()=>this.setup())},
+ setup(){this.st="setup";get("/api/hide?on=0");
+  $("tb").innerHTML=`<div class="card"><div class="seg"><button class="${this.mode==0?"on":""}" onclick="P.trink.mode=0;P.trink.setup()">Zielschluck</button><button class="${this.mode==1?"on":""}" onclick="P.trink.mode=1;P.trink.setup()">K.o.</button></div>
+  <span class="mut">${this.mode==0?"Jede Runde gibt es ein Ziel in ml. Wer am Ende insgesamt am wenigsten daneben liegt, gewinnt.":"Wer weiter daneben liegt als die Toleranz, scheidet aus. Die Toleranz wird jede Runde kleiner."}</span>
+  ${this.mode==0?`<div class="set"><span>Runden</span><div class="seg" style="width:190px">${[3,5,10].map(r=>`<button class="${r==this.rounds?"on":""}" onclick="P.trink.rounds=${r};P.trink.setup()">${r}</button>`).join("")}</div></div>`:""}</div>
+  <div class="card"><div class="top"><h2>Mitspieler</h2><span class="mut">${PL.sel.length} gewählt</span></div>
+  ${PL.chips("P.trink.setup()")}
+  <span class="faint">Namen pflegst du einmal unter Einstellungen → Spielernamen.</span></div>
+  <div class="card"><span class="faint">Ablauf: Getränk abstellen, trinken, zurückstellen – die Waage misst den Schluck. Waage vor dem Start leer lassen. Bitte verantwortungsvoll trinken.</span>
+  <button class="p" onclick="P.trink.start()" ${PL.sel.length<2?"disabled":""}>Los</button></div>
+  <div id="tboard"></div>`;
+  PL.board("Trinkspiel","Bestenliste Trinkspiel").then(h=>{if($("tboard"))$("tboard").innerHTML=h})},
+ start(){this.names=PL.sel.slice();const n=this.names.length;
+  this.round=0;this.tol=15;this.dev=Array(n).fill(0);this.drunk=Array(n).fill(0);this.sip=Array(n).fill(0);this.out=Array(n).fill(false);this.outR=Array(n).fill(-1);
+  tare();get("/api/hide?on=1");this.newTarget();this.player=this.next(0);this.turn()},
+ newTarget(){this.target=10+Math.floor(Math.random()*15)*5},
+ next(f){for(let i=f;i<this.names.length;i++)if(!this.out[i])return i;return -1},
+ alive(){return this.out.filter(o=>!o).length},
+ turn(){this.st="place";$("tb").innerHTML=`<div class="card center"><span class="mut">Runde ${this.round+1}${this.mode==0?" / "+this.rounds:""} · Ziel ${this.target} ml${this.mode==1?" · ±"+this.tol:""}</span>
+  <h2 style="font-size:24px">${esc(this.names[this.player])}</h2><div class="mid" id="ts" style="color:var(--acc)">Getränk abstellen</div>
+  <div class="big" id="tv" style="color:var(--faint)">${this.target}<small>ml</small></div><span class="mut" id="tsub">Ziel</span>
+  <button class="p hide" id="tn" onclick="P.trink.nextTurn()">Weiter</button></div>`},
+ live(){const g=S.g,st=S.stable;if(!$("ts"))return;
+  if(this.st=="place"){$("ts").textContent="Getränk abstellen";if(st&&g>=20){this.before=g;this.st="drink";sound("tick")}}
+  else if(this.st=="drink"){$("ts").textContent="Jetzt trinken!";if(g<10)this.st="back"}
+  else if(this.st=="back"){$("ts").textContent="Zurückstellen";if(st&&g>=10){const sip=this.before-g;
+   if(sip<1){toast("Nichts getrunken? Nochmal");this.before=g;this.st="drink";return}
+   this.sip[this.player]=sip;this.drunk[this.player]+=sip;this.st="reveal";$("ts").textContent="Und …";sound("drum");setTimeout(()=>this.reveal(),1300)}}},
+ reveal(){const sip=this.sip[this.player],dev=Math.abs(sip-this.target),hit=dev<=2;$("tv").innerHTML=Math.round(sip)+"<small>ml</small>";$("tv").style.color=hit?"var(--acc)":"";
+  $("ts").textContent="Ergebnis";const sub=$("tsub");
+  if(this.mode==1){const out=dev>this.tol;sub.textContent=Math.round(dev)+" ml daneben · "+(out?"raus!":"weiter");sub.style.color=out?"var(--dan)":"var(--acc)"}
+  else{sub.textContent=(hit?"Volltreffer! ":"")+Math.round(dev)+" ml daneben";sub.style.color=hit?"var(--acc)":""}
+  this.st="done";$("tn").classList.remove("hide")},
+ nextTurn(){const nx=this.next(this.player+1);if(nx>=0){this.player=nx;this.turn()}else this.roundEnd()},
+ roundEnd(){this.st="round";const n=this.names.length,alive=[...Array(n).keys()].filter(i=>!this.out[i]);let stay=0;
+  alive.forEach(i=>{const d=Math.abs(this.sip[i]-this.target);this.dev[i]+=d;if(d<=this.tol)stay++});
+  if(this.mode==1&&stay>0)alive.forEach(i=>{if(Math.abs(this.sip[i]-this.target)>this.tol){this.out[i]=true;this.outR[i]=this.round}});
+  const end=this.mode==0?this.round+1>=this.rounds:this.alive()<=1;
+  $("tb").innerHTML=`<div class="card"><h2>Runde ${this.round+1} · Ziel ${this.target} ml</h2><table>${alive.map(i=>{const d=Math.abs(this.sip[i]-this.target),o=this.outR[i]==this.round;
+   return `<tr style="${o?"color:var(--dan)":""}"><td>${esc(this.names[i])}</td><td class="r">${Math.round(this.sip[i])} ml</td><td class="r">${Math.round(d)} daneben${o?" · raus":""}</td></tr>`}).join("")}</table>
+   <button class="p" onclick="P.trink.${end?"board":"nextRound"}()">${end?"Endstand":"Nächste Runde"}</button></div>`},
+ nextRound(){this.round++;if(this.mode==1)this.tol=Math.max(3,this.tol-3);this.newTarget();this.player=this.next(0);this.turn()},
+ board(){this.st="setup";get("/api/hide?on=0");sound("done");const n=this.names.length;const idx=[...Array(n).keys()];
+  idx.sort((a,b)=>this.mode==1?((this.out[b]?this.outR[b]:999)-(this.out[a]?this.outR[a]:999))||(this.dev[a]-this.dev[b]):this.dev[a]-this.dev[b]);
+  api("/api/game",{line:new Date().toLocaleString("de-DE")+";Trinkspiel "+(this.mode?"KO":"Zielschluck")+";"+idx.map(i=>this.names[i]+":"+Math.round(this.drunk[i])+" ml getrunken").join(";")});
+  this.names.forEach((n,i)=>api("/api/scores",{game:"Trinkspiel",name:n,value:Math.round(this.dev[i]*10)/10,unit:"ml"}));
+  logAdd(this.dev[idx[0]],"Trinkspiel: Sieger "+this.names[idx[0]]);
+  $("tb").innerHTML=`<div class="card center"><span class="mut">Sieg!</span><div class="mid" style="color:var(--acc)">${esc(this.names[idx[0]])}</div></div>
+  <div class="card"><h2>Endstand</h2><table><thead><tr><th>Spieler</th><th class="r">${this.mode?"Status":"Summe daneben"}</th><th class="r">getrunken</th></tr></thead>
+  ${idx.map((i,k)=>`<tr style="${k==0?"color:var(--acc);font-weight:600":""}"><td>${k+1}. ${esc(this.names[i])}</td><td class="r">${this.mode?(this.out[i]?"raus":"Sieg"):Math.round(this.dev[i])+" ml"}</td><td class="r">${Math.round(this.drunk[i])} ml</td></tr>`).join("")}</table>
+  <button class="p" onclick="P.trink.setup()">Neues Spiel</button></div>`},
+ leave(){if(this.st!="setup")get("/api/hide?on=0")}};
+
+// ---------- Rezepte verwalten ----------
+P.rezepte={list:[],rec:null,render(){return head("Rezepte")+`<div class="col" id="rl"></div><button class="p" onclick="P.rezepte.edit(null)">+ Neues Rezept</button><div class="col" id="re"></div>`},
+ enter(){get("/api/recipes").then(l=>{this.list=l;$("rl").innerHTML=l.map((r,i)=>`<div class="card"><div class="top"><div><h2>${esc(r.name)}</h2><span class="mut">${r.count} Zutaten</span></div><button onclick="P.rezepte.edit(${i})">Bearbeiten</button></div></div>`).join("")})},
+ edit(i){const go=r=>{this.rec=r;this.draw();$("re").scrollIntoView({behavior:"smooth"})};
+  if(i===null)go({file:"",name:"",portions:2,ing:[{name:"",grams:100}]});else get("/api/recipe?file="+encodeURIComponent(this.list[i].file)).then(go)},
+ draw(){const r=this.rec;$("re").innerHTML=`<div class="card"><h2>${r.file?"Rezept bearbeiten":"Neues Rezept"}</h2>
+  <input id="rn" placeholder="Name" value="${esc(r.name)}" oninput="P.rezepte.rec.name=this.value">
+  <div class="set"><span>Portionen (Grundrezept)</span><input type="number" value="${r.portions}" style="max-width:90px" oninput="P.rezepte.rec.portions=+this.value"></div>
+  <span class="mut">Zutaten · Menge in g</span>
+  ${r.ing.map((z,i)=>`<div class="ing"><input placeholder="Zutat" value="${esc(z.name)}" oninput="P.rezepte.rec.ing[${i}].name=this.value"><input type="number" value="${z.grams}" oninput="P.rezepte.rec.ing[${i}].grams=+this.value"><button class="d" onclick="P.rezepte.rec.ing.splice(${i},1);P.rezepte.draw()">×</button></div>`).join("")}
+  <button onclick="P.rezepte.rec.ing.push({name:'',grams:100});P.rezepte.draw()">+ Zutat</button>
+  <div class="btns">${r.file?'<button class="d" onclick="P.rezepte.del()">Löschen</button>':''}<button class="p g" onclick="P.rezepte.save()">Speichern</button></div></div>`},
+ save(){const r=this.rec;r.ing=r.ing.filter(z=>z.name.trim()&&z.grams>0);if(!r.name.trim()||!r.ing.length){toast("Name und mindestens eine Zutat nötig");return}
+  api("/api/recipe",r).then(x=>{toast(x.ok?"Gespeichert":"Fehler beim Speichern");$("re").innerHTML="";this.enter()})},
+ del(){if(!confirm("Rezept löschen?"))return;get("/api/recipe/del?file="+encodeURIComponent(this.rec.file)).then(()=>{$("re").innerHTML="";this.enter()})}};
+
+// ---------- Töpfe und Spulen ----------
+P.toepfe={tab:0,pots:[],spools:[],render(){return head("Töpfe und Spulen")+`<div class="seg"><button id="tt0" onclick="P.toepfe.show(0)">Töpfe</button><button id="tt1" onclick="P.toepfe.show(1)">Leerspulen</button></div><div class="col" id="tl"></div><div class="col" id="tn"></div>`},
+ enter(){get("/api/pots").then(p=>{this.pots=p.pots;this.spools=p.spools;this.show(this.tab)})},
+ show(t){this.tab=t;$("tt0").className=t==0?"on":"";$("tt1").className=t==1?"on":"";$("tt0").textContent="Töpfe · "+this.pots.length;$("tt1").textContent="Leerspulen · "+this.spools.length;
+  const L=t==0?this.pots:this.spools;
+  $("tl").innerHTML=L.length?L.map((x,i)=>`<div class="card"><div class="top"><span style="display:flex;gap:10px;align-items:center">${t==0?`<span class="dot" style="background:${COLORS[x.color||0]}"></span>`:""}<span class="mut">${fmt(x.grams)} g</span></span><button class="d sm" onclick="P.toepfe.del(${i})">Löschen</button></div>
+   <input value="${esc(x.name)}" onchange="P.toepfe.rename(${i},this.value)">
+   ${t==0?`<div class="swatch">${COLORS.map((c,k)=>`<button class="${k==(x.color||0)?"on":""}" style="background:${c}" aria-label="Farbe ${k+1}" onclick="P.toepfe.color(${i},${k})"></button>`).join("")}</div>`:""}</div>`).join(""):`<div class="card faint">Noch keine ${t==0?"Töpfe":"Leerspulen"}.</div>`;
+  $("tn").innerHTML=`<div class="info"><b>${t==0?"Neuer Topf":"Neue Leerspule"}</b><span>Waage leeren und Tara drücken, dann ${t==0?"den leeren Topf":"die leere Spule"} auflegen und übernehmen.</span>
+   <input id="tnn" placeholder="Name"><div class="btns"><button onclick="tare()">Tara</button><button class="p g" onclick="P.toepfe.add()">Gewicht übernehmen</button></div></div>`},
+ save(){return api("/api/pots",{pots:this.pots,spools:this.spools})},
+ rename(i,v){(this.tab==0?this.pots:this.spools)[i].name=v;this.save().then(()=>toast("Gespeichert"))},
+ color(i,k){this.pots[i].color=k;this.save().then(()=>this.show(0))},
+ del(i){if(!confirm("Wirklich löschen?"))return;(this.tab==0?this.pots:this.spools).splice(i,1);this.save().then(()=>this.show(this.tab))},
+ add(){const name=$("tnn").value.trim();if(!name){toast("Bitte Namen eingeben");return}
+  api(this.tab==0?"/api/pot_add":"/api/spool_add",{name,color:this.pots.length%4}).then(r=>{toast(r.ok?"Gespeichert":r.msg);if(r.ok)this.enter()})}};
+
+// ---------- Protokoll ----------
+P.protokoll={days:[],i:0,render(){return head("Protokoll")+`<div class="top"><button onclick="P.protokoll.go(1)" aria-label="Vorheriger Tag">‹</button>
+ <div class="center" style="display:flex;flex-direction:column;flex:1"><b id="pd" style="font:600 20px 'Space Grotesk',system-ui">–</b><span class="mut" id="pdi"></span></div>
+ <button onclick="P.protokoll.go(-1)" aria-label="Nächster Tag">›</button></div>
+ <div class="card"><table><thead><tr><th class="nw">Zeit</th><th>Topf / Modus</th><th class="r">Gewicht</th></tr></thead><tbody id="pt"></tbody></table></div>
+ <div class="card"><span class="mut">Letzte 7 Tage · Wägungen pro Tag</span><div class="chart" id="pc"></div><div class="chartl" id="pcl"></div></div>
+ <div class="btns"><button class="g" onclick="location.href='/log.txt?day='+P.protokoll.days[P.protokoll.i].day">Tag als TXT</button><button class="p g" onclick="location.href='/log.csv'">Alles als CSV</button></div>`},
+ enter(){get("/api/log/days").then(d=>{this.days=d;this.i=0;this.chart();this.load()})},
+ go(k){this.i=Math.max(0,Math.min(this.days.length-1,this.i+k));this.load();this.chart()},
+ load(){if(!this.days.length){$("pd").textContent="Noch keine Einträge";$("pt").innerHTML="";return}const d=this.days[this.i];
+  const p=d.day.split("-");$("pd").textContent=`${p[2]}.${p[1]}.${p[0]}`;$("pdi").textContent=d.count+(d.count==1?" Wägung":" Wägungen")+" · "+d.day+".txt";
+  get("/api/log?day="+d.day).then(r=>{$("pt").innerHTML=r.map(x=>`<tr><td class="nw">${x.time.slice(0,5)}</td><td style="overflow-wrap:anywhere">${esc(x.note)||'<span class="faint">–</span>'}</td><td class="r"><b>${x.value} ${x.unit}</b></td></tr>`).join("")||'<tr><td class="faint">keine Einträge</td></tr>'})},
+ chart(){const map={};this.days.forEach(d=>map[d.day]=d.count);const base=this.days.length?new Date(this.days[0].day+"T12:00:00"):new Date();
+  const cur=this.days[this.i]?this.days[this.i].day:"";const cols=[];for(let k=6;k>=0;k--){const t=new Date(base);t.setDate(t.getDate()-k);const key=t.toISOString().slice(0,10);cols.push([key,map[key]||0,t])}
+  const mx=Math.max(1,...cols.map(c=>c[1]));$("pc").innerHTML=cols.map(c=>`<div class="${c[0]==cur?"on":""}" style="height:${Math.max(3,c[1]/mx*96)}px" title="${c[1]}"></div>`).join("");
+  $("pcl").innerHTML=cols.map(c=>`<span>${["So","Mo","Di","Mi","Do","Fr","Sa"][c[2].getDay()]}</span>`).join("")}};
+
+// ---------- Akku ----------
+P.akku={render(){return head("Akku")+`<div class="col" id="ab"><div class="card">Lade …</div></div>`},
+ enter(){this.load();this.t=setInterval(()=>this.load(),30000)},
+ leave(){clearInterval(this.t)},
+ load(){get("/api/battery").then(b=>{const st=b.state,farbe=st=="laedt"?"var(--warn)":(st=="voll"?"var(--acc)":(b.pct<20?"var(--dan)":"var(--acc)"));
+  const h=b.history,iv=b.interval||5,n=h.length;
+  // Diagramm: feste Höhe für die Balkenfläche, Gitterlinien und Achsen dazu
+  const H=112;  // Pixel für 100 %
+  const bars=h.map((v,i)=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center">
+   <span style="font-size:10px;color:var(--mut);height:12px">${(n<=14||i%3==0||i==n-1)?v:""}</span>
+   <div title="${v} %" style="width:100%;height:${Math.max(2,v/100*H)}px;background:${v<20?"var(--dan)":"var(--bar)"};border-radius:3px 3px 0 0"></div></div>`).join("");
+  const grid=[100,75,50,25,0].map(p=>`<div style="position:absolute;left:26px;right:0;bottom:${18+p/100*H}px;border-top:1px dashed var(--line)"></div>
+   <div style="position:absolute;left:0;bottom:${13+p/100*H}px;font-size:10px;color:var(--faint)">${p}</div>`).join("");
+  const xlab=h.map((v,i)=>`<span style="flex:1;text-align:center;font-size:10px;color:var(--faint)">${(i==0||i==n-1||(n>6&&i%Math.ceil(n/5)==0))?"-"+(((n-1-i)*iv)/60).toFixed(1).replace(".",",")+" h":""}</span>`).join("");
+  const usb=st=="laedt"||st=="voll";
+  $("ab").innerHTML=`<div class="card center">${ring(usb?1:b.pct/100,
+     `<div class="big" style="color:${farbe}">${st=="kein"?"–":(usb?b.volts.toFixed(2).replace(".",","):b.pct)}<small>${usb?"V":"%"}</small></div>
+      <span class="pill ${st=="laedt"?"w":(st=="kein"?"n":"")}">${st=="laedt"?"lädt am USB":(st=="voll"?"voll geladen":(st=="kein"?"kein Akku":"Akkubetrieb"))}</span>`,farbe)}
+   <span class="mut">${usb?"Ladestand erst ohne Kabel messbar":b.volts.toFixed(2).replace(".",",")+" V"+(b.left>0?" · noch ca. "+b.left.toFixed(1).replace(".",",")+" h":"")}</span></div>
+   <div class="card"><div class="top"><span class="mut">Verlauf · ein Balken je ${iv} min</span><span class="mut">${b.per>0?b.per.toFixed(1).replace(".",",")+" %/h":"wird gemessen"}</span></div>
+   <div style="position:relative;padding:0 0 18px 26px">${n?grid:""}
+   <div style="display:flex;align-items:flex-end;gap:3px;height:${112+14}px;position:relative">${bars||'<span class="faint">noch keine Messpunkte</span>'}</div>
+   <div style="display:flex;gap:3px;margin-top:4px">${n?xlab:""}</div></div>
+   <span class="faint">Senkrecht: Ladestand in %, Zahl über dem Balken = Wert · Waagerecht: Stunden zurück</span></div>
+   ${b.test?`<div class="card"><div class="top"><span class="mut">Entladetest</span><span class="pill w">läuft</span></div>
+     <span class="mut">${b.test_h.toFixed(1).replace(".",",")} h · von ${b.test_v0.toFixed(2).replace(".",",")} auf ${b.volts.toFixed(2).replace(".",",")} V · ${b.test_n} Messpunkte</span>
+     <button class="b d" onclick="get('/api/battery/test?on=0').then(()=>P.akku.load())">Test beenden</button></div>`
+    :`<div class="card"><span class="mut">Entladetest</span><span class="faint">Misst einmal komplett durch, von voll bis zur Abschaltung, und schreibt jede Minute Spannung und Ladestand als CSV auf die SD-Karte. Daraus siehst du die echte Laufzeit.</span>
+     <button class="b" onclick="get('/api/battery/test?on=1').then(()=>P.akku.load())">Entladetest starten</button></div>`}`})},
+ live(){}};
+
+// ---------- Langzeitmessungen (CSV aus /Waage/Messung) ----------
+// Zeile: Uhrzeit;Minuten;Gewicht_g (Komma als Dezimalzeichen)
+P.messung={files:[],cur:"",iv:ls("lt_iv")||60,render(){return head("Messungen",true,`<a class="act" href="#" onclick="P.messung.enter();return false">Neu laden</a>`)+
+ `<div id="ltc"></div><div class="col" id="lb"><div class="card">Lade …</div></div>`},
+ // Karte oben: Langzeitmessung auf der Waage starten oder beenden
+ ctl(){get("/api/tools").then(d=>{const l=d&&d.lt,e=$("ltc");if(!l||!e)return;
+  const was=this.ltRun;this.ltRun=l.run;if(was&&!l.run)this.enter();
+  e.innerHTML=l.run?`<div class="card"><div class="top"><h2>Langzeitmessung</h2><span class="pill">läuft</span></div>
+   <table><tr><td>Datei</td><td class="r" translate="no">${esc(l.file)}</td></tr><tr><td>Laufzeit</td><td class="r">${fmt(l.h,1)} h · ${l.n} Werte</td></tr>
+   <tr><td>Intervall</td><td class="r">${l.iv<60?l.iv+" s":l.iv/60+" min"}</td></tr><tr><td>Trend</td><td class="r">${l.trend>=0?"+":""}${fmt(l.trend,1)} g/h</td></tr></table>
+   <button class="d" onclick="P.messung.lt(0)">Messung beenden</button></div>`
+  :`<div class="card"><h2>Langzeitmessung</h2><span class="faint">Die Waage schreibt das Gewicht in festen Abständen als CSV auf die SD-Karte, auch wenn der Browser zu ist. Dabei schaltet sie sich nicht ab.</span>
+   <div class="seg">${[[10,"10 s"],[60,"1 min"],[300,"5 min"],[900,"15 min"]].map(x=>`<button class="${x[0]==this.iv?"on":""}" onclick="P.messung.iv=${x[0]};ls('lt_iv',${x[0]});P.messung.ctl()">${x[1]}</button>`).join("")}</div>
+   <button class="p" onclick="P.messung.lt(1)">Messung starten</button></div>`})},
+ lt(on){get("/api/lt?on="+on+"&iv="+this.iv).then(r=>{if(!r.ok){toast(r.msg||"Fehler");return}toast(on?"Messung gestartet":"Messung beendet");
+  setTimeout(()=>{if(page===this)this.enter()},on?1500:300)})},
+ leave(){clearInterval(this.t)},
+ enter(){clearInterval(this.t);this.ctl();this.t=setInterval(()=>this.ctl(),15000);get("/api/files?dir="+encodeURIComponent("/Waage/Messung")).then(d=>{
+  if(!$("lb"))return;
+  this.files=(d&&d.files?d.files:[]).filter(f=>/\.csv$/i.test(f.name)).sort((a,b)=>b.name<a.name?-1:1);
+  if(!this.files.length){$("lb").innerHTML=`<div class="card"><span class="mut">Noch keine Messungen.</span><span class="faint">Oben starten oder an der Waage: Modi → Werkstatt → Langzeit.</span></div>`;return}
+  if(!this.cur||!this.files.find(f=>f.name==this.cur))this.cur=this.files[0].name;
+  this.load()})},
+ pick(n){this.cur=n;this.load()},
+ load(){const path="/Waage/Messung/"+this.cur;
+  getText("/file?path="+encodeURIComponent(path)).then(t=>{
+   const rows=t.split(/\r?\n/).slice(1).map(l=>l.split(";")).filter(r=>r.length>=3)
+    .map(r=>({clock:r[0],min:parseFloat(r[1].replace(",",".")),g:parseFloat(r[2].replace(",","."))})).filter(r=>!isNaN(r.min)&&!isNaN(r.g));
+   this.draw(rows,path)})},
+ draw(rows,path){const n=rows.length;if(!$("lb"))return;  // Seite inzwischen verlassen
+  const list=`<div class="card"><span class="mut">Messung wählen</span><div class="chips" translate="no">${this.files.slice(0,12).map(f=>
+   `<button class="chip ${f.name==this.cur?"on":""}" onclick="P.messung.pick('${esc(f.name)}')">${esc(f.name.replace(".csv",""))}</button>`).join("")}</div></div>`;
+  if(n<2){$("lb").innerHTML=list+`<div class="card"><span class="mut">Noch zu wenige Werte.</span></div>`;return}
+  const W=340,H=170,pl=44,pb=22;
+  const lo=Math.min(...rows.map(r=>r.g)),hi=Math.max(...rows.map(r=>r.g)),span=Math.max(.5,hi-lo),mid=(hi+lo)/2;
+  const t1=rows[n-1].min||1,step=Math.max(1,Math.floor(n/600));
+  const X=m=>pl+(W-pl-6)*m/t1,Y=g=>8+(H-pb-16)*(.5-(g-mid)/span/1.1);
+  const pts=rows.filter((r,i)=>i%step==0||i==n-1).map(r=>X(r.min).toFixed(1)+","+Y(r.g).toFixed(1)).join(" ");
+  const hrs=t1/60,ticks=[0,.5,1].map(f=>`<text x="${X(t1*f)}" y="${H-4}" font-size="10" fill="var(--faint)" text-anchor="${f==0?"start":(f==1?"end":"middle")}">${fmt(hrs*f,1)} h</text>`).join("");
+  const yl=[hi,mid,lo].map(g=>`<text x="${pl-6}" y="${Y(g)+3}" font-size="10" fill="var(--faint)" text-anchor="end">${fmt(g,1)}</text>
+   <line x1="${pl}" x2="${W-6}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)" stroke-dasharray="3 3"/>`).join("");
+  // Trend: lineare Regression über alles, in g/h
+  let sx=0,sy=0,sxx=0,sxy=0;rows.forEach(r=>{const x=r.min/60;sx+=x;sy+=r.g;sxx+=x*x;sxy+=x*r.g});
+  const den=n*sxx-sx*sx,tr=den>1e-9?(n*sxy-sx*sy)/den:0,diff=rows[n-1].g-rows[0].g;
+  $("lb").innerHTML=list+`<div class="card"><div class="top"><h2 translate="no">${esc(this.cur.replace(".csv",""))}</h2><span class="pill">${n} Werte</span></div>
+   <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${yl}<polyline points="${pts}" fill="none" stroke="var(--acc)" stroke-width="2.2" stroke-linejoin="round"/>${ticks}</svg>
+   <table><tr><td>Dauer</td><td class="r">${fmt(hrs,1)} h</td></tr>
+   <tr><td>Start · Ende</td><td class="r">${fmt(rows[0].g,1)} g · ${fmt(rows[n-1].g,1)} g</td></tr>
+   <tr><td>Differenz</td><td class="r">${diff>=0?"+":""}${fmt(diff,1)} g</td></tr>
+   <tr><td>Trend</td><td class="r">${tr>=0?"+":""}${fmt(tr,1)} g/h</td></tr>
+   <tr><td>Kleinster · größter Wert</td><td class="r">${fmt(lo,1)} g · ${fmt(hi,1)} g</td></tr></table>
+   <a class="btn" href="/file?path=${encodeURIComponent(path)}">CSV herunterladen</a></div>`},
+ live(){}};
+
+// ---------- Messmittelprüfung (Verfahren 1) ----------
+// Gleicher Ablauf wie an der Waage: Normal auflegen, stabilisieren, abnehmen.
+// Am Ende Cg und Cgk sowie CSV-Export der Einzelwerte.
+P.msa={nom:500,tol:10,runs:25,vals:[],st:"setup",stableSince:0,last:null,
+ render(){return head("Messmittelprüfung",true,this.st!="setup"?`<a class="act" href="#" onclick="P.msa.abort();return false">Abbrechen</a>`:"")+`<div class="col" id="mb"></div>`},
+ enter(){this.st=="setup"?this.setup():this.runUi()},
+ abort(){this.st="setup";$("app").innerHTML=this.render();this.setup()},
+ setup(){this.st="setup";$("mb").innerHTML=`<div class="card"><h2>Verfahren 1</h2>
+  <span class="mut">Dasselbe Normal wird n-mal aufgelegt und abgenommen. Daraus berechnet die Waage Mittelwert, Bias, Standardabweichung, Cg und Cgk.</span>
+  <div class="set"><span>Sollgewicht des Normals</span>${stepper("mn",this.nom,10,1,3000)}</div>
+  <div class="set"><span>Toleranz T</span>${stepper("mt",this.tol,1,1,500)}</div>
+  <div class="set"><span>Messungen</span><div class="seg" style="max-width:190px">${[25,50].map(r=>`<button class="${r==this.runs?"on":""}" onclick="P.msa.runs=${r};P.msa.setup()">${r}</button>`).join("")}</div></div>
+  <button class="p" onclick="P.msa.start()">Prüfung starten</button>
+  <span class="faint">Waage vor dem Start leeren. Der Wert wird übernommen, sobald das Gewicht ruhig liegt – oder von Hand über den Knopf.</span></div>`},
+ start(){this.nom=+$("mn").value||500;this.tol=+$("mt").value||10;this.vals=[];this.st="place";this.stableSince=0;
+  tare();$("app").innerHTML=this.render();this.runUi()},
+ runUi(){$("mb").innerHTML=`<div class="card center"><span class="mut" id="mc">Messung 1 von ${this.runs}</span>
+  <div class="big" id="mw">0,0<small>g</small></div>
+  <span class="pill" id="mh">Normal auflegen</span>
+  <button class="p" id="mtake" onclick="P.msa.take()">Wert übernehmen</button>
+  <div class="bar"><div id="mp"></div></div>
+  <span class="faint">Normal auflegen, ruhig werden lassen, übernehmen, abnehmen.</span></div>
+  <div class="card"><div class="top"><span class="mut">Bisher erfasst</span><span class="mut" id="mn2">0</span></div>
+  <div class="chips" id="mvals"><span class="faint">noch keine Werte</span></div></div>`},
+ take(){const g=S.g;
+  if(g<Math.max(5,this.nom*0.3)){toast("Erst das Normal auflegen");return}
+  this.vals.push(g);sound("tick");this.st="remove";this.stableSince=0;this.refresh();
+  if(this.vals.length>=this.runs&&Math.abs(S.g)<2)this.result()},
+ refresh(){if(!$("mc"))return;const n=this.vals.length;
+  $("mc").textContent="Messung "+Math.min(n+1,this.runs)+" von "+this.runs;
+  $("mp").style.width=(n/this.runs*100)+"%";
+  $("mn2").textContent=n+" von "+this.runs;
+  $("mvals").innerHTML=n?this.vals.map((v,i)=>`<span class="chip">${i+1}: ${v.toFixed(1).replace(".",",")}</span>`).join(""):`<span class="faint">noch keine Werte</span>`},
+ live(){if(this.st=="setup"||!$("mw"))return;const g=S.g,now=Date.now(),h=$("mh"),b=$("mtake");
+  $("mw").innerHTML=fmt(g)+"<small>g</small>";
+  const drauf=g>=Math.max(5,this.nom*0.3), fertig=this.vals.length>=this.runs;
+  if(this.st=="remove"){
+   h.textContent=fertig?"fertig – bitte abnehmen":"Normal abnehmen";h.className="pill n";b.disabled=true;
+   if(Math.abs(g)<2){if(fertig){this.result();return}this.st="place";this.stableSince=0}
+   return}
+  b.disabled=!drauf;
+  if(!drauf){h.textContent="Normal auflegen";h.className="pill n";this.stableSince=0;return}
+  if(!S.stable){h.textContent="stabilisieren …";h.className="pill w";this.stableSince=0;return}
+  if(!this.stableSince)this.stableSince=now;
+  h.textContent="ruhig – wird übernommen";h.className="pill";
+  if(now-this.stableSince>1200)this.take()},
+ result(){this.st="setup";const v=this.vals,n=v.length;
+  const mean=v.reduce((a,b)=>a+b,0)/n, bias=mean-this.nom;
+  const sd=Math.sqrt(v.reduce((a,x)=>a+(x-mean)*(x-mean),0)/Math.max(1,n-1));
+  const cg=sd>0?0.2*this.tol/(6*sd):0, cgk=sd>0?(0.1*this.tol-Math.abs(bias))/(3*sd):0, ok=cg>=1.33&&cgk>=1.33;
+  sound(ok?"done":"warn");
+  const f=(x,d=2)=>x.toFixed(d).replace(".",",");
+  this.last={n,mean,bias,sd,cg,cgk,vals:v.slice()};
+  $("app").innerHTML=head("Ergebnis Cg / Cgk")+`<div class="col">
+   <div class="card"><div class="pill ${ok?"":"w"}" style="align-self:flex-start">${ok?"Messmittel fähig: Cg und Cgk über 1,33":"nicht fähig: unter 1,33"}</div>
+   <table>
+   <tr><td>Cg</td><td class="r"><b>${f(cg)}</b></td></tr>
+   <tr><td>Cgk</td><td class="r"><b>${f(cgk)}</b></td></tr>
+   <tr><td>Mittelwert</td><td class="r">${f(mean)} g</td></tr>
+   <tr><td>Bias</td><td class="r">${bias>=0?"+":""}${f(bias)} g</td></tr>
+   <tr><td>Streuung s</td><td class="r">${f(sd,3)} g</td></tr>
+   <tr><td>Spanne</td><td class="r">${f(Math.max(...v)-Math.min(...v))} g</td></tr>
+   <tr><td>T_min = 40·s + 10·|Bias|</td><td class="r">${f(40*sd+10*Math.abs(bias),2)} g</td></tr>
+   <tr><td>Messungen</td><td class="r">${n} bei Soll ${this.nom} g, T ${this.tol} g</td></tr></table>
+   <div class="btns"><button class="g" onclick="P.msa.csv()">CSV</button><button class="p g" onclick="P.msa.setup2()">Neue Prüfung</button></div></div>
+   <div class="card"><span class="mut">Einzelwerte</span><div class="chips">${v.map((x,i)=>`<span class="chip">${i+1}: ${f(x,1)}</span>`).join("")}</div></div></div>`;
+  logAdd(mean,"Messmittel Cg "+f(cg)+" Cgk "+f(cgk))},
+ setup2(){$("app").innerHTML=this.render();this.setup()},
+ csv(){const r=this.last;if(!r)return;
+  let t="Messmittelfaehigkeit Verfahren 1\nSollwert;"+this.nom+";g\nToleranz T;"+this.tol+";g\n";
+  t+="n;"+r.n+"\nMittelwert;"+r.mean.toFixed(3)+"\nBias;"+r.bias.toFixed(3)+"\ns;"+r.sd.toFixed(4)+"\nCg;"+r.cg.toFixed(3)+"\nCgk;"+r.cgk.toFixed(3)+"\n\nNr;Messwert_g\n";
+  r.vals.forEach((x,i)=>t+=(i+1)+";"+x.toFixed(2)+"\n");
+  dl("messmittelpruefung.csv",t)},
+ leave(){}};
+
+// ---------- Dateien auf der SD-Karte ----------
+const FTYP={txt:"TXT",csv:"CSV",wav:"WAV",bin:"BIN",json:"JSN",md:"MD"};
+function fsize(b){return b<1024?b+" B":(b<1024*1024?(b/1024).toFixed(0)+" KB":(b/1048576).toFixed(1).replace(".",",")+" MB")}
+// Kartengröße in Gigabyte (dezimal wie auf dem Kartenetikett, 1 GB = 10^9 Byte); kb = Kilobyte vom Gerät
+function fgb(kb){const b=kb*1024;if(b<1e9){const m=b/1e6;return (m<10?m.toFixed(1):m.toFixed(0)).replace(".",",")+" MB"}
+ const g=b/1e9;return (g<10?g.toFixed(2):g.toFixed(1)).replace(".",",")+" GB"}
+P.dateien={dir:"/Waage",render(){return head("Dateien",true,`<a class="act" href="#" onclick="P.dateien.mkdir();return false">+ Ordner</a>`)+`<div class="col" id="fb"><div class="card">Lade …</div></div>`},
+ enter(){this.load()},
+ go(p){this.dir=p;this.load()},
+ load(){get("/api/files?dir="+encodeURIComponent(this.dir)).then(d=>{if(d.err){toast(d.err);return}this.draw(d)})},
+ draw(d){const parts=d.dir.split("/").filter(x=>x);let acc="";
+  const crumb=parts.map((p,i)=>{acc+="/"+p;const a=acc;
+   return i<parts.length-1?`<a href="#" onclick="P.dateien.go('${a}');return false">${esc(p)}</a> ›`:`<b>${esc(p)}</b>`}).join(" ");
+  const up=parts.length>1?`<button class="sm" onclick="P.dateien.go('${"/"+parts.slice(0,-1).join("/")}')">↑ eine Ebene</button>`:"";
+  const dirs=d.dirs.map(n=>`<div class="frow"><span class="fico d">${ICON.chip('<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h3.6l2 2.4h7.4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>')}</span>
+   <span class="fname" translate="no"><a href="#" onclick="P.dateien.go('${d.dir}/${n}');return false">${esc(n)}</a></span>
+   <span class="fsize">Ordner</span></div>`).join("");
+  const files=d.files.map(f=>{const ext=(f.name.split(".").pop()||"").toLowerCase();
+   return `<div class="frow"><span class="fico">${FTYP[ext]||"?"}</span>
+    <span class="fname" translate="no"><a href="/file?path=${encodeURIComponent(d.dir+"/"+f.name)}">${esc(f.name)}</a></span>
+    <span class="fsize">${fsize(f.size)}</span>
+    <button class="sm d" onclick="P.dateien.del('${d.dir}/${f.name}')">×</button></div>`}).join("");
+  $("fb").innerHTML=`<div class="card"><div class="top"><div class="crumb" translate="no">${crumb}</div>${up}</div>
+   <div class="list">${dirs}${files}${(!dirs&&!files)?'<span class="faint">Ordner ist leer</span>':""}</div></div>
+   <div class="card"><div class="top"><span class="mut">Hochladen nach</span><span class="pill" translate="no">${esc(d.dir)}</span></div>
+   <span class="faint">Rezepte und Cocktails als .txt, Sprachdateien als .wav (16 kHz, Mono). Gleiche Namen werden überschrieben.</span>
+   <input type="file" id="fu" multiple>
+   <button class="p" id="fup" onclick="P.dateien.upload()">Hochladen</button>
+   <div class="bar"><div id="fbar"></div></div></div>
+   <div class="card"><div class="top"><span class="mut nw">SD-Karte</span><span class="mut" style="text-align:right">${fgb(d.used)} von ${fgb(d.total)} belegt · ${fgb(Math.max(0,d.total-d.used))} frei</span></div>
+   <div class="bar"><div style="width:${d.total?Math.min(100,d.used/d.total*100):0}%"></div></div></div>`},
+ del(path){if(!confirm("Datei löschen?\n"+path))return;
+  get("/api/file/del?path="+encodeURIComponent(path)).then(r=>{toast(r.ok?"Gelöscht":"Fehler");this.load()})},
+ mkdir(){const n=prompt("Name des neuen Ordners");if(!n)return;
+  get("/api/file/mkdir?path="+encodeURIComponent(this.dir+"/"+n)).then(r=>{toast(r.ok?"Angelegt":"Fehler");this.load()})},
+ upload(){const inp=$("fu");if(!inp||!inp.files.length){toast("Erst Dateien wählen");return}
+  const files=[...inp.files];let i=0;const bar=$("fbar"),btn=$("fup");btn.disabled=true;
+  const next=()=>{if(i>=files.length){btn.disabled=false;bar.style.width="0";toast(files.length+" Dateien übertragen");inp.value="";this.load();return}
+   const f=files[i++],fd=new FormData();fd.append("f",f);
+   const x=new XMLHttpRequest();x.open("POST","/upload?dir="+encodeURIComponent(this.dir));
+   x.upload.onprogress=e=>{bar.style.width=(((i-1)+e.loaded/e.total)/files.length*100)+"%"};
+   x.onload=()=>next();x.onerror=()=>{toast("Fehler bei "+f.name);btn.disabled=false};
+   x.send(fd)};
+  next()},
+ live(){}};
+
+// ---------- Portoklassen ----------
+P.portoklassen={cls:[],render(){return head("Portoklassen",true,`<a class="act" href="#" onclick="P.portoklassen.add();return false">+ Klasse</a>`)+`<div class="col" id="pk"><div class="card">Lade …</div></div>`},
+ enter(){get("/api/settings").then(s=>{this.cls=s.porto;this.draw()})},
+ draw(){$("pk").innerHTML=`<div class="card"><span class="mut">Name, Gewichtsgrenze und Preis je Klasse. Gespeichert in /Waage/Porto/porto.txt.</span>
+  <div class="col" id="pkl" style="gap:10px"></div></div>
+  <div class="btns"><button class="g" onclick="P.portoklassen.add()">+ Klasse</button><button class="p g" onclick="P.portoklassen.save()">Speichern</button></div>`;
+  this.rows()},
+ rows(){$("pkl").innerHTML=`<div class="ing" style="grid-template-columns:minmax(0,1fr) 76px 76px 44px"><span class="faint">Name</span><span class="faint">bis g</span><span class="faint">Euro</span><span></span></div>`+
+  this.cls.map((p,i)=>`<div class="ing" style="grid-template-columns:minmax(0,1fr) 76px 76px 44px">
+   <input value="${esc(p.name)}" oninput="P.portoklassen.cls[${i}].name=this.value">
+   <input type="number" value="${p.max}" oninput="P.portoklassen.cls[${i}].max=+this.value">
+   <input type="text" inputmode="decimal" value="${fmt(p.ct/100,2)}" oninput="P.portoklassen.cls[${i}].ct=Math.round(parseFloat(this.value.replace(',','.'))*100)||0">
+   <button class="d" onclick="P.portoklassen.cls.splice(${i},1);P.portoklassen.rows()">×</button></div>`).join("")},
+ add(){this.cls.push({name:tr("Neue Klasse"),max:1000,ct:100});this.rows()},
+ save(){get("/api/settings").then(s=>{s.porto=this.cls.slice().sort((a,b)=>a.max-b.max);
+  api("/api/settings",s).then(r=>toast(r.ok?"Gespeichert":"Fehler"))})},
+ live(){}};
+
+// ---------- Spielernamen ----------
+P.spieler={names:[],render(){return head("Spielernamen")+`<div class="col" id="spb"><div class="card">Lade …</div></div>`},
+ enter(){get("/api/players").then(n=>{this.names=n&&n.length?n:["Spieler 1","Spieler 2"];this.draw()})},
+ draw(){$("spb").innerHTML=`<div class="card"><span class="mut">Gilt für Schätzspiel und Trinkspiel, an der Waage und hier.</span>
+  <div class="col" id="spl" style="gap:10px"></div>
+  <div class="btns"><input id="spn" placeholder="Neuer Name"><button class="p" onclick="P.spieler.add()">Hinzufügen</button></div>
+  <button class="p" onclick="P.spieler.save()">Speichern</button></div>`;
+  this.rows()},
+ rows(){$("spl").innerHTML=this.names.map((n,i)=>`<div class="ing" style="grid-template-columns:minmax(0,1fr) 44px">
+   <input value="${esc(n)}" oninput="P.spieler.names[${i}]=this.value">
+   <button class="d" onclick="P.spieler.names.splice(${i},1);P.spieler.rows()">×</button></div>`).join("")},
+ add(){const n=$("spn").value.trim();if(!n)return;this.names.push(n);$("spn").value="";this.rows()},
+ save(){api("/api/players",{names:this.names.filter(x=>x.trim())}).then(r=>toast(r.ok?"Gespeichert":"Fehler"))},
+ live(){}};
+
+// ---------- Firmware ----------
+P.firmware={render(){return head("Firmware-Update")+`<div class="col">
+ <div class="card" id="fon"><span class="mut">Online-Update</span><span class="faint">Lade …</span></div>
+ <div class="card"><span class="mut">Über den Browser</span>
+ <span class="faint">In der Arduino-IDE „Sketch → Kompilierte Binärdatei exportieren“, dann hier die Datei Waage.ino.bin hochladen. Die Waage piept beim Start, spielt am Ende die Fertig-Melodie und startet neu.</span>
+ <a class="btn p" href="/update">Firmware hochladen</a></div>
+ <div class="card"><span class="mut">Über die Arduino-IDE</span>
+ <span class="faint">Im Heimnetz erscheint die Waage unter Werkzeuge → Port als Netzwerk-Port „waage“. Der Update-Modus hält WLAN und OTA 15 Minuten wach, ohne Abschalttimer.</span>
+ <div class="set"><span>Update-Modus (15 min)</span>${swi("fum",false)}</div></div>
+ <div class="card" style="background:var(--warnbg);border-color:#3A2F16">
+ <span style="color:var(--warn);font-size:14px">Während des Updates die Waage nicht ausschalten und das WLAN nicht trennen.</span></div></div>`},
+ // Online-Update von GitHub: Zustand der Waage abfragen, solange etwas läuft
+ ota(q){get("/api/ota"+(q?"?"+q:"")).then(o=>{const e=$("fon");if(!e||!o||!o.ver)return;const st=o.state;
+  const txt={idle:"Neue Version auf GitHub suchen",connect:"Verbinde mit WLAN …",check:"Suche Update …",latest:"Aktuell, nichts zu tun",
+   available:"Neu: Version "+o.latest,download:"Lade … "+o.progress+" %",done:"Fertig, starte neu …",error:o.error}[st]||"";
+  const busy=st=="connect"||st=="check"||st=="download";
+  e.innerHTML=`<div class="top"><span class="mut">Online-Update</span><span class="pill ${st=="error"?"w":(st=="available"?"":"n")}">${o.local?"lokal gebaut":"Version "+esc(o.ver)}</span></div>
+   <span class="${st=="available"?"":"mut"}" style="${st=="available"?"color:var(--acc)":""}">${esc(txt)}</span>
+   ${st=="download"||st=="done"?`<div class="bar"><div style="width:${o.progress}%"></div></div>`:""}
+   <span class="faint" translate="no">github.com/${esc(o.repo)}</span>
+   ${busy||st=="done"?"":(st=="available"?`<button class="p" onclick="P.firmware.ota('install=1')">Installieren</button>`
+     :`<button onclick="P.firmware.ota('check=1')">Online suchen</button>`)}
+   <span class="faint">Die Waage lädt die neueste Version aus den GitHub-Releases und startet danach neu.</span>`;
+  clearTimeout(this.t);if(busy||st=="done"||q)this.t=setTimeout(()=>{if(page===this)this.ota()},busy||q?1000:4000)})},
+ leave(){clearTimeout(this.t)},
+ enter(){this.ota();const el=$("fum");if(!el)return;
+  el.parentElement.onclick=()=>{const on=!el.checked;el.checked=on;el.parentElement.classList.toggle("on",on);
+   get("/api/update_mode?on="+(on?1:0)).then(r=>toast(on?"Update-Modus an – 15 Minuten":"Update-Modus aus"))}},
+ live(){}};
+
+// ============================================================
+//  Neue Modi (wie an der Waage): Portionieren, Timer, Tassen & Löffel,
+//  2K mischen, Münzen, Blindgießen, Halbe-Halbe
+// ============================================================
+// Ring in einem Bereich setzen (pct 0..1)
+function setRing(box,pct,color){const r=document.querySelector(box+" .ring .in"),c=2*Math.PI*103;
+ if(!r)return;r.style.strokeDashoffset=c*(1-Math.max(0,Math.min(1,pct)));if(color)r.style.stroke=color}
+// 75 -> "1:15", 3725 -> "1:02:05"
+function tfmt(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s/60)%60,x=String(s%60).padStart(2,"0");
+ return h?h+":"+String(m).padStart(2,"0")+":"+x:m+":"+x}
+// "+4,2 g" / "−12 g"
+function devTxt(d){const a=Math.abs(d);return (d<0?"−":"+")+(a>=10?Math.round(a):fmt(a,1))+" g"}
+// Bedingung liegt ruhig ms lang an (für die Spiele)
+function held(o,cond,ms=1000){if(!cond||!S.stable){o.since=0;return false}if(!o.since)o.since=Date.now();return Date.now()-o.since>=ms}
+
+// ---------- Portionieren ----------
+P.portion={st:"setup",count:ls("portion_n")||12,total:0,pieces:[],ready:false,on:false,last:0,since:0,
+ render(){return head("Portionieren")+`<div class="col" id="pob"></div>`},
+ enter(){this.st=="run"?this.runUi():(this.st=="result"?this.result():this.setup())},
+ setup(){this.st="setup";park(0);
+  $("pob").innerHTML=`<div class="card center"><span class="mut">Ganzes auflegen</span><div class="big" id="pow">0,0<small>g</small></div>
+  <span class="pill n" id="poe">–</span></div>
+  <div class="card"><div class="set"><span>Stückzahl</span>${stepper("pon",this.count,1,2,60)}</div>
+  <div class="chips">${[4,6,8,10,12,16,20].map(n=>`<button class="chip" onclick="$('pon').value=${n};P.portion.cnt()">${n}</button>`).join("")}</div>
+  <div class="btns"><button class="g" onclick="tare()">Tara</button><button class="p g" id="pogo" onclick="P.portion.start()" disabled>Weiter</button></div>
+  <span class="faint">Schüssel vorher tarieren. Danach die Waage leeren und die Stücke einzeln auflegen. Das Soll jedes Stücks wird aus dem Rest neu berechnet.</span></div>`;
+  $("pon").oninput=()=>this.cnt()},
+ cnt(){this.count=Math.max(2,Math.min(60,+$("pon").value||2));ls("portion_n",this.count)},
+ start(){if(!(S.stable&&S.g>3))return;this.cnt();this.total=S.g;this.pieces=[];this.ready=false;this.on=false;this.last=0;this.since=0;
+  this.st="run";sound("save");$("app").innerHTML=this.render();this.runUi()},
+ target(){const sum=this.pieces.reduce((a,b)=>a+b,0),left=this.count-this.pieces.length;return left>0?(this.total-sum)/left:0},
+ runUi(){$("pob").innerHTML=`<div class="card center"><span class="mut" id="pot">–</span>
+  ${ring(0,`<div class="big" id="pow">–</div><span class="pill n" id="pod">Waage leeren</span>`)}
+  <span class="faint" id="pos"></span>
+  <div class="rnd"><button onclick="P.portion.tara()">Tara</button><button class="p" onclick="P.portion.finish()">Fertig</button></div></div>
+  <div class="card"><span class="mut">Bisher</span><div class="chips" id="pol"><span class="faint">noch leer</span></div></div>`;this.texts()},
+ tara(){tare();if(!this.ready){this.ready=true;this.texts()}},
+ texts(){const t=this.target(),sum=this.pieces.reduce((a,b)=>a+b,0),last=this.pieces.length+1==this.count;
+  $("pot").textContent="Stück "+(this.pieces.length+1)+" / "+this.count;
+  $("pos").textContent=last?"Ziel "+fmt(t,1)+" g · letztes Stück":"Ziel "+fmt(t,1)+" g · Rest "+fmt(this.total-sum,1)+" g";
+  $("pol").innerHTML=this.pieces.length?this.pieces.map((p,i)=>`<span class="chip">${i+1}: ${fmt(p,1)} g</span>`).join(""):'<span class="faint">noch leer</span>';
+  if(this.ready)park(t)},
+ live(){if(this.st=="setup"&&$("pow")){$("pow").innerHTML=`${fmt(S.g,1)}<small>g</small>`;
+   $("poe").textContent=S.g>3?"je Stück "+fmt(S.g/this.count,1)+" g":"Ganzes auflegen";$("pogo").disabled=!(S.stable&&S.g>3&&!S.over);return}
+  if(this.st!="run"||!$("pow"))return;const g=S.g,d=$("pod");
+  if(!this.ready){$("pow").textContent="–";d.textContent="Waage leeren";d.className="pill n";
+   if(Math.abs(S.gross)<5&&S.stable){tare();this.ready=true;this.texts()}return}
+  const t=this.target(),tol=Math.max(1,t*.02);$("pow").textContent=fmt(g,1);
+  if(g<3){if(this.on&&this.last>3){this.pieces.push(this.last);sound("save");this.on=false;this.last=0;
+    if(this.pieces.length>=this.count){this.finish();return}this.texts()}
+   d.textContent="Stück auflegen";d.className="pill n";this.since=0;setRing("#pob",0);return}
+  this.on=true;const dv=g-t,st=dv<-tol?0:(dv<=tol?1:2);
+  d.textContent=st==1?"passt":devTxt(dv);d.className="pill"+(st==1?"":(st==2?" d":" w"));
+  setRing("#pob",g/t,st==2?"var(--dan)":(st==1?"var(--acc)":"var(--warn)"));
+  if(S.stable){if(!this.since)this.since=Date.now();if(Date.now()-this.since>=600)this.last=g}else this.since=0},
+ finish(){park(0);if(!this.pieces.length){this.st="setup";$("app").innerHTML=this.render();this.setup();return}this.st="result";$("app").innerHTML=this.render();this.result(true)},
+ result(fresh){const p=this.pieces,n=p.length,sum=p.reduce((a,b)=>a+b,0),m=sum/n,lo=Math.min(...p),hi=Math.max(...p),
+  sd=n>1?Math.sqrt(p.reduce((a,b)=>a+(b-m)*(b-m),0)/(n-1)):0;
+  if(fresh){sound("done");logAdd(sum,"Portionen: "+n+" × "+fmt(m,1)+" g")}
+  $("pob").innerHTML=`<div class="card center"><span class="mut">Fertig portioniert</span><div class="big">${n}<small>Stück</small></div>
+  <div class="mid" style="color:var(--acc)">Ø ${fmt(m,1)} g</div></div>
+  <div class="card"><table><tr><td>Kleinstes · größtes Stück</td><td class="r">${fmt(lo,1)} g · ${fmt(hi,1)} g</td></tr>
+  <tr><td>Streuung s</td><td class="r">${fmt(sd,1)} g</td></tr><tr><td>Summe</td><td class="r">${fmt(sum,1)} g</td></tr></table>
+  <div class="chips">${p.map((x,i)=>`<span class="chip">${i+1}: ${fmt(x,1)} g</span>`).join("")}</div>
+  <span class="faint">Im Protokoll gespeichert</span><button class="p" onclick="P.portion.again()">Nochmal</button></div>`},
+ again(){this.st="setup";$("app").innerHTML=this.render();this.setup()},
+ leave(){park(0);if(this.st=="result")this.st="setup"}};
+
+// ---------- Timer (laufen auf der Waage weiter) ----------
+P.timer={d:null,set:ls("timer_min")||[5,10,15],names:["","",""],
+ render(){return head("Timer")+`<div class="col" id="tib"><div class="card">Lade …</div></div>
+  <span class="faint">Die Timer laufen auf der Waage, auch wenn diese Seite zu ist. Abgelaufen klingelt die Waage auf jeder Seite.</span>`},
+ enter(){this.load();this.t=setInterval(()=>this.load(),1000)},
+ leave(){clearInterval(this.t)},
+ load(){get("/api/tools").then(d=>{if(!d||!d.timers||!$("tib"))return;const sig=d.timers.map(t=>t.run+"/"+t.ring).join();
+  this.d=d;if(sig!==this.sig){this.sig=sig;this.draw()}else this.tick()})},
+ draw(){$("tib").innerHTML=this.d.timers.map((t,i)=>t.run?`<div class="card center"><div class="top" style="width:100%"><h2>${esc(t.name)}</h2>
+   <span class="pill ${t.ring?"d":""}">${t.ring?"abgelaufen":"läuft"}</span></div>
+   <div class="big" id="tt${i}" style="${t.ring?"color:var(--dan)":""}">${tfmt(t.left)}</div>
+   <div class="bar"><div id="tb${i}" style="width:${t.dur?100*(1-t.left/t.dur):0}%"></div></div>
+   <div class="btns" style="width:100%">${t.ring?`<button class="p g" onclick="P.timer.op(${i},'stop=1')">Alarm aus</button>`
+    :`<button class="g" onclick="P.timer.op(${i},'add=-60')">−1 min</button><button class="g" onclick="P.timer.op(${i},'add=60')">+1 min</button><button class="g d" onclick="P.timer.op(${i},'stop=1')">Stopp</button>`}</div></div>`
+  :`<div class="card"><div class="top"><h2>${esc(t.name)}</h2><span class="pill n">aus</span></div>
+   <div class="set"><span>Minuten</span>${stepper("tm"+i,this.set[i],1,1,600)}</div>
+   <div class="chips">${[1,3,5,10,15,30,60].map(m=>`<button class="chip" onclick="$('tm${i}').value=${m}">${m} min</button>`).join("")}</div>
+   <input id="tn${i}" maxlength="19" placeholder="Name (optional), z. B. Nudeln" value="${esc(this.names[i])}">
+   <button class="p" onclick="P.timer.start(${i})">Starten</button></div>`).join("")},
+ tick(){this.d.timers.forEach((t,i)=>{if(!t.run)return;const e=$("tt"+i),b=$("tb"+i);if(e)e.textContent=tfmt(t.left);
+  if(b&&t.dur)b.style.width=(100*(1-t.left/t.dur))+"%"})},
+ start(i){const m=Math.max(1,+$("tm"+i).value||1),n=$("tn"+i).value.trim();this.set[i]=m;this.names[i]=n;ls("timer_min",this.set);
+  get("/api/timer?i="+i+"&s="+m*60+"&name="+encodeURIComponent(n)).then(()=>{this.sig="";this.load()})},
+ op(i,q){get("/api/timer?i="+i+"&"+q).then(()=>{this.sig="";this.load()})},
+ live(){}};
+
+// ---------- Tassen & Löffel ----------
+// 1 Tasse (US cup) = 236,6 ml, 1 EL = 1/16 Tasse, 1 TL = 1/48 Tasse. Gramm je Tasse: übliche Küchenwerte.
+const CUPS=[["Mehl",125],["Zucker",200],["Puderzucker",120],["Brauner Zucker",213],["Butter",227],["Milch",240],["Wasser",237],
+ ["Öl",218],["Honig",340],["Reis",185],["Haferflocken",90],["Kakao",85],["Nüsse gehackt",120],["Schokotropfen",170]];
+function cupFrac(c){const q=Math.round(c*4),w=Math.floor(q/4),r=q%4,F=["","¼","½","¾"];return w&&r?w+" "+F[r]:(w?String(w):(r?F[r]:"0"))}
+P.tassen={i:ls("cup_i")||0,goal:0,
+ render(){return head("Tassen & Löffel")+`<div class="col">
+  <div class="card"><span class="mut">Zutat</span><div class="chips">${CUPS.map((c,k)=>`<button class="chip ${k==this.i?"on":""}" onclick="P.tassen.pick(${k})">${c[0]}</button>`).join("")}</div>
+  <span class="faint" id="tag">1 Tasse = ${CUPS[this.i][1]} g</span></div>
+  <div class="card center" id="tab">${ring(0,`<div class="mid" id="tac" style="font-size:23px;max-width:180px;text-align:center">–</div><span class="pill n" id="tas">Zutat auflegen</span><span class="mut" id="taw"></span>`)}
+  <div class="set" style="width:100%"><span>Ziel in Tassen</span><div class="stepper"><button onclick="P.tassen.step(-1)">−</button><span class="mid" id="tgl" style="min-width:80px;text-align:center">aus</span><button onclick="P.tassen.step(1)">+</button></div></div>
+  <span class="pill n hide" id="tar"></span>
+  <div class="rnd"><button class="p" onclick="tare()">Tara</button></div></div>
+  <span class="faint">Für amerikanische Rezepte: 1 Tasse = 236,6 ml, 1 EL = 1/16 Tasse, 1 TL = 1/48 Tasse. Gramm je Tasse locker eingefüllt.</span></div>`},
+ enter(){this.showGoal()},
+ pick(k){this.i=k;ls("cup_i",k);this.goal=0;park(0);$("app").innerHTML=this.render();this.showGoal()},
+ step(d){this.goal=Math.max(0,Math.min(40,this.goal+d));this.showGoal()},
+ showGoal(){$("tgl").textContent=this.goal?cupFrac(this.goal/4):"aus";$("tar").classList.toggle("hide",!this.goal);
+  park(this.goal?this.goal/4*CUPS[this.i][1]:0)},
+ live(){if(!$("tac"))return;const g=S.g,gc=CUPS[this.i][1],c=g/gc;
+  $("tac").textContent=c>0&&c<.125?"unter 1/8 Tasse":"ca. "+cupFrac(Math.max(0,c))+" Tassen";
+  $("taw").textContent=fmt(g,1)+" g";
+  const el=c*16,tl=c*48;$("tas").textContent=g<.5?"Zutat auflegen":(el<1?"= "+fmt(tl,1)+" TL":"= "+fmt(el,1)+" EL · "+Math.round(tl)+" TL");
+  $("tas").className=g<.5?"pill n":"pill";
+  if(this.goal){const goal=this.goal/4*gc,tol=Math.max(1,goal*.02),d=goal-g,st=d>tol?0:(d>=-tol?1:2);
+   $("tar").textContent=st==0?"noch "+fmt(d,1)+" g":(st==1?"passt":fmt(-d,1)+" g zu viel");$("tar").className="pill"+(st==1?"":(st==2?" d":" n"));
+   setRing("#tab",g/goal,st==2?"var(--dan)":"var(--acc)")}else setRing("#tab",0)},
+ leave(){park(0)}};
+
+// ---------- 2K mischen ----------
+P.mix={st:"setup",b:ls("mix_b")||10,pot:ls("mix_pot")==null?20:ls("mix_pot"),a:0,bg:0,okSince:0,
+ ratio(){const b=this.b;return b==100?"1 : 1":(100%b==0?(100/b)+" : 1":"100 : "+b)},
+ render(){return head("2K mischen",true,this.st=="a"||this.st=="b"?`<a class="act" href="#" onclick="P.mix.reset();return false">Abbrechen</a>`:"")+`<div class="col" id="mxb"></div>`},
+ enter(){this.st=="a"?this.aUi():(this.st=="b"?this.bUi():(this.st=="done"?this.done():this.setup()))},
+ reset(){park(0);this.st="setup";$("app").innerHTML=this.render();this.setup()},
+ setup(){this.st="setup";$("mxb").innerHTML=`<div class="card center"><span class="mut">Verhältnis A : B</span><div class="big" id="mxr">${this.ratio()}</div>
+  <div class="stepper" style="width:100%;max-width:280px"><button onclick="P.mix.adj(-1)">−</button><input id="mxi" type="number" value="${this.b}" inputmode="numeric"><button onclick="P.mix.adj(1)">+</button></div>
+  <span class="faint">Teile B je 100 Teile A</span>
+  <div class="chips">${[[100,"1:1"],[50,"2:1"],[10,"10:1"],[5,"20:1"]].map(p=>`<button class="chip" onclick="P.mix.setB(${p[0]})">${p[1]}</button>`).join("")}</div></div>
+  <div class="card"><div class="set"><span><b style="font-weight:500">Topfzeit</b><br><span class="faint">läuft danach als Timer auf der Waage</span></span>
+  <select id="mxp">${[0,5,10,20,30,45,60,90].map(m=>`<option value="${m}" ${m==this.pot?"selected":""}>${m?m+" min":"aus"}</option>`).join("")}</select></div>
+  <button class="p" onclick="P.mix.start()">Start</button><span class="faint">Leeren Becher auflegen, dann Start</span></div>`;
+  $("mxi").oninput=()=>this.setB(+$("mxi").value,true)},
+ adj(d){this.setB(this.b+d)},
+ setB(v,typing){this.b=Math.max(1,Math.min(200,Math.round(v)||1));ls("mix_b",this.b);$("mxr").textContent=this.ratio();if(!typing)$("mxi").value=this.b},
+ start(){this.pot=+$("mxp").value;ls("mix_pot",this.pot);tare();this.st="a";$("app").innerHTML=this.render();this.aUi()},
+ aUi(){$("mxb").innerHTML=`<div class="card center"><span class="mut">Komponente A eingießen</span><div class="big" id="mxw">0,0<small>g</small></div>
+  <div class="rnd"><button onclick="tare()">Tara</button><button class="p" id="mxn" onclick="P.mix.aDone()" disabled>A fertig</button></div></div>`},
+ aDone(){if(!S.stable||S.g<=1)return;this.a=S.g;tare();sound("save");this.st="b";this.okSince=0;this.bUi()},
+ goal(){return this.a*this.b/100},
+ bUi(){const g=this.goal();park(g);$("mxb").innerHTML=`<div class="card center"><span class="mut">Komponente B · Ziel ${fmt(g,1)} g</span>
+  ${ring(0,`<div class="big" id="mxw">0,0</div><span class="pill n" id="mxd">–</span>`)}
+  <span class="faint">A ${fmt(this.a,1)} g · ${this.ratio()}</span>
+  <button onclick="P.mix.finish()">Fertig</button></div>`},
+ finish(){this.bg=S.g;this.st="done";park(0);$("app").innerHTML=this.render();this.done(true)},
+ live(){if(this.st=="a"&&$("mxw")){$("mxw").innerHTML=`${fmt(S.g,1)}<small>g</small>`;$("mxn").disabled=!(S.stable&&S.g>1);return}
+  if(this.st!="b"||!$("mxd"))return;const g=S.g,goal=this.goal(),tol=Math.max(.1,goal*.01),d=g-goal,st=d<-tol?0:(d<=tol?1:2);
+  $("mxw").textContent=fmt(g,1);$("mxd").textContent=st==0?"noch "+fmt(-d,1)+" g":(st==1?"passt":fmt(d,1)+" g zu viel");
+  $("mxd").className="pill"+(st==1?"":(st==2?" d":" n"));setRing("#mxb",g/goal,st==2?"var(--dan)":"var(--acc)");
+  if(st==1&&S.stable){if(!this.okSince)this.okSince=Date.now();if(Date.now()-this.okSince>1500)this.finish()}else this.okSince=0},
+ done(fresh){const real=this.a>0?this.bg/this.a*100:0,ok=Math.abs(real-this.b)<=this.b*.02+.05;
+  $("mxb").innerHTML=`<div class="card center"><span class="mut">Gemischt</span><div class="big">${fmt(this.a+this.bg,1)}<small>g</small></div>
+  <span class="mut">A ${fmt(this.a,1)} g · B ${fmt(this.bg,1)} g</span>
+  <span class="pill ${ok?"":"w"}">100 : ${fmt(real,1)} (Soll ${this.ratio()})</span><span class="mut" id="mxt"></span>
+  <span class="faint">Im Protokoll gespeichert</span><button class="p" onclick="P.mix.reset()">Nochmal</button></div>`;
+  if(!fresh)return;sound("done");logAdd(this.a+this.bg,"2K "+this.ratio().replace(/ /g,"")+" · A "+fmt(this.a,1)+" g · B "+fmt(this.bg,1)+" g");
+  if(this.pot>0)get("/api/tools").then(d=>{const i=(d.timers||[]).findIndex(t=>!t.run);
+   if(i<0){$("mxt").textContent="Kein Timer frei für die Topfzeit";return}
+   get("/api/timer?i="+i+"&s="+this.pot*60+"&name="+encodeURIComponent(tr("Topfzeit"))).then(()=>{if($("mxt"))$("mxt").textContent="Topfzeit "+this.pot+" min läuft"})})},
+ leave(){park(0);if(this.st=="done")this.st="setup"}};
+
+// ---------- Münzen ----------
+const COINS=[["2 €",200,8.5],["1 €",100,7.5],["50 ct",50,7.8],["20 ct",20,5.74],["10 ct",10,4.1],["5 ct",5,3.92],["2 ct",2,3.06],["1 ct",1,2.3]];
+const eur=c=>(c/100).toFixed(2).replace(".",",")+" €";
+P.muenzen={i:0,sum:ls("coin_sum")||0,rows:ls("coin_rows")||[],
+ render(){return head("Münzen")+`<div class="col">
+  <div class="card"><span class="mut">Sorte</span><div class="chips" translate="no">${COINS.map((c,k)=>`<button class="chip ${k==this.i?"on":""}" onclick="P.muenzen.pick(${k})">${c[0]}</button>`).join("")}</div>
+  <span class="faint">${fmt(COINS[this.i][2],2)} g je Münze · immer nur eine Sorte auf einmal</span></div>
+  <div class="card center"><div class="big" id="mzn">0<small>Stück</small></div><div class="mid" style="color:var(--acc)" id="mzv">= 0,00 €</div>
+  <span class="mut" id="mzi"></span>
+  <div class="btns" style="width:100%"><button class="g" onclick="tare()">Tara</button><button class="p g" id="mza" onclick="P.muenzen.add()" disabled>+ Summe</button></div></div>
+  <div class="card"><div class="top"><h2>Kassensturz</h2><span class="mid" style="font-size:22px">${eur(this.sum)}</span></div>
+  ${this.rows.length?`<table>${this.rows.map(r=>`<tr><td>${r.n} × ${r.c}</td><td class="r">${eur(r.v)}</td></tr>`).join("")}</table>`:'<span class="faint">noch leer</span>'}
+  <button class="d" onclick="P.muenzen.clear()">Summe löschen</button></div></div>`},
+ pick(k){this.i=k;$("app").innerHTML=this.render()},
+ n(){const n=S.g/COINS[this.i][2];return n>0?Math.round(n):0},
+ live(){if(!$("mzn"))return;const n=this.n(),c=COINS[this.i],fr=Math.abs(S.g/c[2]-n);
+  $("mzn").innerHTML=`${n}<small>Stück</small>`;$("mzv").textContent="= "+eur(n*c[1]);
+  $("mzi").textContent=fmt(S.g,1)+" g"+(n>0&&fr>.3?" · unsicher, Sorte prüfen":"");$("mza").disabled=!(n>0&&S.stable)},
+ add(){const n=this.n(),c=COINS[this.i];if(!n||!S.stable)return;const v=n*c[1];this.sum+=v;this.rows.push({n,c:c[0],v});
+  ls("coin_sum",this.sum);ls("coin_rows",this.rows);logAdd(S.g,"Münzen: "+n+" × "+c[0]+" = "+eur(v));toast("Zur Summe addiert");$("app").innerHTML=this.render()},
+ clear(){this.sum=0;this.rows=[];ls("coin_sum",0);ls("coin_rows",[]);$("app").innerHTML=this.render()}};
+
+// ---------- Blindgießen ----------
+P.blind={st:"setup",goal:ls("blind_goal")||150,turn:0,players:[],poured:[],phase:0,
+ render(){return head("Blindgießen")+`<div class="col" id="blb"></div>`},
+ enter(){if(this.st=="turn"){this.turnUi();return}PL.load().then(()=>this.setup())},
+ setup(){this.st="setup";get("/api/hide?on=0");
+  $("blb").innerHTML=`<div class="card"><div class="top"><h2>Mitspieler</h2><span class="mut">${PL.sel.length} gewählt</span></div>${PL.chips("P.blind.setup()")}</div>
+  <div class="card"><div class="set"><span>Zielmenge</span>${stepper("blg",this.goal,10,30,1000)}</div>
+  <button onclick="$('blg').value=50+Math.floor(Math.random()*26)*10">Zufall</button>
+  <span class="faint">Ein Glas für alle. Jeder gießt die Zielmenge ein, ohne die Anzeige zu sehen – auch das Display der Waage bleibt verdeckt. Aufgelöst wird am Ende.</span>
+  <button class="p" onclick="P.blind.start()" ${PL.sel.length<1?"disabled":""}>Los</button></div><div id="blboard"></div>`;
+  PL.board("Blindgiessen","Bestenliste Blindgießen").then(h=>{if($("blboard"))$("blboard").innerHTML=h})},
+ start(){this.goal=Math.max(30,Math.min(1000,+$("blg").value||150));ls("blind_goal",this.goal);this.players=PL.sel.slice();
+  this.poured=this.players.map(()=>0);this.turn=0;get("/api/hide?on=1");this.st="turn";this.turnUi()},
+ turnUi(){this.phase=0;$("blb").innerHTML=`<div class="card center"><span class="mut">Zug ${this.turn+1} / ${this.players.length}</span>
+  <h1>${esc(this.players[this.turn])}</h1><div class="big" style="color:var(--faint)">? ? ?</div><span class="pill" id="bls">Waage leeren</span>
+  <div class="rnd"><button onclick="P.blind.pour()">Tara</button><button class="p" id="bld" onclick="P.blind.next()" disabled>Fertig</button></div>
+  <span class="faint">Danach Glas leeren</span></div>`},
+ pour(){tare();this.phase=2},
+ live(){if(this.st!="turn"||!$("bls"))return;const s=$("bls");
+  if(this.phase==0){s.textContent="Waage leeren";if(Math.abs(S.gross)<5&&S.stable)this.phase=1}
+  else if(this.phase==1){s.textContent="Leeres Glas auflegen";if(S.gross>20&&S.stable){tare();this.phase=2}}
+  else s.textContent="Gieß "+this.goal+" g ein";
+  $("bld").disabled=!(this.phase==2&&S.stable&&S.g>1)},
+ next(){if(this.phase!=2||!S.stable)return;this.poured[this.turn]=S.g;sound("save");this.turn++;
+  if(this.turn<this.players.length){this.turnUi();return}
+  this.st="result";sound("drum");$("blb").innerHTML=`<div class="card center"><span class="mut">Auflösung</span><div class="big" style="color:var(--faint)">? ? ?</div></div>`;
+  setTimeout(()=>this.result(),1400)},
+ result(){if(!$("blb"))return;get("/api/hide?on=0");sound("done");
+  const res=this.players.map((p,i)=>({p,g:this.poured[i],d:Math.abs(this.poured[i]-this.goal)})).sort((a,b)=>a.d-b.d);
+  res.forEach(r=>api("/api/scores",{game:"Blindgiessen",name:r.p,value:Math.round(r.d*10)/10,unit:"g"}));
+  logAdd(res[0].g,"Blindgießen: Sieger "+res[0].p);
+  $("blb").innerHTML=`<div class="card center"><span class="mut">Ziel ${this.goal} g</span><h1 style="color:var(--acc)">${esc(res[0].p)}</h1></div>
+  <div class="card"><table>${res.map((r,k)=>`<tr style="${k==0?"color:var(--acc);font-weight:600":""}"><td>${k+1}. ${esc(r.p)}</td><td class="r">${fmt(r.g,1)} g</td><td class="r">${fmt(r.d,1)} g daneben</td></tr>`).join("")}</table>
+  <button class="p" onclick="P.blind.setup()">Nochmal</button></div>`;this.st="setup"},
+ leave(){if(this.st!="setup")get("/api/hide?on=0");this.st="setup"}};
+
+// ---------- Halbe-Halbe ----------
+P.halb={st:"setup",turn:0,players:[],whole:[],half:[],phase:0,h:{},
+ render(){return head("Halbe-Halbe")+`<div class="col" id="hhb"></div>`},
+ enter(){if(this.st=="turn"){this.turnUi();return}PL.load().then(()=>this.setup())},
+ setup(){this.st="setup";get("/api/hide?on=0");
+  $("hhb").innerHTML=`<div class="card"><div class="top"><h2>Mitspieler</h2><span class="mut">${PL.sel.length} gewählt</span></div>${PL.chips("P.halb.setup()")}</div>
+  <div class="card"><h2>So geht's</h2><span class="mut">Jeder bekommt ein Lebensmittel (Banane, Brot, Käse …). Ganz auflegen, abnehmen, teilen, eine Hälfte auflegen. Am nächsten an 50 % gewinnt.</span>
+  <span class="faint">Messer und Brett bereitlegen. Die Anzeige bleibt bis zur Auflösung verdeckt, auch auf der Waage.</span>
+  <button class="p" onclick="P.halb.start()" ${PL.sel.length<1?"disabled":""}>Los</button></div><div id="hhboard"></div>`;
+  PL.board("Halbieren","Bestenliste Halbe-Halbe").then(h=>{if($("hhboard"))$("hhboard").innerHTML=h})},
+ start(){this.players=PL.sel.slice();this.whole=this.players.map(()=>0);this.half=this.players.map(()=>0);this.turn=0;
+  get("/api/hide?on=1");this.st="turn";this.turnUi()},
+ dev(i){return this.whole[i]>0?Math.abs(this.half[i]/this.whole[i]*100-50):99},
+ turnUi(){this.phase=0;this.h={};$("hhb").innerHTML=`<div class="card center" id="hht"><span class="mut">Zug ${this.turn+1} / ${this.players.length}</span>
+  <h1>${esc(this.players[this.turn])}</h1>${ring(0,`<div class="big" id="hhv" style="color:var(--faint)">? ? ?</div><span class="pill" id="hhs">Waage leeren</span>`)}
+  <span class="mut" id="hhx"></span><button class="p hide" id="hhn" onclick="P.halb.next()">${this.turn+1>=this.players.length?"Ergebnis":"Nächster"}</button></div>`},
+ live(){if(this.st!="turn"||!$("hhs"))return;const g=S.g,s=$("hhs");
+  switch(this.phase){
+   case 0:s.textContent="Waage leeren";if(held(this.h,Math.abs(g)<3||Math.abs(S.gross)<5)){tare();this.phase=1;this.h={}}break;
+   case 1:s.textContent="Ganzes Stück auflegen";if(held(this.h,g>5)){this.whole[this.turn]=g;sound("tick");this.phase=2;this.h={}}break;
+   case 2:s.textContent="Abnehmen und teilen";if(held(this.h,g<3)){this.phase=3;this.h={}}break;
+   case 3:s.textContent="Eine Hälfte auflegen";if(held(this.h,g>2.5)){this.half[this.turn]=g;this.phase=4;sound("drum");setTimeout(()=>this.reveal(),1400)}break}},
+ reveal(){if(!$("hhv"))return;const i=this.turn,pct=this.half[i]/this.whole[i]*100;
+  $("hhv").textContent=fmt(pct,1)+" %";$("hhv").style.color="var(--text)";$("hhs").textContent=fmt(this.dev(i),1)+" %-Punkte daneben";
+  $("hhx").textContent="Hälfte "+fmt(this.half[i],1)+" g von "+fmt(this.whole[i],1)+" g";setRing("#hht",pct/100);
+  $("hhn").classList.remove("hide");sound(this.dev(i)<=1?"done":"reached")},
+ next(){this.turn++;if(this.turn<this.players.length){this.turnUi();return}this.result()},
+ result(){get("/api/hide?on=0");sound("done");this.st="setup";
+  const res=this.players.map((p,i)=>({p,i,pct:this.half[i]/(this.whole[i]||1)*100,d:this.dev(i)})).sort((a,b)=>a.d-b.d);
+  res.forEach(r=>api("/api/scores",{game:"Halbieren",name:r.p,value:Math.round(r.d*10)/10,unit:"%"}));
+  logAdd(this.half[res[0].i],"Halbe-Halbe: Sieger "+res[0].p);
+  $("hhb").innerHTML=`<div class="card center"><span class="mut">Endstand</span><h1 style="color:var(--acc)">${esc(res[0].p)}</h1></div>
+  <div class="card"><table>${res.map((r,k)=>`<tr style="${k==0?"color:var(--acc);font-weight:600":""}"><td>${k+1}. ${esc(r.p)}</td><td class="r">${fmt(r.pct,1)} %</td><td class="r">±${fmt(r.d,1)}</td></tr>`).join("")}</table>
+  <span class="faint">Abweichung von 50 % in Prozentpunkten</span><button class="p" onclick="P.halb.setup()">Nochmal</button></div>`},
+ leave(){if(this.st!="setup")get("/api/hide?on=0");this.st="setup"}};
+
+// ---------- Einstellungen ----------
+P.einstellungen={s:null,pick:{},render(){return head("Einstellungen")+`<div class="col" id="sb"><div class="card">Lade …</div></div>`},
+ enter(){get("/api/settings").then(s=>{this.s=s;
+  this.pick={unit:s.unit,scheme:s.scheme,voice:s.voice};this.draw()})},
+ // Zeile mit Beschreibung darunter, wie in der Vorlage
+ row(title,desc,ctrl,stack){return stack
+   ? `<div class="set" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 0">
+      <span><b style="font-weight:500">${title}</b>${desc?`<br><span class="faint">${desc}</span>`:""}</span>${ctrl}</div>`
+   : `<div class="set"><span><b style="font-weight:500">${title}</b>${desc?`<br><span class="faint">${desc}</span>`:""}</span>${ctrl}</div>`},
+ chips(key,opts,cur){return `<div class="chips" id="c_${key}">${opts.map((o,i)=>
+   `<button class="chip ${((typeof cur=="number"?i:o)===cur)?"on":""}" onclick="P.einstellungen.set('${key}',${typeof cur=="number"?i:`'${String(o).replace(/'/g,"")}'`})">${esc(String(o))}</button>`).join("")}</div>`},
+ set(key,val){this.pick[key]=val;
+  const box=$("c_"+key);if(!box)return;
+  const opts=[...box.children];
+  opts.forEach((b,i)=>b.classList.toggle("on",typeof val=="number"?i===val:b.textContent===val))},
+ draw(){const s=this.s,R=this.row.bind(this);
+  $("sb").innerHTML=`<div class="sec">Sprache</div><div class="card">
+  ${R("Sprache","gilt für Display, Weboberfläche und Ansage",`<div class="chips" translate="no">${["Deutsch","English"].map((o,i)=>
+   `<button class="chip ${i==(s.lang?1:0)?"on":""}" onclick="P.einstellungen.lang(${i})">${o}</button>`).join("")}</div>`)}</div>
+  <div class="sec">Wiegen</div><div class="card">
+  ${R("Einheit","gilt für Wiegeseite und Protokoll",this.chips("unit",["g","kg","oz","lb","ml"],s.unit),true)}
+  ${R("Flüssigkeit für ml","Dichte für die Einheit ml · an der Waage: Einheit antippen",`<select id="s_liquid">${(s.liquids||["Wasser"]).map((n,i)=>`<option value="${i}" ${i==(s.liquid||0)?"selected":""}>${esc(n)}</option>`).join("")}</select>`)}
+  ${R("Auto-Speichern","einmal pro Auflegen, ab 5 g",swi("s_autosave",s.autosave))}
+  ${R("Auto-Weiter","in Rezept und Cocktail bei stabilem, erreichtem Gewicht",swi("s_autonext",s.autonext))}
+  ${R("Zur Wiegeseite nach","ohne Bedienung zurück zur Startseite",`<select id="s_idle">${[0,1,2,5,10].map(m=>`<option value="${m}" ${m==s.idle?"selected":""}>${m?m+" min":"aus"}</option>`).join("")}</select>`)}
+  ${R("Auto-Null","folgt langsamer Drift der leeren Waage, damit sie auf 0,0 bleibt",swi("s_azt",s.azt!==false))}
+  ${R("Präzision","mittelt ruhige Werte, zeigt zwei Nachkommastellen (nur g) · am Gerät: Gewicht lange drücken",swi("s_precise",!!s.precise))}
+  ${R("Auto-Aus nach","ohne Bedienung und Gewichtsänderung",`<select id="s_autooff">${[0,10,15,30,60].map(m=>`<option value="${m}" ${m==s.autooff?"selected":""}>${m?"nach "+m+" min":"nie"}</option>`).join("")}</select>`)}</div>
+  <div class="sec">Auto-Tara</div><div class="card">
+  ${R("Topferkennung","erkennt einen leeren Topf und tariert nach dem Countdown",swi("s_autotara",s.autotara))}
+  ${R("Countdown","Sekunden bis zum Tarieren",`<select id="s_cd">${[1,2,3,4,5,6,8,10].map(m=>`<option value="${m}" ${m==s.cd?"selected":""}>${m} s</option>`).join("")}</select>`)}
+  ${R("Toleranz","oder 1 %, je nachdem was größer ist",`<select id="s_tol">${[3,5,10,20].map(m=>`<option value="${m}" ${m==s.tol?"selected":""}>±${m} g</option>`).join("")}</select>`)}</div>
+  <div class="sec">Ton</div><div class="card">
+  ${R("Lautstärke",`<span id="s_volv">${s.vol} %</span>`,`<input type="range" id="s_vol" min="0" max="100" step="10" value="${s.vol}" style="max-width:170px">`)}
+  ${R("Tonschema","Sanft: tiefer und weicher · Retro: 8 Bit · Minimal: nur Piepser und Warnungen",this.chips("scheme",["Klassisch","Sanft","Retro","Minimal"],s.scheme),true)}
+  ${R("Ansage","liest stabile Werte vor",swi("s_speak",s.speak))}
+  ${R("Stimme","Sprachpakete liegen unter /Waage/Stimme",this.chips("voice",(s.voices&&s.voices.length?s.voices:["Roboter"]),s.voice||(s.voices||["Roboter"])[0]),true)}
+  <button onclick="P.einstellungen.save(true)">Speichern und Hörprobe</button></div>
+  <div class="sec">Zeit und Funk</div><div class="card">
+  ${R("Uhrzeit","Stand der Uhr in der Waage",`<span class="mut">${s.time||"–"}</span>`)}
+  ${R("WLAN","Netzwerk, mit dem sich die Waage verbindet",`<span class="mut">${esc(s.ssid)||"eigenes WLAN"}</span>`)}
+  <button onclick="get('/api/sync').then(()=>toast('Abgleich gestartet'))">Uhrzeit jetzt abgleichen</button></div>
+  <div class="sec">Gespeicherte WLAN-Netze</div><div class="card" id="wl">Lade …</div>
+  <div class="sec">Waage</div><div class="card">
+  ${R("Kalibrierung","nur an der Waage, weil Gewichte aufgelegt werden",`<span class="mut">Faktor ${fmt(s.factor,2)}</span>`)}
+  ${R("Messmittelprüfung","Verfahren 1: Cg und Cgk",`<a class="btn sm" href="#/msa">Prüfen ›</a>`)}
+  ${R("Libelle","Versatz des Displays auf null setzen",`<button class="sm" onclick="get('/api/level_reset').then(()=>toast('Nullpunkt zurückgesetzt'))">Zurücksetzen</button>`)}
+  ${R("Portoklassen","Namen, Grenzen und Preise",`<a class="btn sm" href="#/portoklassen">Klassen ›</a>`)}
+  ${R("Spielernamen","gilt für alle Spiele",`<a class="btn sm" href="#/spieler">Namen ›</a>`)}
+  ${R("Firmware-Update","ohne Kabel über die Weboberfläche",`<a class="btn sm" href="#/firmware">Update ›</a>`)}</div>
+  <button class="p" onclick="P.einstellungen.save(false)">Einstellungen speichern</button>`;
+  $("s_vol").oninput=()=>{$("s_volv").textContent=$("s_vol").value+" %"};this.wlan()},
+ // Mehrere WLAN-Netze: die Waage nimmt das stärkste gespeicherte Netz in Reichweite
+ wlan(){get("/api/wlan").then(w=>{const box=$("wl");if(!box)return;const nets=w.nets||[];
+  box.innerHTML=`<span class="faint">Die Waage verbindet sich mit dem stärksten gespeicherten Netz in Reichweite. Bis zu ${w.max||5} Netze.</span>
+  ${nets.length?nets.map((n,i)=>`<div class="set"><span><b style="font-weight:500">${esc(n)}</b>${n===w.cur?`<br><span class="faint">zuletzt verbunden</span>`:""}</span>
+   <button class="sm" onclick="P.einstellungen.wdel(${i})">Entfernen</button></div>`).join(""):`<div class="set"><span class="mut">Kein Netzwerk gespeichert</span></div>`}
+  <div class="set" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 0"><b style="font-weight:500">Netz hinzufügen</b>
+   <input id="w_ssid" style="width:100%;max-width:none" maxlength="32" placeholder="Netzwerkname (SSID)" autocomplete="off">
+   <input id="w_pass" style="width:100%;max-width:none" type="password" maxlength="64" placeholder="Passwort (leer bei offenem Netz)" autocomplete="new-password">
+   <button onclick="P.einstellungen.wadd()">Hinzufügen</button>
+   <span class="faint">Die aktuelle Verbindung bleibt bestehen. Das neue Netz wird beim nächsten Verbinden genutzt, zum Beispiel an einem anderen Ort.</span></div>`})},
+ wadd(){const ss=$("w_ssid").value.trim(),pw=$("w_pass").value;
+  if(!ss){toast("Bitte Namen eingeben");return}
+  api("/api/wlan",{ssid:ss,pass:pw}).then(r=>{toast(r.ok?"Gespeichert":(r.msg||"Fehler"));if(r.ok)this.wlan()})},
+ wdel(i){if(!confirm("Netz entfernen?"))return;get("/api/wlan/del?i="+i).then(r=>{toast(r.ok?"Gelöscht":"Fehler");this.wlan()})},
+ // Sprache sofort umstellen (Waage und Browser), die Seite neu aufbauen
+ lang(l){get("/api/lang?l="+l).then(r=>{if(!r.ok){toast("Fehler");return}setLang(l);route()})},
+ save(test){const v=id=>$(id),s={unit:this.pick.unit,autosave:v("s_autosave").checked,autonext:v("s_autonext").checked,idle:+v("s_idle").value,autooff:+v("s_autooff").value,autotara:v("s_autotara").checked,precise:v("s_precise").checked,liquid:+v("s_liquid").value,azt:v("s_azt").checked,
+  cd:+v("s_cd").value,tol:+v("s_tol").value,vol:+v("s_vol").value,scheme:this.pick.scheme,speak:v("s_speak").checked,voice:this.pick.voice,porto:this.s.porto};
+  api("/api/settings",s).then(()=>{toast("Gespeichert");if(test)get("/api/speak_test")})}};
+
+// ============================================================
+//  Router
+// ============================================================
+function route(){const key=(location.hash.replace(/^#\/?/,"")||"");const next=P[key]||P[""];
+ if(page&&page!==next&&page.leave)page.leave();page=next;
+ document.title=tr((key?(next.title||key.charAt(0).toUpperCase()+key.slice(1))+" · ":"")+"Waage");
+ $("app").innerHTML=next.render();if(next.enter)next.enter();if(next.live)next.live();window.scrollTo(0,0)}
+window.addEventListener("hashchange",route);
+setLang(LANG);
+get("/api/settings").then(s=>{if(s&&s.autonext!==undefined)AUTONEXT=!!s.autonext;
+ if(s&&s.lang!==undefined&&(s.lang?1:0)!==LANG){setLang(s.lang);route()}});  // Sprache der Waage übernehmen
+route();tick();poll=setInterval(tick,600);
+</script>
+</body>
+</html>

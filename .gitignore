@@ -1,0 +1,7 @@
+# wird von der GitHub Action erzeugt
+Waage/version.h
+build/
+# Arduino-IDE / Betriebssystem
+*.bin
+.DS_Store
+Thumbs.db
