@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="1200" height="660" rx="24" fill="#0E0F0D"/>
+  <text x="40" y="58" font-size="28" font-weight="600" fill="#F3F0E8">Wiring</text>
+  <text x="40" y="86" font-size="15" fill="#A6A398">Load cell → HX711 → UART header of the Waveshare board · everything else is on the board</text>
+
+  <!-- Wägezelle -->
+  <g>
+    <rect x="40" y="215" width="250" height="56" rx="8" fill="#2A2B26" stroke="#6F6D64" stroke-width="2"/>
+    <circle cx="80" cy="243" r="9" fill="#0E0F0D" stroke="#6F6D64" stroke-width="2"/>
+    <circle cx="110" cy="243" r="9" fill="#0E0F0D" stroke="#6F6D64" stroke-width="2"/>
+    <circle cx="220" cy="243" r="9" fill="#0E0F0D" stroke="#6F6D64" stroke-width="2"/>
+    <circle cx="250" cy="243" r="9" fill="#0E0F0D" stroke="#6F6D64" stroke-width="2"/>
+    <rect x="145" y="226" width="40" height="34" rx="4" fill="#3A3B36"/>
+    <text x="165" y="298" font-size="17" font-weight="600" fill="#F3F0E8" text-anchor="middle">Load cell 3 kg</text>
+    <text x="165" y="320" font-size="13" fill="#A6A398" text-anchor="middle">straight bar, 4 wires</text>
+  </g>
+
+  <!-- Adern der Wägezelle -->
+  <g fill="none" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <polyline points="290,228 330,228 330,190 420,190" stroke="#E5484D"/>
+    <polyline points="290,238 345,238 345,230 420,230" stroke="#1B1B1B"/>
+    <polyline points="290,238 345,238 345,230 420,230" stroke="#8A8A8A" stroke-width="1"/>
+    <polyline points="290,248 345,248 345,270 420,270" stroke="#F3F0E8"/>
+    <polyline points="290,258 330,258 330,310 420,310" stroke="#3DDC97"/>
+  </g>
+  <g font-size="13" fill="#BDBAB0">
+    <text x="352" y="184">red</text>
+    <text x="352" y="224">black</text>
+    <text x="352" y="264">white</text>
+    <text x="352" y="304">green</text>
+  </g>
+
+  <!-- HX711 -->
+  <g>
+    <rect x="420" y="150" width="220" height="270" rx="10" fill="#1F4D38" stroke="#3DDC97" stroke-width="2"/>
+    <text x="530" y="445" font-size="17" font-weight="600" fill="#F3F0E8" text-anchor="middle">HX711 module</text>
+    <text x="530" y="467" font-size="13" fill="#A6A398" text-anchor="middle">24-bit ADC, 10 Hz</text>
+    <g font-size="14" fill="#F3F0E8" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <text x="432" y="195">E+</text><text x="432" y="235">E−</text><text x="432" y="275">A−</text><text x="432" y="315">A+</text>
+      <text x="432" y="355" fill="#6F6D64">B−</text><text x="432" y="395" fill="#6F6D64">B+</text>
+      <text x="628" y="215" text-anchor="end">GND</text><text x="628" y="265" text-anchor="end">DT</text>
+      <text x="628" y="315" text-anchor="end">SCK</text><text x="628" y="365" text-anchor="end">VCC</text>
+    </g>
+    <text x="470" y="395" font-size="12" fill="#6F6D64">not used</text>
+    <g fill="#F5B83D"><circle cx="420" cy="190" r="4"/><circle cx="420" cy="230" r="4"/><circle cx="420" cy="270" r="4"/><circle cx="420" cy="310" r="4"/>
+      <circle cx="640" cy="210" r="4"/><circle cx="640" cy="260" r="4"/><circle cx="640" cy="310" r="4"/><circle cx="640" cy="360" r="4"/></g>
+  </g>
+
+  <!-- HX711 -> Board -->
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <line x1="640" y1="210" x2="780" y2="210" stroke="#A6A398"/>
+    <line x1="640" y1="260" x2="780" y2="260" stroke="#7FB2F0"/>
+    <line x1="640" y1="310" x2="780" y2="310" stroke="#F5B83D"/>
+    <line x1="640" y1="360" x2="780" y2="360" stroke="#FF6B5E"/>
+  </g>
+
+  <!-- Board -->
+  <g>
+    <circle cx="1040" cy="285" r="148" fill="#171815" stroke="#6F6D64" stroke-width="3"/>
+    <circle cx="1040" cy="285" r="122" fill="#0B0C0A" stroke="#2A2B26" stroke-width="2"/>
+    <text x="1040" y="236" font-size="13" fill="#A6A398" text-anchor="middle">Waveshare</text>
+    <text x="1040" y="258" font-size="15.5" font-weight="600" fill="#F3F0E8" text-anchor="middle">ESP32-S3-Touch-LCD-1.46</text>
+    <text x="1040" y="282" font-size="12.5" fill="#3DDC97" text-anchor="middle">412 × 412 round touch display</text>
+    <text x="1040" y="310" font-size="10.5" fill="#A6A398" text-anchor="middle">on board: speaker · PCM5101 · MSM261 mic</text>
+    <text x="1040" y="326" font-size="10.5" fill="#A6A398" text-anchor="middle">QMI8658 IMU · PCF85063 RTC · microSD</text>
+    <text x="1040" y="342" font-size="10.5" fill="#A6A398" text-anchor="middle">LiPo charger · 16 MB flash · 8 MB PSRAM</text>
+
+    <rect x="780" y="185" width="104" height="200" rx="8" fill="#2A2B26" stroke="#F5B83D" stroke-width="2"/>
+    <text x="832" y="178" font-size="13" fill="#F5B83D" text-anchor="middle">UART header</text>
+    <g font-size="13" fill="#F3F0E8" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <text x="792" y="215">GND</text>
+      <text x="792" y="258">RXD</text><text x="792" y="274" font-size="11" fill="#A6A398">GPIO44</text>
+      <text x="792" y="308">TXD</text><text x="792" y="324" font-size="11" fill="#A6A398">GPIO43</text>
+      <text x="792" y="365">3V3</text>
+    </g>
+    <g fill="#F5B83D"><circle cx="780" cy="210" r="4"/><circle cx="780" cy="260" r="4"/><circle cx="780" cy="310" r="4"/><circle cx="780" cy="360" r="4"/></g>
+
+    <rect x="1010" y="428" width="60" height="16" rx="3" fill="#2A2B26" stroke="#6F6D64"/>
+    <text x="1080" y="441" font-size="12" fill="#A6A398">BAT</text>
+    <rect x="1178" y="270" width="20" height="30" rx="4" fill="#2A2B26" stroke="#6F6D64"/>
+    <text x="1188" y="258" font-size="12" fill="#A6A398" text-anchor="end">USB-C</text>
+  </g>
+
+  <!-- Akku -->
+  <g>
+    <line x1="1045" y1="444" x2="1045" y2="530" stroke="#E5484D" stroke-width="4"/>
+    <line x1="1035" y1="444" x2="1035" y2="530" stroke="#8A8A8A" stroke-width="4"/>
+    <rect x="940" y="530" width="200" height="70" rx="10" fill="#2A2214" stroke="#F5B83D" stroke-width="2"/>
+    <text x="1040" y="560" font-size="16" font-weight="600" fill="#F3F0E8" text-anchor="middle">LiPo 3.7 V · 1500 mAh</text>
+    <text x="1040" y="582" font-size="12" fill="#A6A398" text-anchor="middle">MX1.25 plug · ≈ 10 h · charges via USB-C</text>
+  </g>
+
+  <!-- Legende -->
+  <g font-size="14" fill="#BDBAB0">
+    <rect x="40" y="520" width="700" height="100" rx="12" fill="#1E1F1B" stroke="#2A2B26"/>
+    <line x1="60" y1="548" x2="90" y2="548" stroke="#FF6B5E" stroke-width="4"/><text x="100" y="553">VCC → 3V3 (HX711 runs on 3.3 V)</text>
+    <line x1="60" y1="576" x2="90" y2="576" stroke="#A6A398" stroke-width="4"/><text x="100" y="581">GND → GND</text>
+    <line x1="400" y1="548" x2="430" y2="548" stroke="#7FB2F0" stroke-width="4"/><text x="440" y="553">DT → RXD (GPIO44)</text>
+    <line x1="400" y1="576" x2="430" y2="576" stroke="#F5B83D" stroke-width="4"/><text x="440" y="581">SCK → TXD (GPIO43)</text>
+    <text x="60" y="606" font-size="12" fill="#6F6D64">Wire colours of load cells vary – check your datasheet. Header pin order may differ on your board: follow the labels.</text>
+  </g>
+</svg>

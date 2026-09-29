@@ -1,552 +1,288 @@
-# Waage – Schritt 1: Oberfläche
+<p align="center">
+  <img src="docs/images/hero.png" alt="ESP Scale – a smart kitchen and workshop scale with a round touch display" width="100%">
+</p>
 
-Getestete Umgebung: Arduino IDE 2.2.1, esp32 by Espressif 3.1.1, LVGL 8.3.10 (aus dem Waveshare-Paket).
+<p align="center">
+  <a href="https://github.com/18Markus1984/Esp_Scale/actions/workflows/firmware.yml"><img src="https://github.com/18Markus1984/Esp_Scale/actions/workflows/firmware.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/18Markus1984/Esp_Scale/releases/latest"><img src="https://img.shields.io/github/v/release/18Markus1984/Esp_Scale?label=firmware&color=3DDC97" alt="Latest firmware"></a>
+  <img src="https://img.shields.io/badge/ESP32--S3-Arduino-00979D" alt="ESP32-S3 · Arduino">
+  <img src="https://img.shields.io/badge/LVGL-8.3.10-3DDC97" alt="LVGL 8.3.10">
+  <img src="https://img.shields.io/badge/UI-English%20%7C%20Deutsch-F5B83D" alt="English | Deutsch">
+</p>
 
-## Wichtig vor dem ersten Kompilieren: LVGL-Speicher
+# ESP Scale
 
-Die Waveshare-Konfiguration gibt LVGL nur 48 KB Arbeitsspeicher, das reicht für
-die vielen Seiten nicht. In `libraries/lvgl/src/lv_conf.h` diese Zeile ändern:
+**ESP Scale** turns a 3 kg load cell and a Waveshare **ESP32-S3 board with a 1.46″ round touch display**
+into a kitchen and workshop scale that does a lot more than show grams. It walks you through recipes
+and cocktails, splits dough into equal portions, mixes 2-part resin by ratio, counts screws and coins,
+logs weight over hours and runs party games. Everything can also be used from your phone. The web
+interface is served by the scale itself. New firmware is built by GitHub Actions and installed
+**over the air, straight from this repository's releases**.
 
-    #define LV_MEM_CUSTOM 1
+The whole UI is available in **English and German** (display, web interface and voice output).
 
-Dann nutzt LVGL den normalen Heap des ESP32. Ohne die Änderung bricht das
-Kompilieren mit einem Hinweis ab.
+---
 
-Für den QR-Code (Setup → Weboberfläche) in derselben Datei außerdem:
+## Contents
 
-    #define LV_USE_QRCODE 1
+- [Highlights](#highlights)
+- [Screens](#screens)
+- [Web interface](#web-interface)
+- [Hardware](#hardware)
+- [Wiring](#wiring)
+- [How it fits together](#how-it-fits-together)
+- [Getting started](#getting-started)
+- [Firmware updates](#firmware-updates)
+- [SD card](#sd-card)
+- [Repository layout](#repository-layout)
+- [Credits and licenses](#credits-and-licenses)
 
+---
 
-## Einrichten
+## Highlights
 
-1. Diesen Ordner `Waage` in deinen Sketchbook-Ordner legen (z. B. `C:\Waage\Waage\`).
-2. Aus der Waveshare-Demo `LVGL_Arduino` diese Dateien in denselben Ordner kopieren
-   (jeweils `.h` und `.cpp` bzw. `.c`):
-   - BAT_Driver
-   - Display_SPD2010
-   - esp_lcd_spd2010
-   - Gyro_QMI8658
-   - I2C_Driver
-   - LVGL_Driver
-   - PWR_Key
-   - RTC_PCF85063
-   - SD_Card
-   - TCA9554PWR
-   - Touch_SPD2010
-3. Nicht kopieren: `LVGL_Arduino.ino`, `LVGL_Example.*`, `LVGL_Music.*`,
-   `MIC_MSM.*`, `Audio_PCM5101.*`, `Wireless.*`
-4. `Waage.ino` öffnen, Board-Einstellungen wie bei der Demo, hochladen.
-
-## Dateien
-
-| Datei | Inhalt |
+| | |
 |---|---|
-| `Waage.ino` | Start, Treiber-Task für IMU, Uhr, Akku |
-| `config.h` | Simulation an/aus, Messbereich, Lagecheck-Grenzen |
-| `hal.h` / `hal_board.cpp` | Zugriff auf Sensoren (IMU, RTC, Akku, BOOT-Taste) |
-| `scale.h` / `scale.cpp` | Waagen-Logik: Tara, Stabilität, Überlast, Simulation |
-| `ui.h` / `ui.cpp` | Lagecheck, Wiegeseite, Launcher, Navigation |
-| `ui_pages.*` | Seitenliste, Wasserwaage, Platzhalter |
-| `page_ziel.cpp` | Modus Ziel (Parkpiepser) – Vorlage für neue Seiten |
-| `page_portion.cpp` | Modus Portionieren: Teig in gleiche Stücke teilen |
-| `page_timer.cpp` | Küchentimer (Übersicht und Einstellen) |
-| `page_tassen.cpp` | Tassen & Löffel (US-Rezepte) |
-| `page_mix.cpp` | 2K mischen mit Topfzeit |
-| `page_langzeit.cpp` | Langzeitmessung mit Kurve |
-| `page_muenzen.cpp` | Münzzähler und Kassensturz |
-| `page_blind.cpp` | Spiel Blindgießen |
-| `page_halb.cpp` | Spiel Halbe-Halbe (in der Mitte teilen) |
-| `tools.*` | Hintergrunddienste: Küchentimer, Langzeitmessung |
-| `page_zaehlen.cpp` | Modus Zählen: Referenz lernen, zählen, per Bluetooth senden |
-| `page_porto.cpp` | Modus Porto: Briefklasse und Preis (Stand 2026) |
-| `ble_kbd.h` / `ble_kbd.cpp` | Bluetooth-Tastatur (tippt Zahl + Enter am PC) |
-| `page_toepfe.cpp` | Töpfe: Liste, Anlegen, Konflikt, Bearbeiten |
-| `page_rezept.cpp` | Rezepte: Auswahl, Vorschau, Schritte, Fertig |
-| `page_protokoll.cpp` | Protokoll: heute und ältere Tage |
-| `page_setup.cpp` | Setup: Auto-Tara, Uhrzeit, Datum, WLAN |
-| `page_kalib.cpp` | Kalibrierung in 3 Schritten |
-| `sound.*` | Töne über den Lautsprecher, Parkpiepser |
-| `ui_power.*` | PWR-Taste: Standby, Ausschalten |
-| `page_spiel.cpp` | Schätzspiel |
-| `page_spule.cpp` | Filament-Restmenge |
-| `page_trink.cpp` | Trinkspiel (Schluckgröße schätzen) |
-| `page_cocktail.cpp` | Cocktails in ml mixen |
-| `page_mic.cpp` | Mikrofon-Pegeltest |
-| `mic.*` | Mikrofon (I2S-Port 1) |
-| `voice.*` | Spracherkennung mit ESP-SR (aus) |
-| `ui_text.*` | Texteingabe über den Buchstabenring |
-| `storage.*` | SD-Karte (Ordner, Lesen, Schreiben) |
-| `data.*` | Dateiformate für Töpfe, Protokoll, Rezepte |
-| `settings.*` | Einstellungen im internen Flash |
-| `net.*` | WLAN und Uhrzeit per NTP |
-| `web.*` | Webserver und Endpunkte |
-| `web_page.h` | eingebettete Webseite (erzeugt aus `web/page.html`) |
-| `ui_widgets.*` | Kurvenliste, Libelle |
-| `ui_theme.*` | Farben, Schriften, Buttons, Chips, Ring |
-| `i18n.*`, `i18n_en.cpp` | Sprache Deutsch/English: `T()` und Übersetzungstabelle |
-| `font_sg_*.c` | Space Grotesk mit Umlauten (14/18/24/34 px, 80 px nur Ziffern) |
-
-## Bedienung
-
-- Start: Lagecheck. Gerade → automatisch weiter, schief → „Trotzdem weiter“.
-- Wischen links/rechts: Wiegen ↔ Modi ↔ System.
-- Kurvenliste: hoch/runter scrollen, anderen Eintrag antippen = in die Mitte holen,
-  markierten Eintrag antippen = öffnen. Nach rechts wischen = zurück.
-- BOOT-Taste: Tara.
-
-## Neue Seite hinzufügen
-
-1. Neue Datei `page_xxx.cpp` anlegen (Vorlage: `page_ziel.cpp`).
-2. In `ui_pages.h` die Funktion `lv_obj_t *page_xxx_create();` eintragen.
-3. In `ui.cpp` in der Tabelle `MODI_PAGES` bzw. `SYSTEM_PAGES` das passende
-   `NULL` durch `page_xxx_create` ersetzen. `NULL` zeigt den Platzhalter.
-
-Regeln:
-- Zustand der Seite als `static`-Variablen in ihrer eigenen Datei.
-- Timer immer im `LV_EVENT_DELETE` des Screens löschen.
-- Mehrere Schritte in einem Modus: `ui_switch_page(page_schritt2_create())`.
-- Nach rechts wischen führt immer zurück zur Startseite.
-- Keine waagerecht scrollbaren Inhalte auf Seiten (würde das Zurückwischen blockieren).
-
-## SD-Karte
-
-Karte mit FAT32 formatieren. Beim Start legt die Waage diese Ordner an:
-
-    /Waage/Protokoll/   2026-09-18.txt   eine Datei pro Tag
-    /Waage/Toepfe/      toepfe.txt       alle Töpfe
-    /Waage/Rezepte/     *.txt            ein Rezept pro Datei
-    /Waage/Porto/                        (später)
-    /Waage/Sounds/                       (später)
-    /Waage/Stimme/      *.wav            Sprachbausteine für die Ansage
-    /Waage/Spulen/      spulen.txt       Leerspulen (Name;Gewicht)
-    /Waage/Spiel/       spiele.txt       Ergebnisse des Schätzspiels
-    /Waage/Messung/     *.csv            Langzeitmessungen (Uhrzeit;Minuten;Gewicht_g)
-
-Alle Dateien sind Text mit `;` als Trennzeichen und Komma als Dezimalzeichen,
-lassen sich also mit Excel öffnen und am PC bearbeiten.
-
-Protokoll-Zeile:  `14:32:05;1234,5;g;Großer Topf`
-Topf-Zeile:       `Großer Topf;1840,2;0;2026-09-12`  (Name;Gewicht;Farbe 0-3;angelegt)
-
-Rezept (z. B. `pfannkuchen.txt`, ohne Umlaute im Dateinamen):
-
-    name=Pfannkuchen
-    portionen=2
-    Mehl;250
-    Milch;500
-
-Ist der Rezeptordner leer, legt die Waage dieses Beispiel selbst an.
-Einstellungen (Auto-Tara, WLAN) liegen im internen Flash und bleiben auch ohne Karte erhalten.
-
-## Topferkennung (Auto-Tara)
-
-Leeren Topf auf die leere Waage stellen -> wird ein gespeicherter Topf erkannt,
-läuft ein Countdown, danach wird die Tara gesetzt und der Topfname angezeigt.
-Topf abnehmen -> Tara springt automatisch zurück. Einstellbar unter
-System -> Setup -> Auto-Tara. In der Topfliste: Antippen zieht das gespeicherte
-Gewicht ab (gefüllter Topf), gedrückt halten öffnet „Bearbeiten“.
-
-## WLAN und Uhrzeit
-
-System -> Setup -> WLAN -> Netzwerke -> + Neues Netzwerk: Netz aus der Liste wählen,
-Passwort über den Buchstabenring eingeben. Bis zu 5 Netze werden gespeichert (z. B.
-Zuhause, Werkstatt, Ferienhaus); die Waage nimmt das stärkste davon in Reichweite.
-Gespeicherte Netze antippen zum Entfernen. Im Browser: Einstellungen -> Gespeicherte
-WLAN-Netze (hinzufügen und entfernen). Die Waage verbindet sich nur kurz, holt die
-Uhrzeit (inkl. Sommerzeit) und schaltet WLAN wieder ab. Abgleich beim Start und
-danach einmal täglich. Ohne WLAN: Uhrzeit und Datum im Setup von Hand stellen.
-
-## Texteingabe (Buchstabenring)
-
-Finger am Rand entlangführen, die Lupe zeigt den Buchstaben, Loslassen übernimmt.
-Finger vor dem Loslassen in die Mitte ziehen = Zeichen verwerfen.
-`abc` / `123` / `ABC` schaltet um, `←` löscht, `Leer` = Leerzeichen.
-Nach dem ersten Großbuchstaben geht es automatisch klein weiter.
-
-## SD-Karte
-
-Die Karte läuft mit 10 MHz statt der 40 MHz des Treibers (`SD_FREQ_KHZ` in `config.h`),
-weil der schnelle Takt im 1-Bit-Modus mit Lautsprecher und WLAN störanfällig ist.
-Alle 20 s prüft die Waage, ob die Karte noch antwortet; fällt sie aus, wird sie alle 3 s
-neu eingehängt – dabei wird die D3-Leitung über den I/O-Expander kurz auf Low gezogen,
-was eine hängende Karte zurückholt (Meldungen im seriellen Monitor). Ton-Task, Webserver und Oberfläche
-greifen nie gleichzeitig auf die Karte zu. In der Statuszeile steht „keine SD“,
-solange die Karte fehlt.
-
-## Ein- und Ausschalten (PWR-Taste)
-
-Der Akku bleibt dauerhaft angeschlossen, geschaltet wird über die PWR-Taste:
-- **Einschalten:** PWR-Taste ca. 1 s drücken, bis das Display angeht. Die Software
-  hält die Versorgung danach selbst (GPIO7).
-- **Kurz drücken:** Standby mit gedimmter Uhr. Aufwecken per Taste, Antippen oder
-  Gewicht auflegen.
-- **3 s halten:** Ausschalten (Ring zeigt den Fortschritt, Loslassen bricht ab).
-- **Auto-Aus:** Nach der eingestellten Zeit ohne Bedienung (Berühren, Taste oder
-  Gewichtsänderung) schaltet sich die Waage selbst aus – auch aus dem Standby.
-  15 s vorher erscheint ein Countdown mit Warnton, Antippen bricht ab.
-  Einstellbar unter Setup -> Wiegen -> Auto-Aus (nie/10/15/30/60 min, Standard 30).
-  Eine offene Weboberfläche hält die Waage an.
-  Hängt die Waage am USB, bleibt sie versorgt und zeigt „Aus“ – Taste drücken
-  startet sie neu.
-
-`PWR_Init()`/`PWR_Loop()` aus der Waveshare-Demo werden nicht mehr benutzt.
-
-## Weboberfläche: Modi
-
-Alle Modi der Waage gibt es auch im Browser, gruppiert wie am Gerät: Küche (Rezept,
-Cocktail, Ziel, Portionieren, Timer, Tassen & Löffel), Werkstatt (Spule, Zählen, Porto,
-2K mischen, Langzeit, Münzen) und Spiele (Schätzen, Trinken, Blindgießen, Halbe-Halbe).
-Timer und Langzeitmessung laufen auf der Waage weiter, auch wenn der Browser zu ist; die
-Startseite zeigt laufende Timer, eine laufende Messung und einen abgelaufenen Timer mit
-„Alarm aus“.
-
-## Online-Update von GitHub
-
-Setup -> Waage -> Firmware -> „Online suchen“ (oder im Browser unter Firmware-Update) sucht die
-neueste Version in den GitHub-Releases und installiert sie auf Wunsch. Einrichtung des
-Repositorys und der automatischen Builds: siehe `GITHUB.md`. Vorher in `config.h` bei
-`OTA_REPO` den eigenen Repository-Namen eintragen.
-
-## Firmware aktualisieren (OTA)
-
-Beide Partitionsschemata („16M Flash 3MB APP/9.9MB FATFS“ und „ESP SR 16M“) haben zwei
-App-Partitionen, OTA funktioniert also ohne Umstellung.
-
-- **Über den Browser:** Weboberfläche starten, dann `http://waage.local/update` bzw.
-  die angezeigte IP mit `/update` aufrufen. Dort die Datei `Waage.ino.bin` hochladen
-  (Arduino-IDE: Sketch -> Kompilierte Binärdatei exportieren). Die Waage piept beim Start
-  der Übertragung, spielt am Ende die Fertig-Melodie und startet neu.
-- **Über die Arduino-IDE:** Nur im **Heimnetz** (nicht im eigenen WLAN der Waage).
-  Weboberfläche starten, dann erscheint unter Werkzeuge -> Port ein Netzwerk-Port
-  „waage at 192.168.x.x“ (kann 10-30 s dauern). Kein Passwort. Voraussetzung: PC im
-  selben Netz, Firewall erlaubt die Arduino-IDE.
-  Während eines Updates wird die 10-Minuten-Abschaltung laufend zurückgesetzt.
-
-Das WLAN schaltet sich nach 10 Minuten ohne Zugriff ab; ein laufendes Update hält es an.
-
-## Kalibrierung und Messmittelprüfung
-
-**Kalibrierung (Setup -> Waage):** leeren, Referenz auflegen, Kontrolle. Über „Punkt +“
-lassen sich bis zu **drei Stützpunkte** aufnehmen (z. B. 500 g, 1000 g, 2000 g).
-Zwischen den Punkten rechnet die Waage abschnittsweise linear, außerhalb mit der
-Steigung des äußersten Abschnitts. Das fängt die Nichtlinearität der Wägezelle ab,
-die mit einem einzigen Punkt am Rand des Bereichs sichtbar wird.
-
-**Messmittelprüfung (Setup -> Waage -> Kalibrierung -> „Prüfen“, oder im Browser
-unter Einstellungen -> Messmittelprüfung):** Messmittelfähigkeit nach Verfahren 1.
-Sollgewicht des Normals und Toleranz T einstellen, 25 oder 50 Messungen. Ablauf je
-Messung: auflegen, stabilisieren (0,8 s ruhig), Wert wird gespeichert, abnehmen.
-Danach rechnet die Waage:
-
-    x̄   Mittelwert       Bi = x̄ − Soll        s = Standardabweichung
-    Cg  = 0,2·T / (6·s)          Cgk = (0,1·T − |Bi|) / (3·s)
-
-Fähig ab 1,33 (Bosch). Zusätzlich wird die kleinste prüfbare Toleranz
-T_min = 40·s + 10·|Bi| angezeigt. Ergebnis und alle Einzelwerte landen in
-/Waage/Pruefung/<Datum>.txt. In der Weboberfläche gibt es dieselbe Prüfung mit
-**CSV-Export** aller Einzelwerte zum Weiterrechnen.
-
-## Akku
-
-**Tiefentladeschutz:** Unter 3,45 V warnt die Waage jede Minute hörbar und zeigt
-„fast leer – laden!“. Bleibt sie 20 s unter 3,30 V, beendet sie einen laufenden Test
-und schaltet sich ab. LiPo-Zellen nehmen unter etwa 3,2 V Schaden.
-
-**Entladetest:** Auf der Akku-Seite (Waage oder Browser) startbar. Solange er läuft,
-ist das automatische Ausschalten pausiert, sonst würde die Waage mitten im Test aus gehen. Er schreibt jede
-Minute Spannung und Ladestand nach /Waage/Akku/test_<Datum>_<Zeit>.csv, von voll bis
-zur Abschaltung. Damit bekommst du die echte Laufzeit und die tatsächliche
-Entladekurve, statt sie zu schätzen.
-
-Die Umrechnung Spannung -> Prozent stammt aus einem echten Entladetest
-(23./24.09.2026: **10,1 h** von 4,11 V auf 3,02 V). Die Prozentzahl entspricht dem
-Anteil der **verbleibenden Laufzeit**, nicht der Spannung. Stützstellen u. a.:
-3,95 V = 89 %, 3,80 V = 69 %, 3,70 V = 50 %, 3,60 V = 34 %, 3,50 V = 19 %,
-3,40 V = 9 %, 3,30 V = 3 %. Gegenprobe an den Messdaten: die Restzeit stimmt über
-den ganzen Bereich auf etwa 5 Minuten genau.
-
-Solange der eigene Verbrauch noch nicht gemessen ist, rechnet die Restzeitanzeige
-mit diesen 10,1 h (`BAT_RUNTIME_H` in `hal.h`).
-
-System -> Akku zeigt Ladestand, Zustand, Verlauf der letzten Stunden als Balken,
-Verbrauch in Prozent pro Stunde und die geschätzte Restlaufzeit. Alle 5 Minuten kommt
-ein Messpunkt dazu, zusätzlich wandert er tageweise auf die SD-Karte
-(/Waage/Akku/<Datum>.txt). Dieselben Daten gibt es in der Weboberfläche unter „Akku“.
-
-**Am USB** hängt die gemessene Spannung am Ladegerät und liegt über der echten
-Akkuspannung. Deshalb zeigt die Waage dort **„lädt“** bzw. **„voll“** statt eines
-falschen Prozentwerts, und in der Statuszeile erscheint ein Blitz- bzw. Akkusymbol.
-Erkannt wird das an der Höhe und der Vorgeschichte, abgeglichen mit Messungen am Gerät:
-über 4,19 V lädt das Ladegerät aktiv, 4,14 bis 4,19 V mit Kabel heißt „voll“, nach dem
-Abziehen fällt die Spannung auf etwa 4,13 V und die Waage zeigt wieder Prozent.
-Die Ladekurve endet bei 4,15 V = 100 %.
-
-## Dateien auf der SD-Karte (Browser)
-
-Weboberfläche -> „Dateien“: Ordner durchklicken, Dateien herunterladen (antippen),
-löschen, neue Ordner anlegen und beliebig viele Dateien hochladen (mit Fortschritt).
-Damit lassen sich Rezepte, Cocktails, Sprachpakete und Protokolle pflegen, ohne die
-Karte auszubauen. Alles ist auf /Waage begrenzt, darüber hinaus geht nichts.
-An der Waage steht der Verweis unter Setup -> Waage -> Dateien.
-
-## Weboberfläche
-
-**Geschwindigkeit:** Der WebServer des Boardpakets bedient nur eine Verbindung
-gleichzeitig und wartet auf stumme Verbindungen bis zu 5 s (HTTP_MAX_DATA_WAIT).
-Browser öffnen aber Verbindungen auf Vorrat - das war der Grund für 10-30 s Ladezeit.
-Gegenmaßnahmen: stumme Verbindungen werden nach 350 ms selbst getrennt
-(`drop_idle_client` in web.cpp), die Seite wird **gzip** ausgeliefert (76 KB -> 22 KB,
-siehe `web/build.py`), der Server wird mehrfach je Durchlauf und alle 5 ms bedient,
-und die Oberfläche schickt ihre Anfragen nacheinander statt parallel.
-
-Seit dem Umbau nutzt die Weboberfläche **dasselbe dunkle Design wie das Display**:
-identische Farben (übernommen aus `ui_theme.h`), Ringanzeige für Gewicht, Ziel, Spule
-und Akku, runde Tara-/Speichern-Knöpfe, Kopfzeile mit rundem Zurück-Knopf und mittigem
-Titel. Die Übersicht zeigt Ring plus Aktionen, darunter die acht Modi als Symbolraster
-und die Verwaltung als Chips. Eigene Unterseiten gibt es für Portoklassen, Spielernamen
-und Firmware-Update (inklusive Schalter für den Update-Modus).
-
-Die Messmittelprüfung zeigt an Waage und Browser das Live-Gewicht und übernimmt den
-Wert automatisch nach 0,8 s Ruhe oder von Hand über „Übernehmen“ – so hängt sie nicht
-an der Stabilitätserkennung fest.
-
-Setup -> Zeit & WLAN -> Weboberfläche -> „Starten“. Die Waage verbindet sich mit
-dem gespeicherten WLAN (`http://waage.local`) oder macht ohne Heimnetz ein eigenes
-WLAN „Waage-Setup“ auf (Adresse steht dann auf dem Display). Nach **10 Minuten ohne
-Zugriff** schaltet sich der Server samt WLAN selbst ab; solange die Seite offen ist,
-bleibt er an.
-
-Aufbau wie im Design-Sheet: Übersicht mit Live-Gewicht, Auslastungsbalken, Tara
-und Speichern, darunter Kacheln für alle Modi und die Verwaltung.
-
-- **Ziel:** Zielgewicht, Balken bis zum Ziel, die Waage piept als Parkpiepser mit.
-- **Rezept:** Rezept wählen, Portionen, Schritt für Schritt mit Auto-Tara.
-- **Spule:** Material, Leerspule, Durchmesser, Restmeter live; neue Leerspule anlegen.
-- **Zählen:** Referenz übernehmen, Stückzahl live, Zählliste mit Bezeichnungen
-  (als CSV herunterladbar), Senden per Bluetooth.
-- **Porto:** passende Klasse und Preis live, alle Klassen im Überblick.
-- **Spiel:** Spielernamen eintragen, Tipps aller Spieler auf einer Seite, Auflösung
-  mit Trommelwirbel an der Waage, Bestenliste. Während des Spiels zeigt auch das
-  Display der Waage nur „? ? ?“.
-- **Rezepte, Töpfe und Spulen:** anlegen, umbenennen, Farben, löschen. Neue Töpfe
-  und Spulen mit dem gerade aufgelegten Gewicht.
-- **Protokoll:** Tage durchblättern, Tabelle, Diagramm „Wägungen pro Tag“ der letzten
-  7 Tage, Tag als TXT und alles als CSV herunterladen.
-- **Einstellungen:** Wiegen, Auto-Tara, Ton (inkl. Stimme und Hörprobe), Zeit und
-  WLAN, Waage (Libelle zurücksetzen), Portoklassen.
-
-Kalibrieren geht bewusst nur an der Waage, weil dabei Gewichte aufgelegt werden.
-
-**Seite ändern:** Quelle ist `web/page.html`. Danach `python3 web/build.py`
-ausführen, das erzeugt `web_page.h` neu.
-
-## Protokoll
-
-Neben Wägungen landen auch die Ergebnisse der Modi im Protokoll, immer erst wenn der
-Wert 1,5 s ruhig liegt und nur einmal pro Auflegen: Ziel erreicht, Spule (Restmeter),
-Zählen (Stückzahl), Porto (Klasse und Preis), Rezept fertig und die Sieger der Spiele.
-Die Notiz steht in der Tagesansicht zwischen Uhrzeit und Gewicht. Die Liste lässt
-sich wischen.
-
-## Cocktail
-
-Modi -> Cocktail. Rezepte stehen in **Millilitern** in /Waage/Cocktails/*.txt
-(gleiches Format wie Rezepte). Gewogen wird in Gramm, die Umrechnung läuft über
-eine Dichtetabelle nach Zutatennamen: Sirup 1,28 g/ml, Spirituosen 0,94, Saft 1,05,
-unbekannt 1,0. Auf der mitgelieferten SD-Karten-Vorlage liegen **15 Cocktails** (Gin Tonic, Cuba Libre,
-Caipirinha, Aperol Spritz, Mojito, Moscow Mule, Margarita, Daiquiri, Negroni,
-Espresso Martini, Whisky Sour, Pina Colada, Sex on the Beach, Tequila Sunrise, Hugo)
-und **7 Rezepte**. Ist der Ordner leer, legt die Waage vier Beispiele selbst an.
-
-**Eigene Cocktails:** In der Weboberfläche unter „Cocktailkarte“ mit Glas-Vorschau
-(farbige Schichten je Zutat), Zutatenvorschlägen und „Menge abwiegen“, das den
-aktuellen Waagenwert über die Dichte in ml übernimmt. An der Waage selbst über
-„+ Neuer Cocktail“: Name und Zutaten über den Buchstabenring, Menge einstellen
-oder mit „Abmessen“ direkt eingießen.
-
-Ablauf: Cocktail wählen, Anzahl Gläser, Glas auf die Waage, dann Zutat für Zutat.
-Nach jedem Schritt wird automatisch tariert, der Ring und der Parkpiepser führen
-zur Zielmenge, die Anzeige läuft in ml. In der Weboberfläche füllt sich dabei ein
-Cocktailglas, das den Füllstand des ganzen Drinks zeigt.
-
-## Mikrofon und Sprache
-
-**System -> Mikrofon** zeigt ohne Zahlen, ob etwas gehört wird: Der Ring schlägt mit
-dem Schall aus (grün = hört etwas, rot = kein Signal), darunter steht der Zustand und,
-bei eingeschalteter Spracherkennung, ob das Weckwort erkannt wurde und welcher Befehl
-zuletzt verstanden wurde. Kommen vom Mikrofon länger keine Daten, startet die Waage
-den I2S-Empfang selbst neu.
-
-**Spracherkennung (ESP-SR)** schaltest du im Betrieb unter Setup -> Ton ->
-Sprachbefehle ein und aus. Der Start läuft in einem eigenen Task (die Modelle
-brauchen ein bis zwei Sekunden), die Zeile zeigt so lange „startet …“.
-Während die Erkennung läuft, gehört das Mikrofon ihr allein; die Pegelanzeige unter
-System -> Mikrofon zeigt dann stattdessen Weckwort und erkannte Befehle. Damit sie überhaupt zur Verfügung steht (sonst steht dort
-„nicht geladen“), muss sie einkompiliert sein:
-1. In `config.h` `USE_VOICE` auf 1,
-2. in der Arduino-IDE das Partitionsschema **„ESP SR 16M“** wählen (die Sprachmodelle
-   brauchen eine eigene Partition; die Anwendung hat dort genauso viel Platz wie jetzt),
-3. hochladen.
-
-Weckwort ist **„Hi ESP“** (fest eingebaut), danach einer der Befehle:
-`tare the scale`, `save the weight`, `next step`, `read the weight`, `go back`, `stop`.
-Die Befehle sind englisch, weil ESP-SR nur Englisch und Chinesisch beherrscht.
-„next step“ drückt den fortführenden Knopf der aktuellen Seite, funktioniert also in
-Rezept, Cocktail und den Spielen.
-
-## Anzeige und Modi-Menü
-
-Die Wiegeanzeige ist geglättet: Große Änderungen werden sofort übernommen, kleine
-Schwankungen weggemittelt, und sobald der Wert ruhig liegt, wird der Mittelwert des
-Messfensters angezeigt – die Zahl steht dann still. Die Logik (Stabilität, Tara,
-Kalibrierung) arbeitet weiter mit den ungefilterten Werten.
-
-Das Modi-Menü ist in drei Gruppen geteilt: **Küche** (Rezept, Cocktail, Ziel),
-**Werkstatt** (Spule, Zählen, Porto) und **Spiele** (Schätzspiel, Trinkspiel).
-Jeder Eintrag hat ein Symbol (Material Symbols, als `font_icons_26.c` eingebettet;
-Zeichen siehe `ICON_...` in `ui_theme.h`). Wischen nach rechts führt aus einem Modus
-zurück in seine Gruppe und von dort auf die Wiegeseite.
-
-## Spieler und Bestenliste
-
-Spielernamen werden **einmal** gepflegt: an der Waage unter Spiel -> „Spieler“, im
-Browser unter Einstellungen -> Spielernamen. In den Spielen wird nur noch ausgewählt,
-wer mitspielt (antippen = dabei, halten = umbenennen, „+ Spieler“ legt einen neuen an).
-
-Die Ergebnisse beider Spiele landen in **einer** Datei: `/Waage/Spiel/bestenliste.txt`
-im Format `Datum;Spiel;Name;Wert;Einheit`. Kleiner ist besser (Summe der Abweichungen).
-Die Weboberfläche zeigt daraus unter jedem Spiel eine Bestenliste mit dem besten Wert
-je Person. Kommt später ein Spiel dazu, schreibt es einfach in dieselbe Datei.
-
-## Trinkspiel
-
-Prinzip wie beim SipMaster: Die Waage misst die Schluckgröße (1 g ≈ 1 ml).
-Pro Zug: Getränk abstellen, trinken, zurückstellen. Wer nichts getrunken hat und
-nur neu abstellt, bekommt „Nichts getrunken? Nochmal“.
-- **Zielschluck:** jede Runde ein neues Ziel (10–80 ml), Summe der Abweichungen zählt.
-- **KO:** Toleranz startet bei ±15 ml und wird jede Runde um 3 ml kleiner; wer
-  darüber liegt, ist raus (außer alle wären raus). Gewinner ist, wer übrig bleibt.
-Endstand mit Statistik „getrunken“ pro Spieler, Ergebnis in /Waage/Spiel/spiele.txt.
-
-## Schätzspiel
-
-Modi -> Spiel: Spieler (2-8) und Runden (3/5/10) wählen, „Namen ›“ zum Eintragen
-der Namen über den Buchstabenring, Waage leer -> „Los“. Die Namen gelten für
-Schätz- und Trinkspiel und die Weboberfläche gemeinsam (/Waage/Spiel/spieler.txt).
-Pro Runde: Gegenstand verdeckt auflegen, „Tippen“, jeder gibt reihum seinen Tipp ab.
-Auflösung mit Trommelwirbel. Gewertet wird die Summe der Abweichungen, die
-Bestenliste wird in /Waage/Spiel/spiele.txt gespeichert.
-
-## Spule (Filament)
-
-Modi -> Spule: Material wählen (PLA, PETG, ABS, ASA, TPU, PC, Nylon), dann Leerspule
-(„Ohne Leerspule“, eine gespeicherte oder „+ Leerspule“ neu abwiegen). Anzeige der
-Restmeter live, Durchmesser 1,75/2,85 mm umschaltbar, „Speichern“ schreibt ins Protokoll.
-
-## Einstellungen (System -> Setup)
-
-Vier Gruppen als Kacheln:
-- **Wiegen:** Einheit (g, kg, oz, lb – gilt für Wiegeseite und Protokoll),
-  Auto-Speichern (einmal pro Auflegen, wenn das Gewicht 2 s ruhig liegt, ab 5 g),
-  Auto-Weiter (Rezept und Cocktail schalten selbst weiter, wenn die Menge
-  erreicht ist und ruhig liegt), Zur Wiegeseite, Auto-Tara, Auto-Aus.
-- **Zeit & Funk:** Uhrzeit, Datum, WLAN, Weboberfläche, Bluetooth.
-- **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprachbefehle.
-- **Waage:** Kalibrierung, Libelle, Portoklassen.
-
-Einfache Werte werden direkt durch Antippen umgeschaltet, Zeilen mit „›“ öffnen
-eine Unterseite. Als Bedienung für „Zur Wiegeseite“ zählt Berühren und auch eine
-Gewichtsänderung – ein laufendes Rezept wird beim Abwiegen also nicht geschlossen.
-
-## Töne und Ansage
-
-Tonschemas unter Setup -> Ton & Bluetooth -> Lautstärke: **Klassisch**, **Sanft**
-(tiefer und weicher), **Retro** (Rechteckton) und **Minimal** (nur Parkpiepser,
-Warnungen, Überlast). Lautstärke 0 % schaltet alles ab.
-
-Die Engine bricht laufende kurze Töne ab, wenn ein neuer kommt, und unterdrückt
-denselben Ton innerhalb von 60 ms. Klicks sind leiser als Signaltöne. Beim
-Buchstabenring kommt ein Klick, wenn ein Buchstabe übernommen wird.
-
-**Sprachausgabe:** Ordner `Stimme` aus `SD-Karte/Waage/` auf die Karte kopieren
-(/Waage/Stimme/<Paket>/*.wav, mitgeliefert: Paket „Roboter“). Dann lassen sich in
-Setup -> Ton & Bluetooth die Zeilen „Ansage“ (an/aus) und „Stimme“ (Paket wechseln) nutzen:
-Die Waage sagt stabile Werte einmal pro Auflegen an, außerdem beim Speichern und
-die Stückzahl beim Senden im Zählmodus. Die Zahlen werden aus Bausteinen
-zusammengesetzt („ein-und-zwanzig“), deshalb reichen 47 kleine Dateien (ca. 1 MB).
-
-Findet die Waage die Dateien nicht, steht in der Zeile „Ansage“ **keine Stimme**.
-Dann Ordner und Dateinamen prüfen: /Waage/Stimme/gramm.wav muss existieren.
-
-**Eigene Stimmpakete:** Jeder Unterordner in /Waage/Stimme ist ein Paket, zwischen
-denen die Zeile „Stimme“ umschaltet. Zwei Wege:
-- `stimme_erzeugen.py <Ordner>` erzeugt ein Paket mit espeak-ng (Paket „Roboter“).
-- `stimme_schneiden.py aufnahme.mp4 <Paket>` schneidet eine Aufnahme in die
-  einzelnen Wörter. `stimme_schneiden.py --liste` gibt die Wortliste in der
-  richtigen Reihenfolge aus, die du in ein Sprachprogramm kopieren kannst.
-  Wichtig: zwischen den Wörtern deutliche Pausen (ab ca. 0,3 s).
-
-Dateiformat: 16 kHz, Mono, 16 Bit PCM.
-
-## Töne (Details)
-
-Lautsprecher über I2S (BCLK 48, LRC 38, DOUT 47). Parkpiepser im Ziel- und
-Rezeptmodus: ab der Hälfte des Zielgewichts piept es, je näher desto schneller,
-im Ziel ein langer Ton, darüber ein tiefer Warnton. Dazu Töne für Tara,
-Speichern, Topf erkannt, Countdown, Überlast und Tastenklick im Ring.
-Lautstärke: System -> Setup -> Ton (0 % = aus).
-
-## Rezepte an der Waage anlegen
-
-Modi -> Rezept -> „+ Neues Rezept“: Name über den Ring, Portionen, dann Zutaten
-hinzufügen (Name über den Ring mit Vorschlägen, Menge einstellen oder mit
-„Abwiegen“ direkt übernehmen). Gedrückt halten entfernt eine Zutat.
-In der Vorschau eines Rezepts: „Löschen“ (zweimal tippen).
-
-## Portoklassen
-
-System -> Setup -> Porto: Klassen antippen zum Bearbeiten (Name, Gewichtsgrenze,
-Preis), „+ Klasse“ zum Anlegen. Gespeichert in /Waage/Porto/porto.txt.
-
-## Libelle
-
-Setup -> Libelle: Messen, Waage um 180° drehen, erneut Messen. Der Mittelwert
-ist der Einbaufehler des Displays. Läuft die Blase beim Anheben der Vorderkante
-in die falsche Richtung, in `config.h` `DISPLAY_MOUNT` anpassen (0-3 = 0°/90°/180°/270°)
-und danach die Libelle neu kalibrieren.
-
-## Bluetooth (Zählmodus)
-
-- Beim ersten Öffnen von „Zählen“ startet Bluetooth, die Waage heißt „Waage“.
-- Anleitung an der Waage: Status-Chip im Zählmodus antippen oder Setup -> Bluetooth.
-- Am PC: Bluetooth-Gerät hinzufügen → „Waage“ auswählen. Danach verbindet sie sich
-  automatisch.
-- „Senden“ tippt die Stückzahl + Enter in das aktive Feld (z. B. Excel-Zelle).
-  Es werden nur Ziffern gesendet, das Tastaturlayout am PC ist daher egal.
-- Gibt es beim Kompilieren Fehler rund um BLE: in `config.h` `USE_BLE_KBD` auf `0`
-  setzen, dann läuft alles andere ohne Bluetooth.
-
-## Waage anschließen (HX711)
-
-Wägezelle -> HX711: Rot E+, Schwarz E-, Weiß A-, Grün A+ (B+/B- frei lassen)
-HX711 -> UART-Header: VCC -> 3V3, GND -> GND, DT -> RXD (GPIO44), SCK -> TXD (GPIO43)
-
-Bibliothek: „HX711 Arduino Library“ von Bogdan Necula (Bibliotheksverwalter).
-
-Kalibrieren: Setup -> Waage -> Kalibrierung. (1) Waage leeren -> Weiter, (2) bekanntes
-Gewicht auflegen, Wert mit +/- einstellen -> Kalibrieren, (3) Kontrolle.
-Der Faktor wird im Flash gespeichert. Beim Einschalten muss die Waage leer sein,
-dabei wird der Nullpunkt gemessen. `Waage_Phase1_HX711` ist nur noch zur
-Fehlersuche an der Verdrahtung nötig.
-
-## Simulation
-
-`SIM_WAAGE 1` in `config.h` (ohne HX711 testen): Gewichte laufen automatisch durch
-(0 g → 1234,5 g → 1840 g → 3120 g Überlast → 812 g → 0 g).
-
-## Bekannte offene Punkte
-
-- Läuft die Blase in die falsche Richtung: in `ui_read_tilt()` (ui_widgets.cpp)
-  das Vorzeichen von `x` bzw. `y` umdrehen.
-- LVGL-Speicher ist in der Waveshare-`lv_conf.h` auf 48 KB gesetzt, aktuell
-  werden ca. 31 KB belegt. Für weitere Seiten wird der Wert erhöht.
+| ⚖️ **Precise weighing** | 0.1 g resolution, stability detection, **precision mode** (averaging, two decimals), **auto-zero** drift tracking, multi-point calibration, units g / kg / oz / lb / **ml** (12 liquids with density). |
+| 🍲 **Pot detection** | Place an empty pot you have saved before and it is tared automatically after a short countdown. |
+| 🧭 **20+ modes** | Grouped into *Kitchen*, *Workshop* and *Games*, each with guided steps, a progress ring and a "parking sensor" beeper that gets faster as you approach the target. |
+| 📱 **Built-in web app** | Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
+| ☁️ **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. The scale finds the release and installs it with one tap. |
+| 📶 **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
+| 🔊 **Sound and voice** | Sound schemes, spoken weights from WAV voice packs (German and English), experimental offline voice commands (ESP-SR). |
+| 🔋 **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
+| 🧪 **Quality tools** | Gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
+
+### Modes
+
+| Kitchen | Workshop | Games |
+|---|---|---|
+| **Recipe**: step by step, scaled to servings | **Filament spool**: remaining metres from weight | **Guessing game**: guess the weight, hidden display |
+| **Cocktail**: pour in ml, converted by density | **Count**: learn a reference, count parts, send via Bluetooth keyboard | **Drinking game**: hit the target sip (please drink responsibly) |
+| **Target**: parking-sensor beeper | **Postage**: letter and parcel classes | **Blind pour**: pour a target amount without looking |
+| **Portioning**: split dough into *n* equal pieces | **2K mixing**: resin A:B by ratio, pot-life timer | **Half & half**: cut food as close to 50 % as possible |
+| **Timer**: three kitchen timers in the background | **Long-term log**: weight over hours as CSV with trend | Leaderboard for all games |
+| **Cups & spoons**: converts US recipes | **Coins**: count euro coins, cash-up total | |
+
+---
+
+## Screens
+
+<p align="center">
+  <img src="docs/images/screens.png" alt="A selection of on-device screens" width="100%">
+</p>
+
+The display is 412 × 412 px and round, so every screen is designed for the circle: big numbers,
+a progress ring around the edge and round action buttons. Navigation works by swiping. A swipe from
+the left edge always goes back.
+
+---
+
+## Web interface
+
+<p align="center">
+  <img src="docs/images/web-ui.png" alt="Web interface on a phone: dashboard, portioning, long-term log, battery and OTA update" width="100%">
+</p>
+
+The scale serves a single-page app (≈ 50 KB gzip) in the same dark design as the display. It
+offers every mode, the recipe and cocktail editors, pots and spools, the daily log with CSV
+export, battery history, the SD card file manager (upload, download, delete), player names,
+Wi-Fi networks, settings and firmware updates.
+
+- **In your home network:** `http://waage.local` (mDNS) or the IP shown on the display
+- **Without a network:** the scale opens its own access point **`Waage-Setup`**. Scan the QR code on the display and a captive portal opens the page.
+
+---
+
+## Hardware
+
+| Part | Qty | Notes |
+|---|:-:|---|
+| [Waveshare ESP32-S3-Touch-LCD-1.46](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.46) | 1 | ESP32-S3 (8 MB PSRAM, 16 MB flash), 412 × 412 SPD2010 QSPI touch display, PCM5101 audio DAC with speaker, MSM261 microphone, QMI8658 IMU, PCF85063 RTC, microSD slot, LiPo charger |
+| Load cell, straight bar, **3 kg** | 1 | 4-wire. Other ranges work, adjust `WAAGE_MAX_G` in `config.h` |
+| HX711 load-cell amplifier board | 1 | runs on 3.3 V |
+| LiPo battery 3.7 V, ~1500 mAh | 1 | with an **MX1.25 2-pin** plug for the board's battery socket |
+| microSD card | 1 | FAT32, any size |
+| Weighing platter and housing | 1 | e.g. 3D-printed. The load cell needs one fixed end and one free end (Z-mount) |
+| Calibration weight | 1 | anything with a known mass, e.g. 500 g or 1 kg |
+| Wires, screws | – | M4/M5 screws for the load cell, depending on the model |
+
+---
+
+## Wiring
+
+<p align="center">
+  <img src="docs/images/wiring.svg" alt="Wiring diagram: load cell to HX711 to the UART header of the Waveshare board" width="100%">
+</p>
+
+| From | To |
+|---|---|
+| Load cell **red** | HX711 **E+** |
+| Load cell **black** | HX711 **E−** |
+| Load cell **white** | HX711 **A−** |
+| Load cell **green** | HX711 **A+** |
+| HX711 **VCC** | board **3V3** |
+| HX711 **GND** | board **GND** |
+| HX711 **DT** | board **RXD** (GPIO 44) |
+| HX711 **SCK** | board **TXD** (GPIO 43) |
+
+B+ / B− of the HX711 stay unconnected. The UART header pins are used as plain GPIOs. Load-cell wire colours are a convention, not a law. If
+the reading goes *down* when you add weight, swap A+ and A−.
+
+Everything else (display, touch, speaker, microphone, IMU, RTC, SD card, battery charging) is already on the board.
+
+---
+
+## How it fits together
+
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="System overview and release pipeline" width="100%">
+</p>
+
+---
+
+## Getting started
+
+### 1. Toolchain
+
+| | Version |
+|---|---|
+| Arduino IDE | 2.x |
+| Board package **esp32 by Espressif** | **3.1.1** |
+| **LVGL** | **8.3.10**, *not* 9.x (the API differs) |
+| **HX711 Arduino Library** (Bogdan Necula) | latest |
+
+Board settings in the Arduino IDE:
+
+- **Board:** Waveshare ESP32-S3-Touch-LCD-1.46
+- **PSRAM:** Enabled
+- **Partition scheme:** 16M Flash (3MB APP/9.9MB FATFS). Use *ESP SR 16M* only if you enable voice commands (`USE_VOICE 1`).
+
+### 2. LVGL configuration
+
+In your `lv_conf.h` (from the Waveshare package, usually `Arduino/libraries/lvgl/src/lv_conf.h`) set:
+
+```c
+#define LV_MEM_CUSTOM 1     // LVGL uses the normal heap (the default 48 KB is too small)
+#define LV_USE_QRCODE 1     // QR code for Wi-Fi setup
+```
+
+The firmware stops compiling with a clear message if `LV_MEM_CUSTOM` is missing.
+
+### 3. Waveshare driver files
+
+Copy these files from Waveshare's `LVGL_Arduino` demo into the sketch folder `Waage/`
+(`.h` and `.cpp`/`.c` each):
+
+`BAT_Driver` · `Display_SPD2010` · `esp_lcd_spd2010` · `Gyro_QMI8658` · `I2C_Driver` · `LVGL_Driver` ·
+`PWR_Key` · `RTC_PCF85063` · `SD_Card` · `TCA9554PWR` · `Touch_SPD2010`
+
+Do **not** copy `LVGL_Arduino.ino`, `LVGL_Example.*`, `LVGL_Music.*`, `MIC_MSM.*`, `Audio_PCM5101.*`
+or `Wireless.*`. In the copied driver headers, **comment out the includes of the LVGL demo
+projects**. The scale does not use the demos, and they would not compile without the demo sources.
+
+### 4. Flash and first start
+
+1. Open `Waage/Waage.ino` and upload via USB.
+2. Keep the platter **empty** while the scale starts. The zero point is measured at boot, after a short level check.
+3. Calibrate: **Setup → Scale → Calibration**. Empty the scale, place a known weight, confirm. Up to three calibration points compensate for load-cell non-linearity.
+4. Insert a FAT32 microSD card. The scale creates its folders on first start.
+5. Wi-Fi: **Setup → Time & Wi-Fi → Wi-Fi → Networks → + New network**.
+6. Language: **Setup → Scale → Language** (or *Settings → Language* in the browser).
+
+> **No hardware yet?** Set `SIM_WAAGE 1` in `config.h`. The scale then runs through simulated weights.
+
+---
+
+## Firmware updates
+
+There are three ways to update, and none of them needs a cable:
+
+1. **Online from GitHub (recommended):** **Setup → Scale → Firmware → Check online → Install**, or *Firmware update → Online update* in the browser.
+2. **Browser upload:** *Firmware update → Upload firmware* with a `.bin` file.
+3. **Arduino IDE network port:** the scale appears as port `waage` while the web interface is running.
+
+### Release pipeline
+
+The workflow [`.github/workflows/firmware.yml`](.github/workflows/firmware.yml) builds the firmware
+with `arduino-cli` (esp32 3.1.1, LVGL 8.3.10) on every version tag and attaches
+`Waage.ino.bin` (for OTA) and `Waage.ino.merged.bin` (full flash image for USB) to a release:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The tag becomes the firmware version (`v1.2.0` → `1.2.0`). The scale asks
+`api.github.com/repos/18Markus1984/Esp_Scale/releases/latest`, compares versions, downloads the
+binary and writes it to the second OTA partition. It only switches over after the image has been
+verified, so an interrupted download is harmless. Builds from the Arduino IDE show up as
+"built locally" and treat any release as newer.
+
+Want to publish from your own fork? Change `OTA_REPO` in `Waage/config.h`. The complete
+step-by-step setup (in German) is in [GITHUB.md](GITHUB.md).
+
+---
+
+## SD card
+
+```
+/Waage/
+├── Protokoll/   daily weighing log, one file per day (CSV-style, ";" separated)
+├── Rezepte/     recipes, one .txt per recipe
+├── Cocktails/   cocktail recipes in ml
+├── Toepfe/      saved pots (name; empty weight; colour)
+├── Spulen/      empty filament spools
+├── Porto/       postage classes
+├── Messung/     long-term logs (time; minutes; weight)
+├── Pruefung/    gauge studies
+├── Akku/        battery history and discharge tests
+├── Spiel/       leaderboard
+└── Stimme/      voice packs (one folder each, 16 kHz mono WAV)
+```
+
+A recipe is plain text and can be written on a PC or in the web editor:
+
+```
+name=Pancakes
+portionen=2
+Flour;250
+Milk;500
+Eggs;110
+```
+
+All files use `;` as separator and a comma as decimal mark, so they open directly in Excel.
+Everything can be managed in the browser under **Files** without taking the card out.
+
+---
+
+## Repository layout
+
+```
+Esp_Scale/
+├── .github/workflows/firmware.yml   build + release on version tags
+├── Waage/                           Arduino sketch (open Waage.ino)
+│   ├── config.h                     settings: range, OTA repository, features
+│   ├── scale.*                      weighing engine (HX711, filter, tare, auto-zero)
+│   ├── ui*.cpp, page_*.cpp          LVGL screens, one file per mode
+│   ├── tools.*                      background timers and long-term logging
+│   ├── web.*, web/page.html         web server + single-page app (run web/build.py after edits)
+│   ├── net.*                        Wi-Fi (multiple networks), NTP
+│   ├── update_online.*              OTA update from GitHub releases
+│   ├── i18n*                        English translations of the German UI
+│   └── (Waveshare driver files)
+├── lv_conf.h                        LVGL configuration used by the CI build
+├── docs/images/                     pictures for this README
+└── GITHUB.md                        release setup guide (German)
+```
+
+---
+
+## Credits and licenses
+
+- [LVGL](https://lvgl.io) (MIT): graphics library
+- [Waveshare](https://www.waveshare.com) board drivers from the ESP32-S3-Touch-LCD-1.46 demo. Check their terms before redistributing.
+- [HX711 Arduino Library](https://github.com/bogde/HX711) by Bogdan Necula (MIT)
+- [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) font (SIL OFL 1.1), [Material Symbols](https://fonts.google.com/icons) icons (Apache 2.0), converted with `lv_font_conv`
+
+Made by [@18Markus1984](https://github.com/18Markus1984). Issues and pull requests are welcome.

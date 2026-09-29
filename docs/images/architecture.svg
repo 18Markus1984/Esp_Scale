@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F6D64"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3DDC97"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="640" rx="24" fill="#0E0F0D"/>
+  <text x="40" y="58" font-size="28" font-weight="600" fill="#F3F0E8">How it fits together</text>
+
+  <!-- Sensorik -->
+  <g font-size="15" fill="#F3F0E8" text-anchor="middle">
+    <rect x="40" y="130" width="190" height="70" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="135" y="162" font-weight="600">Load cell</text><text x="135" y="183" font-size="12" fill="#A6A398">3 kg bar</text>
+    <rect x="40" y="250" width="190" height="70" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="135" y="282" font-weight="600">HX711</text><text x="135" y="303" font-size="12" fill="#A6A398">24-bit ADC</text>
+    <rect x="40" y="370" width="190" height="70" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="135" y="400" font-weight="600">On-board I/O</text><text x="135" y="421" font-size="12" fill="#A6A398">audio · IMU · RTC · battery</text>
+  </g>
+  <g stroke="#6F6D64" stroke-width="2.5" fill="none">
+    <line x1="135" y1="200" x2="135" y2="246" marker-end="url(#a)"/>
+    <line x1="230" y1="285" x2="296" y2="285" marker-end="url(#a)"/>
+    <line x1="230" y1="405" x2="296" y2="355" marker-end="url(#a)" marker-start="url(#a)"/>
+  </g>
+
+  <!-- ESP32 -->
+  <rect x="300" y="110" width="520" height="340" rx="18" fill="#14281F" stroke="#3DDC97" stroke-width="2"/>
+  <text x="560" y="146" font-size="19" font-weight="600" fill="#F3F0E8" text-anchor="middle">ESP32-S3 firmware (Arduino + LVGL 8.3)</text>
+  <g font-size="14" fill="#F3F0E8">
+    <rect x="325" y="168" width="230" height="78" rx="10" fill="#0E0F0D" stroke="#1E3B2C"/>
+    <text x="340" y="194" font-weight="600">Scale engine</text>
+    <text x="340" y="215" font-size="12" fill="#A6A398">filter · stability · auto-tare</text>
+    <text x="340" y="232" font-size="12" fill="#A6A398">auto-zero · precision mode</text>
+    <rect x="565" y="168" width="230" height="78" rx="10" fill="#0E0F0D" stroke="#1E3B2C"/>
+    <text x="580" y="194" font-weight="600">Touch UI</text>
+    <text x="580" y="215" font-size="12" fill="#A6A398">20+ modes · games · setup</text>
+    <text x="580" y="232" font-size="12" fill="#A6A398">German / English · voice</text>
+    <rect x="325" y="258" width="230" height="78" rx="10" fill="#0E0F0D" stroke="#1E3B2C"/>
+    <text x="340" y="284" font-weight="600">Background services</text>
+    <text x="340" y="305" font-size="12" fill="#A6A398">3 kitchen timers · long-term log</text>
+    <text x="340" y="322" font-size="12" fill="#A6A398">battery log · auto-off</text>
+    <rect x="565" y="258" width="230" height="78" rx="10" fill="#0E0F0D" stroke="#1E3B2C"/>
+    <text x="580" y="284" font-weight="600">Web server + REST API</text>
+    <text x="580" y="305" font-size="12" fill="#A6A398">gzip single-page app</text>
+    <text x="580" y="322" font-size="12" fill="#A6A398">mDNS waage.local · captive portal</text>
+    <rect x="325" y="348" width="470" height="78" rx="10" fill="#0E0F0D" stroke="#1E3B2C"/>
+    <text x="340" y="374" font-weight="600">Networking &amp; updates</text>
+    <text x="340" y="395" font-size="12" fill="#A6A398">up to 5 saved Wi-Fi networks (strongest wins) · NTP time · Bluetooth keyboard</text>
+    <text x="340" y="412" font-size="12" fill="#A6A398">OTA: browser upload · Arduino IDE network port · online update from GitHub</text>
+  </g>
+
+  <!-- rechts -->
+  <g font-size="15" fill="#F3F0E8">
+    <rect x="890" y="110" width="270" height="92" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="910" y="140" font-weight="600">microSD card</text>
+    <text x="910" y="162" font-size="12" fill="#A6A398">recipes · cocktails · pots · log</text>
+    <text x="910" y="180" font-size="12" fill="#A6A398">measurements · voice packs</text>
+    <rect x="890" y="228" width="270" height="110" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="910" y="258" font-weight="600">Phone / PC browser</text>
+    <text x="910" y="280" font-size="12" fill="#A6A398">all modes, editors, files, settings</text>
+    <text x="910" y="298" font-size="12" fill="#A6A398">home Wi-Fi → http://waage.local</text>
+    <text x="910" y="316" font-size="12" fill="#A6A398">or own AP "Waage-Setup" (QR code)</text>
+    <rect x="890" y="364" width="270" height="86" rx="12" fill="#1E1F1B" stroke="#2A2B26" stroke-width="2"/>
+    <text x="910" y="394" font-weight="600">GitHub</text>
+    <text x="910" y="416" font-size="12" fill="#A6A398">api.github.com/…/releases/latest</text>
+    <text x="910" y="434" font-size="12" fill="#A6A398">Waage.ino.bin</text>
+  </g>
+  <g stroke="#6F6D64" stroke-width="2.5" fill="none">
+    <line x1="820" y1="156" x2="886" y2="156" marker-end="url(#a)" marker-start="url(#a)"/>
+    <line x1="820" y1="283" x2="886" y2="283" marker-end="url(#a)" marker-start="url(#a)"/>
+    <line x1="886" y1="407" x2="820" y2="407" marker-end="url(#a)"/>
+  </g>
+
+  <!-- OTA-Ablauf -->
+  <text x="40" y="500" font-size="17" font-weight="600" fill="#F3F0E8">Release pipeline</text>
+  <g font-size="14" fill="#F3F0E8" text-anchor="middle">
+    <rect x="40" y="520" width="240" height="80" rx="12" fill="#1E1F1B" stroke="#3DDC97" stroke-width="2"/>
+    <text x="160" y="552" font-weight="600">Push a tag</text><text x="160" y="575" font-size="13" fill="#3DDC97" font-family="ui-monospace, Menlo, Consolas, monospace">git tag v1.2.0</text>
+    <rect x="340" y="520" width="240" height="80" rx="12" fill="#1E1F1B" stroke="#3DDC97" stroke-width="2"/>
+    <text x="460" y="552" font-weight="600">GitHub Actions</text><text x="460" y="575" font-size="12" fill="#A6A398">arduino-cli · esp32 3.1.1</text>
+    <rect x="640" y="520" width="240" height="80" rx="12" fill="#1E1F1B" stroke="#3DDC97" stroke-width="2"/>
+    <text x="760" y="552" font-weight="600">GitHub Release</text><text x="760" y="575" font-size="12" fill="#A6A398">Waage.ino.bin (+ merged.bin)</text>
+    <rect x="940" y="520" width="220" height="80" rx="12" fill="#14281F" stroke="#3DDC97" stroke-width="2"/>
+    <text x="1050" y="552" font-weight="600">Scale</text><text x="1050" y="575" font-size="12" fill="#A6A398">Check online → Install</text>
+  </g>
+  <g stroke="#3DDC97" stroke-width="2.5" fill="none">
+    <line x1="280" y1="560" x2="336" y2="560" marker-end="url(#g)"/>
+    <line x1="580" y1="560" x2="636" y2="560" marker-end="url(#g)"/>
+    <line x1="880" y1="560" x2="936" y2="560" marker-end="url(#g)"/>
+  </g>
+</svg>
