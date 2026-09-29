@@ -695,6 +695,12 @@ const i18n_pair_t I18N_EN[] = {
   { "Update fehlgeschlagen", "Update failed" },
   { "Repository in config.h eintragen", "Set the repository in config.h" },
   { "Zu wenig Speicher", "Not enough memory" },
+  // ---- Stimmenauswahl ----
+  { "aktiv", "active" },
+  { "antippen: wählen", "tap: select" },
+  // ---- Menü Sprache ----
+  { "Töne, Sprache", "Tones, language" },
+  { "Kalibr., Firmware", "Calib., firmware" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

@@ -685,8 +685,8 @@ static void h_settings() {
     s += "\"" + esc(liquid_name(i)) + "\"";
   }
   s += "],\"voices\":[";
-  char packs[8][24];
-  int n = sound_voice_packs(packs, 8);
+  static char packs[VOICE_PACKS_MAX][24];
+  int n = sound_voice_packs(packs, VOICE_PACKS_MAX);
   for (int i = 0; i < n; i++) {
     if (i) s += ",";
     s += "\"" + esc(packs[i]) + "\"";
@@ -719,10 +719,7 @@ static void h_settings_save() {
   g_set.scheme = constrain((int)jval(b, "scheme").toInt(), 0, SCHEME_COUNT - 1);
   g_set.speak = jval(b, "speak") == "true";
   String voice = jval(b, "voice");
-  if (voice.length()) {
-    strncpy(g_set.voice, voice.c_str(), sizeof(g_set.voice) - 1);
-    g_set.voice[sizeof(g_set.voice) - 1] = 0;
-  }
+  if (voice.length()) sound_voice_set(voice.c_str());  // prüft das neue Paket gleich
   settings_save();
 
   String item;

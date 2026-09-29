@@ -16,6 +16,7 @@ aktuellen Stand und die offenen Punkte.
 | Mikrofon | MSM261 über **I2S1**: BCK 15, WS 2, DIN 39 (beide Kanäle, Gleichanteil wird abgezogen) |
 | SD-Karte | 1-Bit-Modus, Takt auf **10 MHz** gedrosselt (40 MHz stört mit WLAN und Ton) |
 | Akku | 1500 mAh LiPo, gemessene Laufzeit **10,1 h** |
+| Ein/Aus-Taster | externer Mikrotaster **6 × 6 × 10 mm**, parallel zur PWR-Taste der Platine gelötet (Gehäuse starr verbaut); Firmware unverändert |
 | Sonstiges | RTC PCF85063, Lage-Sensor QMI8658 (Libelle), IO-Expander TCA9554 |
 
 ## 2. Entwicklungsumgebung
@@ -111,7 +112,7 @@ Ladezeit. Gegenmaßnahmen: `drop_idle_client()` trennt stumme Verbindungen nach
 Oberfläche schickt ihre Anfragen nacheinander statt parallel.
 
 **Sprache Deutsch/English (neu, 26.09.2026):** Einstellung `g_set.lang` (Flash-Schlüssel
-`lang`), umschaltbar am Gerät unter Setup → Waage → Sprache und im Browser unter
+`lang`), umschaltbar am Gerät unter Setup → Ton → Sprache und im Browser unter
 Einstellungen → Sprache (`/api/lang?l=0|1`). Gilt für Display, Weboberfläche und Ansage.
 - Display: Der Code bleibt deutsch. `i18n.h` (über `ui_theme.h` eingebunden) ersetzt
   `lv_label_set_text()` per Makro durch eine Version, die den Text vorher mit `T()` in
@@ -231,6 +232,16 @@ Gerät: Setup -> Waage -> Firmware (Zeile 36). Browser: Firmware-Update -> Karte
 (`.github/workflows/firmware.yml`, `.gitignore`, `GITHUB.md` mit Schritt-für-Schritt-Anleitung).
 FQBN: `esp32:esp32:waveshare_esp32_s3_touch_lcd_146:PSRAM=enabled,PartitionScheme=app3M_fat9M_16MB`.
 Nicht auf echter Hardware getestet (kein Compiler hier), nur Syntaxprüfung mit Ersatz-Headern.
+
+**GitHub (29.09.2026):** Repository `18Markus1984/Esp_Scale`, Online-Update läuft. Für den Build
+mussten in den Waveshare-Treiber-Headern die Includes der LVGL-Demoprojekte auskommentiert werden.
+Englische README mit Bildern (`README.md`, `docs/images/`: hero.png, screens.png, web-ui.png aus
+Simulator/Web-Tour, wiring.svg, architecture.svg), Skripte zum Neuerzeugen in `docs/tools/`.
+
+**Stimmenauswahl (29.09.2026):** bis zu `VOICE_PACKS_MAX` = 32 Pakete (vorher nur die ersten 8
+Unterordner, beide Sprachen zusammen gezählt), alphabetisch sortiert, nur Pakete der eingestellten
+Sprache. Gerät: Setup -> Ton -> Stimme öffnet eine Auswahlliste (`page_voice_pick_create`),
+`sound_voice_set()` setzt und prüft das Paket; Browser: alle Pakete als Chips.
 
 ## 6. Offene Punkte
 

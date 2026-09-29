@@ -2,8 +2,10 @@
 #include "settings.h"
 #include "hal.h"
 #include "data.h"
+#include "storage.h"
 #include <math.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 
 // ------------------------------------------------------------
@@ -374,8 +376,8 @@ bool sound_voice_available() {
     s_voice_check = millis();
     if (!voice_check() && !g_set.voice[0]) {
       // noch kein Paket gewählt: erstes gefundenes nehmen
-      char packs[8][24];
-      int n = sound_voice_packs(packs, 8);
+      static char packs[VOICE_PACKS_MAX][24];
+      int n = sound_voice_packs(packs, VOICE_PACKS_MAX);
       if (n > 0) {
         strncpy(g_set.voice, packs[0], sizeof(g_set.voice) - 1);
         g_set.voice[sizeof(g_set.voice) - 1] = 0;
@@ -387,8 +389,9 @@ bool sound_voice_available() {
 }
 
 int sound_voice_packs(char names[][24], int max) {
-  static char dirs[8][STORAGE_NAME_LEN];
-  int n = storage_list_dirs(VOICE_DIR, dirs, 8);
+  // Alle Unterordner lesen (beide Sprachen), dann nur die passenden behalten
+  static char dirs[64][STORAGE_NAME_LEN];
+  int n = storage_list_dirs(VOICE_DIR, dirs, 64);
   int k = 0;
   for (int i = 0; i < n && k < max; i++) {
     if (!pack_ok(dirs[i])) continue;  // nur Pakete der eingestellten Sprache
@@ -396,14 +399,22 @@ int sound_voice_packs(char names[][24], int max) {
     names[k][23] = 0;
     k++;
   }
+  // alphabetisch sortieren (Groß-/Kleinschreibung egal)
+  for (int i = 1; i < k; i++)
+    for (int j = i; j > 0 && strcasecmp(names[j], names[j - 1]) < 0; j--) {
+      char t[24];
+      memcpy(t, names[j], 24);
+      memcpy(names[j], names[j - 1], 24);
+      memcpy(names[j - 1], t, 24);
+    }
   return k;
 }
 
 // Sprache umgestellt: passt das Paket nicht, das erste passende nehmen
 void sound_lang_changed() {
   if (storage_ok() && !pack_ok(g_set.voice)) {
-    char packs[8][24];
-    if (sound_voice_packs(packs, 8) > 0) {
+    static char packs[VOICE_PACKS_MAX][24];
+    if (sound_voice_packs(packs, VOICE_PACKS_MAX) > 0) {
       strncpy(g_set.voice, packs[0], sizeof(g_set.voice) - 1);
       g_set.voice[sizeof(g_set.voice) - 1] = 0;
     }
@@ -412,9 +423,16 @@ void sound_lang_changed() {
   s_voice_check = millis();
 }
 
+void sound_voice_set(const char *pack) {
+  strncpy(g_set.voice, pack, sizeof(g_set.voice) - 1);
+  g_set.voice[sizeof(g_set.voice) - 1] = 0;
+  s_voice = voice_check();
+  s_voice_check = millis();
+}
+
 void sound_voice_next() {
-  char packs[8][24];
-  int n = sound_voice_packs(packs, 8);
+  static char packs[VOICE_PACKS_MAX][24];
+  int n = sound_voice_packs(packs, VOICE_PACKS_MAX);
   if (n == 0) return;
   int cur = -1;
   for (int i = 0; i < n; i++)
@@ -511,11 +529,28 @@ void sound_speak_word(const char *file) {
 // Host-Test: stumm
 void sound_begin() {}
 void sound_play(sound_t s) { (void)s; }
-bool sound_voice_available() { return false; }
+// Stimmpakete wie auf dem Gerät auflisten (für die Auswahlseite im Simulator)
+static bool pack_ok_host(const char *pack) {
+  char path[96];
+  snprintf(path, sizeof(path), "/Waage/Stimme/%s/%s.wav", pack, g_set.lang == LANG_EN ? "grams" : "gramm");
+  return storage_exists(path);
+}
+bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }
 void sound_speak_weight(float grams, int unit) { (void)grams; (void)unit; }
 void sound_speak_count(int pieces) { (void)pieces; }
 void sound_speak_word(const char *file) { (void)file; }
-int sound_voice_packs(char names[][24], int max) { (void)names; (void)max; return 0; }
+int sound_voice_packs(char names[][24], int max) {
+  static char dirs[64][STORAGE_NAME_LEN];
+  int n = storage_list_dirs("/Waage/Stimme", dirs, 64), k = 0;
+  for (int i = 0; i < n && k < max; i++)
+    if (pack_ok_host(dirs[i])) { strncpy(names[k], dirs[i], 23); names[k][23] = 0; k++; }
+  for (int i = 1; i < k; i++)
+    for (int j = i; j > 0 && strcasecmp(names[j], names[j - 1]) < 0; j--) {
+      char t[24]; memcpy(t, names[j], 24); memcpy(names[j], names[j - 1], 24); memcpy(names[j - 1], t, 24);
+    }
+  return k;
+}
 void sound_voice_next() {}
+void sound_voice_set(const char *pack) { strncpy(g_set.voice, pack, sizeof(g_set.voice) - 1); g_set.voice[sizeof(g_set.voice) - 1] = 0; }
 void sound_lang_changed() {}
 #endif

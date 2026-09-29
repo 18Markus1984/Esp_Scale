@@ -8,6 +8,7 @@
 #
 #    python3 stimme_schneiden.py aufnahme.mp4 Jarvis
 #    python3 stimme_schneiden.py aufnahme.mp4 Jarvis-EN --lang en   (englisches Paket)
+#    python3 stimme_schneiden.py teil1.mp3 teil2.mp3 Rick-EN --lang en  (mehrere Aufnahmen der Reihe nach)
 #    python3 stimme_schneiden.py --liste x x --lang en              (Wortliste zum Vorlesen)
 #
 #  Ergebnis: Ordner "Jarvis" mit 48 Dateien -> auf die SD-Karte nach
@@ -129,8 +130,8 @@ def from_folder(folder, paket):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("datei", help="Aufnahme oder (mit --ordner) ein Verzeichnis")
-    p.add_argument("paket")
+    p.add_argument("dateien", nargs="+",
+                   help="Aufnahme(n) in Reihenfolge, zuletzt der Paketname; mit --ordner: Verzeichnis und Paket")
     p.add_argument("--ordner", action="store_true",
                    help="Quelle ist ein Ordner mit je einer Datei pro Wort")
     p.add_argument("--pause", type=int, default=300, help="Mindestpause zwischen Wörtern in ms")
@@ -138,6 +139,10 @@ def main():
     p.add_argument("--liste", action="store_true", help="nur die Wortliste zum Vorlesen ausgeben")
     p.add_argument("--lang", choices=["de", "en"], default="de", help="Sprache des Pakets (Standard: de)")
     args = p.parse_args()
+    if len(args.dateien) < 2:
+        p.error("mindestens eine Aufnahme und der Paketname")
+    args.paket = args.dateien[-1]
+    quellen = args.dateien[:-1]
     global ORDER, TEXTS
     if args.lang == "en":
         ORDER, TEXTS = ORDER_EN, TEXTS_EN
@@ -147,11 +152,21 @@ def main():
         return
 
     if args.ordner:
-        from_folder(args.datei, args.paket)
+        from_folder(quellen[0], args.paket)
         return
 
-    a = load(args.datei)
-    segs = segments(a, args.pause, args.schwelle)
+    # Mehrere Aufnahmen (z. B. weil die KI nur 500 Zeichen auf einmal liest)
+    # werden der Reihe nach zerschnitten und hintereinander zugeordnet.
+    a = array.array("h")
+    segs = []
+    for q in quellen:
+        b = load(q)
+        found = segments(b, args.pause, args.schwelle)
+        print(f"{q}: {len(found)} Stücke")
+        off = len(a)
+        a.extend(b)
+        a.extend(array.array("h", [0] * 8000))  # 0,5 s Stille zwischen den Dateien
+        segs += [(x + off, y + off) for x, y in found]
     print(f"{len(segs)} Stücke gefunden, {len(ORDER)} erwartet")
     if len(segs) != len(ORDER):
         print("Bitte --pause oder --schwelle anpassen. Dauer der Stücke (s):")

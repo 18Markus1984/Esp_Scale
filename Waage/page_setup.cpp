@@ -110,10 +110,11 @@ static lv_obj_t *stepper_col(lv_obj_t *s, lv_coord_t x, lv_event_cb_t cb, int id
 static int s_cat = 0;  // zuletzt geöffnete Gruppe
 static lv_obj_t *page_cat_create(int cat);
 static lv_obj_t *page_update_create();
+static lv_obj_t *page_voice_pick_create();
 static lv_obj_t *page_sound_create();
 
 static const char *const CAT_TITLE[4] = { "Wiegen", "Zeit & Funk", "Ton", "Waage" };
-static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, BT", "Töne, Ansage", "Kalibr., Sprache" };
+static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, BT", "Töne, Sprache", "Kalibr., Firmware" };
 static const char *const CAT_ICON[4] = { ICON_WIEGEN, ICON_ZEIT, ICON_TON, ICON_WAAGE };
 
 lv_obj_t *page_setup_back() {
@@ -211,13 +212,13 @@ static void row_value(int cat, int row, char *b, int len) {
       else snprintf(b, len, "%s", g_set.speak ? T("an") : T("aus"));
       break;
     case 23: {
-      char packs[8][24];
-      int n = sound_voice_packs(packs, 8);
+      static char packs[VOICE_PACKS_MAX][24];
+      int n = sound_voice_packs(packs, VOICE_PACKS_MAX);
       if (n == 0) snprintf(b, len, T("keine"));
-      else snprintf(b, len, "%.14s", g_set.voice[0] ? g_set.voice : T("Ordner"));
+      else snprintf(b, len, "%.12s ›", g_set.voice[0] ? g_set.voice : T("Ordner"));
       break;
     }
-    case 24:
+    case 25:
       if (!voice_available()) snprintf(b, len, T("nicht geladen"));
       else if (voice_lack_memory()) snprintf(b, len, T("zu wenig RAM"));
       else if (voice_start_stuck()) snprintf(b, len, T("Start hängt"));
@@ -232,8 +233,8 @@ static void row_value(int cat, int row, char *b, int len) {
     case 32: snprintf(b, len, T("Nullpunkt ›")); break;
     case 33: snprintf(b, len, T("Klassen ›")); break;
     case 34: snprintf(b, len, "%s", storage_ok() ? T("im Browser ›") : T("keine SD")); break;
-    case 35: snprintf(b, len, "%s", g_set.lang == LANG_EN ? "English" : "Deutsch"); break;  // nicht übersetzen
-    case 36:
+    case 24: snprintf(b, len, "%s", g_set.lang == LANG_EN ? "English" : "Deutsch"); break;  // nicht übersetzen
+    case 35:
       if (upd_state() == UPD_AVAILABLE) snprintf(b, len, T("%s neu ›"), upd_latest());
       else snprintf(b, len, "%s ›", fw_is_local() ? T("lokal") : fw_version());
       break;
@@ -282,11 +283,13 @@ static void row_cb(lv_event_t *e) {
       g_set.speak = !g_set.speak;
       if (g_set.speak) sound_speak_weight(1234.5f, g_set.unit);  // Hörprobe
       break;
-    case 23:
-      sound_voice_next();
-      if (g_set.speak) sound_speak_weight(1234.5f, g_set.unit);
-      break;
-    case 24:
+    case 23: {  // Stimme: Auswahlliste (bei vielen Paketen besser als Durchtippen)
+      static char packs[VOICE_PACKS_MAX][24];
+      if (sound_voice_packs(packs, VOICE_PACKS_MAX) == 0) return;
+      ui_switch_page(page_voice_pick_create());
+      return;
+    }
+    case 25:
       if (!voice_available() || voice_starting()) return;
       g_set.voice_on = !g_set.voice_on;
       if (g_set.voice_on) voice_begin();  // läuft im Hintergrund an
@@ -297,12 +300,12 @@ static void row_cb(lv_event_t *e) {
     case 32: ui_switch_page(page_level_setup_create()); return;
     case 33: ui_switch_page(page_porto_setup_create()); return;
     case 34: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
-    case 36: ui_switch_page(page_update_create()); return;
-    case 35:  // Sprache: Deutsch <-> English
+    case 35: ui_switch_page(page_update_create()); return;
+    case 24:  // Sprache: Deutsch <-> English
       g_set.lang = g_set.lang == LANG_EN ? LANG_DE : LANG_EN;
       ui_lang_changed();  // Startseite neu aufbauen, Stimmpaket wählen, speichern
       sound_play(SND_CLICK);
-      ui_switch_page(page_cat_create(3));  // diese Seite in der neuen Sprache
+      ui_switch_page(page_cat_create(2));  // diese Seite in der neuen Sprache
       return;
   }
   settings_save();  // direkt umgeschaltet
@@ -320,18 +323,18 @@ static void cat_back_cb(lv_event_t *e) {
 // Solange die Spracherkennung startet, den Wert der Zeile nachführen
 static void cat_timer_cb(lv_timer_t *t) {
   int cat = (int)(intptr_t)t->user_data;
-  if (cat != 2 || !row_val[4]) return;
+  if (cat != 2 || !row_val[5]) return;
   char b[32];
-  row_value(2, 4, b, sizeof(b));
-  lv_label_set_text(row_val[4], b);
+  row_value(2, 5, b, sizeof(b));
+  lv_label_set_text(row_val[5], b);
 }
 
 static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][8] = {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
     { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
-    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprachbefehle", NULL, NULL, NULL },
-    { "Kalibrierung", "Messmittelprüfung", "Libelle", "Portoklassen", "Dateien", "Sprache", "Firmware", NULL },
+    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", NULL, NULL },
+    { "Kalibrierung", "Messmittelprüfung", "Libelle", "Portoklassen", "Dateien", "Firmware", NULL, NULL },
   };
   lv_obj_t *s = ui_screen_create();
   title(s, CAT_TITLE[cat]);
@@ -372,6 +375,39 @@ static lv_obj_t *page_cat_create(int cat) {
   lv_obj_set_height(back, 46);
   lv_obj_align(back, LV_ALIGN_CENTER, 0, 146);
   lv_obj_add_event_cb(back, cat_back_cb, LV_EVENT_CLICKED, NULL);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Stimme wählen (alle Pakete der eingestellten Sprache)
+// ------------------------------------------------------------
+static char vp_names[VOICE_PACKS_MAX][24];
+
+static void vp_pick_cb(int index) {
+  sound_voice_set(vp_names[index]);
+  settings_save();
+  if (g_set.speak) sound_speak_weight(1234.5f, g_set.unit);  // Hörprobe
+  else sound_play(SND_CLICK);
+  ui_switch_page(page_cat_create(2));
+}
+
+static lv_obj_t *page_voice_pick_create() {
+  static ui_list_item_t items[VOICE_PACKS_MAX];
+  int n = sound_voice_packs(vp_names, VOICE_PACKS_MAX);
+  for (int i = 0; i < n; i++) {
+    items[i].title = vp_names[i];
+    items[i].sub = strcmp(vp_names[i], g_set.voice) == 0 ? T("aktiv") : T("antippen: wählen");
+    items[i].icon = NULL;
+  }
+  lv_obj_t *s = ui_screen_create();
+  ui_curved_list(s, items, n, vp_pick_cb);
+  lv_obj_t *t = ui_label(s, "Stimme", &font_sg_14, C_MUTED);
+  lv_obj_set_style_bg_color(t, C_BG, 0);
+  lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(t, 60, 0);
+  lv_obj_set_style_pad_top(t, 26, 0);
+  lv_obj_set_style_pad_bottom(t, 10, 0);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
   return s;
 }
 

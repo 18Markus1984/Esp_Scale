@@ -43,8 +43,10 @@ void sound_parking_reset();
 // ---- Sprachausgabe ----
 bool sound_voice_available();                      // Stimme auf der SD gefunden?
 // Stimmpakete (Unterordner in /Waage/Stimme), Rückgabe: Anzahl
-int  sound_voice_packs(char names[][24], int max);
+#define VOICE_PACKS_MAX 32                          // so viele Pakete zeigt die Auswahl
+int  sound_voice_packs(char names[][24], int max);   // alphabetisch, nur passende Sprache
 void sound_voice_next();                           // nächstes Paket wählen
+void sound_voice_set(const char *pack);            // bestimmtes Paket wählen
 void sound_lang_changed();                         // nach dem Sprachwechsel: passendes Paket wählen
 void sound_speak_weight(float grams, int unit);    // "eintausend­zweihundert­vierunddreißig Gramm"
 void sound_speak_count(int pieces);                // "siebenundvierzig Stück"
