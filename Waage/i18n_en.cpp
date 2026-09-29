@@ -701,6 +701,31 @@ const i18n_pair_t I18N_EN[] = {
   // ---- Menü Sprache ----
   { "Töne, Sprache", "Tones, language" },
   { "Kalibr., Firmware", "Calib., firmware" },
+  // ---- Prüfgewicht ----
+  { "Prüfgewicht", "Check weight" },
+  { "fällig ›", "due ›" },
+  { "in %d T. ›", "in %d d ›" },
+  { "nie ›", "never ›" },
+  { "%d Tage ›", "%d days ›" },
+  { "Zuletzt %s: %s g (%s%s g) %s", "Last %s: %s g (%s%s g) %s" },
+  { "außer Toleranz", "out of tolerance" },
+  { "Noch nicht geprüft", "Not checked yet" },
+  { "Prüfung fällig", "Check due" },
+  { "\nNächste Prüfung %s", "\nNext check %s" },
+  { "Gewicht", "Weight" },
+  { "Erinnern alle", "Remind every" },
+  { "Prüfen", "Check" },
+  { "Abweichung %s%s g", "Deviation %s%s g" },
+  { "In Ordnung · gespeichert", "OK · saved" },
+  { "Außer Toleranz · bitte kalibrieren", "Out of tolerance · please calibrate" },
+  { "Prüfgewicht %s g auflegen", "Place check weight %s g" },
+  { "Prüfgewicht %s g", "Check weight %s g" },
+  { "Toleranz ±%s g", "Tolerance ±%s g" },
+  { "%s g auflegen · zuletzt %s", "place %s g · last %s" },
+  { "%s g auflegen · noch nie geprüft", "place %s g · never checked" },
+  { "Jetzt prüfen", "Check now" },
+  { "Später", "Later" },
+  { "Prüfgewicht: %s g %s", "Check weight: %s g %s" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

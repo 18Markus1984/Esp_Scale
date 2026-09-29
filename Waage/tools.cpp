@@ -160,7 +160,7 @@ static void timers_tick() {
   if (any_ring) {
     if (!a_last_sound || now - a_last_sound > RING_EVERY_MS) {
       a_last_sound = now;
-      sound_play(SND_DONE);
+      sound_play_tone(SND_DONE);  // Wecker: nur Ton, keine Ansage bei jeder Wiederholung
     }
   } else if (a_box && !lv_obj_has_flag(a_box, LV_OBJ_FLAG_HIDDEN)) {
     lv_obj_add_flag(a_box, LV_OBJ_FLAG_HIDDEN);

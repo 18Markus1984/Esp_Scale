@@ -443,7 +443,14 @@ void sound_voice_next() {
   s_voice_check = millis();
 }
 
+static void voice_event(sound_t s);
+
 void sound_play(sound_t s) {
+  sound_play_tone(s);
+  voice_event(s);
+}
+
+void sound_play_tone(sound_t s) {
   if (!s_queue || g_set.volume <= 0) return;
   if (g_set.scheme == 3 && !DEFS[s].minimal) return;  // Schema "Minimal"
 
@@ -468,10 +475,29 @@ static void speak(msg_t *m) {
   xQueueOverwrite(s_queue, m);
 }
 
+static void build_weight(msg_t *mp, float grams, int unit);
+
 void sound_speak_weight(float grams, int unit) {
   static msg_t m;
   m.type = 1;
   m.count = 0;
+  build_weight(&m, grams, unit);
+  speak(&m);
+}
+
+static const char *word_file(const char *file);
+
+void sound_speak_weight_word(float grams, int unit, const char *word) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  build_weight(&m, grams, unit);
+  add_word(&m, word_file(word));
+  speak(&m);
+}
+
+static void build_weight(msg_t *mp, float grams, int unit) {
+  msg_t &m = *mp;
   float v = unit_from_g(grams, unit);
   bool en = g_set.lang == LANG_EN;
   if (v < 0) {
@@ -493,7 +519,6 @@ void sound_speak_weight(float grams, int unit) {
   static const char *const UNIT_WORD[5] = { "gramm", "kilogramm", "unze", "pfund", "milliliter" };
   static const char *const UNIT_WORD_EN[5] = { "grams", "kilograms", "ounces", "pounds", "milliliters" };
   add_word(&m, (en ? UNIT_WORD_EN : UNIT_WORD)[(unit < 0 || unit > 4) ? 0 : unit]);
-  speak(&m);
 }
 
 void sound_speak_count(int pieces) {
@@ -514,15 +539,41 @@ static const char *const WORD_EN[][2] = {
   { "waage_leer", "scale_empty" }, { "meter", "meters" },
 };
 
+static const char *word_file(const char *file) {
+  if (g_set.lang == LANG_EN)
+    for (unsigned i = 0; i < sizeof(WORD_EN) / sizeof(WORD_EN[0]); i++)
+      if (strcmp(file, WORD_EN[i][0]) == 0) return WORD_EN[i][1];
+  return file;
+}
+
 void sound_speak_word(const char *file) {
   static msg_t m;
   m.type = 1;
   m.count = 0;
-  if (g_set.lang == LANG_EN)
-    for (unsigned i = 0; i < sizeof(WORD_EN) / sizeof(WORD_EN[0]); i++)
-      if (strcmp(file, WORD_EN[i][0]) == 0) file = WORD_EN[i][1];
-  add_word(&m, file);
+  add_word(&m, word_file(file));
   speak(&m);
+}
+
+// Ereignis-Ansagen der Stimmpakete (tara.wav, gespeichert.wav …). Dasselbe
+// Wort frühestens nach 3 s wieder, damit Wiederholungen nicht nerven.
+static void voice_event(sound_t s) {
+  const char *w = NULL;
+  switch (s) {
+    case SND_TARA: w = "tara"; break;
+    case SND_SAVE: w = "gespeichert"; break;
+    case SND_POT: w = "topf_erkannt"; break;
+    case SND_REACHED: w = "ziel_erreicht"; break;
+    case SND_DONE: w = "fertig"; break;
+    default: return;
+  }
+  if (!g_set.speak || g_set.volume <= 0 || !sound_voice_available()) return;
+  static const char *last = NULL;
+  static uint32_t last_ms = 0;
+  uint32_t now = millis();
+  if (w == last && now - last_ms < 3000) return;
+  last = w;
+  last_ms = now;
+  sound_speak_word(w);
 }
 
 #else
@@ -539,6 +590,8 @@ bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice
 void sound_speak_weight(float grams, int unit) { (void)grams; (void)unit; }
 void sound_speak_count(int pieces) { (void)pieces; }
 void sound_speak_word(const char *file) { (void)file; }
+void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
+void sound_play_tone(sound_t s) { (void)s; }
 int sound_voice_packs(char names[][24], int max) {
   static char dirs[64][STORAGE_NAME_LEN];
   int n = storage_list_dirs("/Waage/Stimme", dirs, 64), k = 0;

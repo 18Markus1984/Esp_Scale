@@ -16,6 +16,7 @@
 #include "batt.h"
 #include "tools.h"
 #include "update_online.h"
+#include "refcheck.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -220,16 +221,18 @@ static void save_cb(lv_event_t *e) {
   int r = log_add(g, note);
   char buf[48];
   int hh, mm;
-  sound_play(r == 0 ? SND_WARN : SND_SAVE);
+  if (r == 0) sound_play(SND_WARN);
+  else sound_play_tone(SND_SAVE);  // Ansage folgt unten mit Gewicht + "gespeichert"
   if (r == 0) {
     show_toast("Keine SD-Karte", C_WARN);
   } else if (r < 0) {
     show_toast("Gespeichert · Uhr nicht gestellt", C_WARN);
+    sound_speak_weight_word(scale_net(), g_set.unit, "gespeichert");
   } else {
     if (hal_time(&hh, &mm)) snprintf(buf, sizeof(buf), T("Gespeichert · %02d:%02d"), hh, mm);
     else snprintf(buf, sizeof(buf), T("Gespeichert"));
     show_toast(buf, C_ACCENT);
-    sound_speak_weight(scale_net(), g_set.unit);
+    sound_speak_weight_word(scale_net(), g_set.unit, "gespeichert");
   }
 }
 
@@ -389,11 +392,26 @@ static bool sp_done = false;
 
 static void speak_check() {
   float net = scale_net();
+  static bool sp_was_on = false;   // es lag etwas, das angesagt wurde
+  static uint32_t sp_empty_since = 0;
   if (fabsf(net) < EMPTY_G) {
+    if (sp_done) sp_was_on = true;
     sp_done = false;
     sp_stable_since = 0;
+    // nach dem Abnehmen einmal "Waage leer" (wenn die Ansage an ist)
+    if (sp_was_on && g_set.speak && scale_stable()) {
+      if (!sp_empty_since) sp_empty_since = hal_millis();
+      if (hal_millis() - sp_empty_since > 800) {
+        sound_speak_word("waage_leer");
+        sp_was_on = false;
+        sp_empty_since = 0;
+      }
+    } else {
+      sp_empty_since = 0;
+    }
     return;
   }
+  sp_empty_since = 0;
   if (!g_set.speak || sp_done || cd_active || fabsf(net) < 2.0f) return;
   if (!scale_stable()) {
     sp_stable_since = 0;
@@ -662,6 +680,7 @@ static void home_update_cb(lv_timer_t *t) {
     if (state == 2) {
       ui_chip_set(h_state, "Überlast", C_DANGER, false);
       sound_play(SND_OVERLOAD);
+      sound_speak_word("ueberlast");  // Stimmpaket (nur mit eingeschalteter Ansage)
     }
     else if (state == 1) ui_chip_set(h_state, g_set.precise && u == 0 ? "mittelt …" : "stabil", C_ACCENT, false);
     else ui_chip_set(h_state, "misst …", C_MUTED, false);
@@ -940,6 +959,13 @@ static void start_finish() {
   }
   // Keine Überblendung: halbtransparentes Zeichnen erzeugt helle Kästen
   lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_LEFT, 250, 0, true);
+  // Prüfgewicht fällig? Nach dem Wechsel zur Wiegeseite einmal erinnern
+  if (refchk_due()) {
+    lv_timer_t *t = lv_timer_create([](lv_timer_t *tm) {
+      if (refchk_due()) ui_open_page(page_refdue_create());
+    }, 900, NULL);
+    lv_timer_set_repeat_count(t, 1);
+  }
 }
 
 static void start_continue_cb(lv_event_t *e) {

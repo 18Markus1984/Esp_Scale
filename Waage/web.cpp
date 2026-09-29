@@ -19,6 +19,7 @@
 #include "config.h"
 #include "tools.h"
 #include "update_online.h"
+#include "refcheck.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
@@ -679,7 +680,19 @@ static void h_settings() {
              ",\"scheme\":" + g_set.scheme + ",\"speak\":" + (g_set.speak ? "true" : "false") +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
-             ",\"liquid\":" + g_set.liquid + ",\"liquids\":[";
+             ",\"liquid\":" + g_set.liquid;
+  {  // Prüfgewicht
+    char last[16], next[16];
+    refchk_date(g_set.ref_last, last, sizeof(last));
+    int dl = refchk_days_left();
+    if (g_set.ref_last > 0 && dl < 9999) refchk_date(g_set.ref_last + g_set.ref_days, next, sizeof(next));
+    else next[0] = 0;
+    s += ",\"ref_g\":" + String(g_set.ref_g, 2) + ",\"ref_days\":" + g_set.ref_days + ",\"ref_tol\":" +
+         String(g_set.ref_tol, 2) + ",\"ref_last\":\"" + (g_set.ref_last > 0 ? last : "") + "\",\"ref_meas\":" +
+         String(g_set.ref_meas, 2) + ",\"ref_ok\":" + (g_set.ref_ok ? "true" : "false") + ",\"ref_next\":\"" + next +
+         "\",\"ref_due\":" + (refchk_due() && g_set.ref_g > 0 ? "true" : "false");
+  }
+  s += ",\"liquids\":[";
   for (int i = 0; i < liquid_count(); i++) {
     if (i) s += ",";
     s += "\"" + esc(liquid_name(i)) + "\"";
@@ -707,6 +720,9 @@ static void h_settings_save() {
   g_set.idle_min = constrain((int)jval(b, "idle").toInt(), 0, 60);
   if (jval(b, "liquid").length()) g_set.liquid = constrain((int)jval(b, "liquid").toInt(), 0, liquid_count() - 1);
   if (jval(b, "precise").length()) g_set.precise = jval(b, "precise") == "true";
+  if (jval(b, "ref_g").length()) g_set.ref_g = constrain(jval(b, "ref_g").toFloat(), 0.0f, 3000.0f);
+  if (jval(b, "ref_days").length()) g_set.ref_days = constrain((int)jval(b, "ref_days").toInt(), 0, 365);
+  if (jval(b, "ref_tol").length()) g_set.ref_tol = constrain(jval(b, "ref_tol").toFloat(), 0.05f, 50.0f);
   if (jval(b, "azt").length()) {
     g_set.azt = jval(b, "azt") == "true";
     scale_set_autozero(g_set.azt);

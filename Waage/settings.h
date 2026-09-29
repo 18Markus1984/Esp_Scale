@@ -22,10 +22,17 @@ typedef struct {
   int  auto_off_min;  // nach so vielen Minuten ohne Bedienung ausschalten (0 = nie)
   float lvl_off_x;    // Nullpunkt der Libelle in Grad
   float lvl_off_y;
-  bool precise;
-  bool azt;
-  int  liquid;        // Flüssigkeit für die Einheit ml (Index in data.cpp)           // Nullpunkt-Nachführung (Auto-Null)      // Präzisionsmodus: ruhige Werte mitteln, zwei Nachkommastellen
+  bool precise;       // Präzisionsmodus: ruhige Werte mitteln, zwei Nachkommastellen
+  bool azt;           // Nullpunkt-Nachführung (Auto-Null)
+  int  liquid;        // Flüssigkeit für die Einheit ml (Index in data.cpp)
   int  lang;          // Sprache von Anzeige, Weboberfläche und Ansage: 0 Deutsch, 1 English
+  // Prüfgewicht: regelmäßige Kontrolle mit einem bekannten Gewicht (refcheck.*)
+  float ref_g;        // Sollgewicht, 0 = aus
+  int   ref_days;     // Intervall in Tagen, 0 = keine Erinnerung
+  float ref_tol;      // erlaubte Abweichung in g
+  int   ref_last;     // Tag der letzten Prüfung (Tage seit 1.1.2000), 0 = noch nie
+  float ref_meas;     // zuletzt gemessen
+  bool  ref_ok;       // letzte Prüfung in Ordnung?
 } settings_t;
 
 #define LANG_DE 0

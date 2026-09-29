@@ -144,7 +144,7 @@ static void ht_reveal() {
   lv_arc_set_value(ht_ring, (int)(pct * 10));
   lv_obj_set_style_arc_color(ht_ring, h_dev(h_turn) <= 1.0f ? C_ACCENT : C_WARN, LV_PART_INDICATOR);
   lv_obj_clear_flag(ht_next, LV_OBJ_FLAG_HIDDEN);
-  sound_play(h_dev(h_turn) <= 1.0f ? SND_DONE : SND_REACHED);
+  sound_play_tone(h_dev(h_turn) <= 1.0f ? SND_DONE : SND_REACHED);
 }
 
 static void ht_timer_cb(lv_timer_t *t) {

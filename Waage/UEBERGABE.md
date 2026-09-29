@@ -243,6 +243,20 @@ Unterordner, beide Sprachen zusammen gezählt), alphabetisch sortiert, nur Paket
 Sprache. Gerät: Setup -> Ton -> Stimme öffnet eine Auswahlliste (`page_voice_pick_create`),
 `sound_voice_set()` setzt und prüft das Paket; Browser: alle Pakete als Chips.
 
+**Ansagen der Stimmpakete (29.09.2026, Fehler behoben):** Die Ereignis-Wörter (tara, gespeichert,
+ziel_erreicht, ueberlast, topf_erkannt, fertig, waage_leer) wurden vorher nie abgespielt, nur Zahlen.
+Jetzt: `sound_play()` sagt bei eingeschalteter Ansage Tara/Speichern/Topf/Ziel/Fertig an (dasselbe Wort
+frühestens nach 3 s wieder); `sound_play_tone()` nur Ton (Timer-Wecker, Halbe-Halbe-Auflösung).
+Speichern auf der Wiegeseite: „<Gewicht> … gespeichert“ (`sound_speak_weight_word`), Überlast: ui.cpp,
+„Waage leer“: einmal nach dem Abnehmen eines angesagten Gewichts (`speak_check`).
+
+**Prüfgewicht (29.09.2026):** `refcheck.*`, `page_refcheck.cpp`. Setup -> Waage -> Prüfgewicht
+(Gewicht 50…2000 g/aus, Erinnern alle 7…180 Tage/nie, Toleranz ±0,1…5 g; Browser: Einstellungen ->
+Waage, beliebiger Wert). Prüfung: leeren (Tara automatisch), auflegen, 2 s ruhig mitteln, Ergebnis mit
+Abweichung; gespeichert in Flash (`ref_*`), `/Waage/Pruefung/pruefgewicht.csv` und Protokoll. Fällig
+(auch nach einer Prüfung außer Toleranz) -> nach dem Start Seite „Prüfung fällig“ (Jetzt prüfen/Später).
+Ohne gestellte Uhr keine Erinnerung.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

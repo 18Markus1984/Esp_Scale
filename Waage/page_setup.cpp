@@ -22,6 +22,7 @@
 #include "sound.h"
 #include "data.h"
 #include "update_online.h"
+#include "refcheck.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -229,12 +230,22 @@ static void row_value(int cat, int row, char *b, int len) {
       if (scale_cal_count() > 1) snprintf(b, len, T("%d Punkte ›"), scale_cal_count());
       else snprintf(b, len, T("1 Punkt ›"));
       break;
-    case 31: snprintf(b, len, T("Cg / Cgk ›")); break;
-    case 32: snprintf(b, len, T("Nullpunkt ›")); break;
-    case 33: snprintf(b, len, T("Klassen ›")); break;
-    case 34: snprintf(b, len, "%s", storage_ok() ? T("im Browser ›") : T("keine SD")); break;
+    case 31: {  // Prüfgewicht
+      char w[16];
+      if (g_set.ref_g <= 0) { snprintf(b, len, "%s", T("aus ›")); break; }
+      int dl = refchk_days_left();
+      fmt_num(w, sizeof(w), g_set.ref_g, g_set.ref_g < 100 ? 1 : 0);
+      if (dl <= 0) snprintf(b, len, T("fällig ›"));
+      else if (dl >= 9999) snprintf(b, len, "%s g ›", w);
+      else snprintf(b, len, T("in %d T. ›"), dl);
+      break;
+    }
+    case 32: snprintf(b, len, T("Cg / Cgk ›")); break;
+    case 33: snprintf(b, len, T("Nullpunkt ›")); break;
+    case 34: snprintf(b, len, T("Klassen ›")); break;
+    case 35: snprintf(b, len, "%s", storage_ok() ? T("im Browser ›") : T("keine SD")); break;
     case 24: snprintf(b, len, "%s", g_set.lang == LANG_EN ? "English" : "Deutsch"); break;  // nicht übersetzen
-    case 35:
+    case 36:
       if (upd_state() == UPD_AVAILABLE) snprintf(b, len, T("%s neu ›"), upd_latest());
       else snprintf(b, len, "%s ›", fw_is_local() ? T("lokal") : fw_version());
       break;
@@ -296,11 +307,12 @@ static void row_cb(lv_event_t *e) {
       else voice_stop();
       break;
     case 30: ui_switch_page(page_kalib_create()); return;
-    case 31: ui_switch_page(page_msa_create()); return;
-    case 32: ui_switch_page(page_level_setup_create()); return;
-    case 33: ui_switch_page(page_porto_setup_create()); return;
-    case 34: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
-    case 35: ui_switch_page(page_update_create()); return;
+    case 31: ui_switch_page(page_refset_create()); return;
+    case 32: ui_switch_page(page_msa_create()); return;
+    case 33: ui_switch_page(page_level_setup_create()); return;
+    case 34: ui_switch_page(page_porto_setup_create()); return;
+    case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
+    case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
       g_set.lang = g_set.lang == LANG_EN ? LANG_DE : LANG_EN;
       ui_lang_changed();  // Startseite neu aufbauen, Stimmpaket wählen, speichern
@@ -334,7 +346,7 @@ static lv_obj_t *page_cat_create(int cat) {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
     { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", NULL, NULL },
-    { "Kalibrierung", "Messmittelprüfung", "Libelle", "Portoklassen", "Dateien", "Firmware", NULL, NULL },
+    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Portoklassen", "Dateien", "Firmware", NULL },
   };
   lv_obj_t *s = ui_screen_create();
   title(s, CAT_TITLE[cat]);
@@ -486,6 +498,10 @@ static lv_obj_t *page_update_create() {
   ui_page_timer(s, fu_timer_cb, 200);
   fu_timer_cb(NULL);
   return s;
+}
+
+lv_obj_t *page_setup_cat_create(int cat) {
+  return page_cat_create(cat);
 }
 
 // ------------------------------------------------------------

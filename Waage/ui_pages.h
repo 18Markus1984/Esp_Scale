@@ -34,6 +34,10 @@ lv_obj_t *page_protokoll_create();                    // Protokoll (heute)
 lv_obj_t *page_setup_create();                        // Einstellungen (Übersicht)
 lv_obj_t *page_setup_back();                          // zurück in die zuletzt offene Setup-Gruppe
 lv_obj_t *page_kalib_create();                        // Kalibrierung in 3 Schritten
+lv_obj_t *page_refset_create();                       // Prüfgewicht: Einstellungen und letzte Prüfung
+lv_obj_t *page_refcheck_create();                     // Prüfgewicht: Prüfung durchführen
+lv_obj_t *page_refdue_create();                       // Prüfgewicht: Erinnerung „fällig“
+lv_obj_t *page_setup_cat_create(int cat);             // Setup-Kategorie (0 Wiegen … 3 Waage)
 lv_obj_t *page_bluetooth_create();                    // Anleitung Bluetooth-Kopplung
 lv_obj_t *page_bluetooth_setup_create();              // dieselbe, aus dem Setup
 lv_obj_t *page_porto_setup_create();                  // Portoklassen bearbeiten

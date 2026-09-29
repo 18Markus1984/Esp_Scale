@@ -51,3 +51,8 @@ void sound_lang_changed();                         // nach dem Sprachwechsel: pa
 void sound_speak_weight(float grams, int unit);    // "eintausend­zweihundert­vierunddreißig Gramm"
 void sound_speak_count(int pieces);                // "siebenundvierzig Stück"
 void sound_speak_word(const char *file);           // feste Ansage, z. B. "tara"
+void sound_speak_weight_word(float grams, int unit, const char *word);  // "… Gramm, gespeichert"
+void sound_play_tone(sound_t s);                   // nur der Ton, ohne Sprachansage
+// sound_play() sagt bei eingeschalteter Ansage zusätzlich das passende Wort:
+// Tara -> "tara", Speichern -> "gespeichert", Topf -> "topf_erkannt",
+// Ziel -> "ziel_erreicht", Fertig -> "fertig" (Überlast und "Waage leer" ruft ui.cpp auf)

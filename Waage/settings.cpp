@@ -33,6 +33,12 @@ void settings_load() {
   g_set.liquid = p.getInt("liquid", 0);
   g_set.lang = p.getInt("lang", 0);
   if (g_set.lang < 0 || g_set.lang > 1) g_set.lang = 0;
+  g_set.ref_g = p.getFloat("ref_g", 0.0f);
+  g_set.ref_days = p.getInt("ref_days", 30);
+  g_set.ref_tol = p.getFloat("ref_tol", 0.5f);
+  g_set.ref_last = p.getInt("ref_last", 0);
+  g_set.ref_meas = p.getFloat("ref_meas", 0.0f);
+  g_set.ref_ok = p.getBool("ref_ok", false);
   p.end();
 }
 
@@ -58,6 +64,12 @@ void settings_save() {
   p.putFloat("lvl_y", g_set.lvl_off_y);
   p.putBool("precise", g_set.precise);
   p.putBool("azt", g_set.azt);
+  p.putFloat("ref_g", g_set.ref_g);
+  p.putInt("ref_days", g_set.ref_days);
+  p.putFloat("ref_tol", g_set.ref_tol);
+  p.putInt("ref_last", g_set.ref_last);
+  p.putFloat("ref_meas", g_set.ref_meas);
+  p.putBool("ref_ok", g_set.ref_ok);
   p.putInt("liquid", g_set.liquid);
   p.putInt("lang", g_set.lang);
   p.end();
