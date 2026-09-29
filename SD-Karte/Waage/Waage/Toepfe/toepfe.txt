@@ -1,0 +1,3 @@
+# Name;Gewicht in g;Farbe 0-3;angelegt
+Glass;537,0;3;2026-09-19
+Roboter;40,1;2;2026-09-21

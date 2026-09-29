@@ -1,0 +1,5 @@
+name=Negroni
+portionen=1
+Gin;30
+Campari;30
+Wermut rot;30

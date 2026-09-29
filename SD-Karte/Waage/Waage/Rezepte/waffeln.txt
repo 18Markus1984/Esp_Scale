@@ -1,0 +1,8 @@
+name=Waffeln
+portionen=4
+Mehl;250
+Butter;125
+Zucker;100
+Eier;165
+Milch;125
+Backpulver;8

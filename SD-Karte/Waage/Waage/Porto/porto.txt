@@ -1,0 +1,5 @@
+# Name;bis Gramm;Preis in Euro
+Standardbrief;20;0,95
+Kompaktbrief;50;1,10
+Großbrief;500;1,80
+Maxibrief;1000;2,90

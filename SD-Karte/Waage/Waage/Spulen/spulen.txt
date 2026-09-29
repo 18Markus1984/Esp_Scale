@@ -1,0 +1,4 @@
+# Name;Gewicht der leeren Spule in g
+Bambu Lab;238,7
+Das Filament;210,9
+Elegoo;148,6

@@ -1,0 +1,5 @@
+name=Whisky Sour
+portionen=1
+Whisky;50
+Zitronensaft;25
+Zuckersirup;15

@@ -1,0 +1,8 @@
+name=Bananenbrot
+portionen=1
+Bananen;350
+Mehl;250
+Zucker;120
+Butter;100
+Eier;110
+Backpulver;10

@@ -1,0 +1,7 @@
+name=Pizzateig
+portionen=2
+Mehl;300
+Wasser;190
+Olivenöl;15
+Salz;7
+Hefe;4

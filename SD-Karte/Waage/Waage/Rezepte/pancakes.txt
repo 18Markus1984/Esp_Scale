@@ -1,0 +1,8 @@
+name=Pancakes
+portionen=2
+Mehl;200
+Milch;250
+Eier;110
+Zucker;30
+Backpulver;10
+Butter;30

@@ -1,0 +1,6 @@
+name=Mojito
+portionen=1
+Rum weiß;50
+Limettensaft;30
+Zuckersirup;20
+Soda;100

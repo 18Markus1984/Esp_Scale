@@ -1,0 +1,8 @@
+name=Risotto
+portionen=2
+Risottoreis;180
+Brühe;700
+Weißwein;100
+Zwiebeln;80
+Parmesan;60
+Butter;30

@@ -1,0 +1,5 @@
+name=Moscow Mule
+portionen=1
+Wodka;50
+Limettensaft;15
+Ginger Beer;120

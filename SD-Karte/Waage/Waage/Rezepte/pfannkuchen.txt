@@ -1,0 +1,8 @@
+# Beispielrezept - Zeilen: Zutat;Gramm
+name=Pfannkuchen
+portionen=2
+Mehl;250
+Milch;500
+Eier;110
+Zucker;20
+Salz;2

@@ -1,0 +1,9 @@
+name=Hefezopf
+portionen=1
+Mehl;500
+Milch;250
+Butter;100
+Zucker;80
+Eier;55
+Hefe;21
+Salz;5
