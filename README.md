@@ -105,6 +105,7 @@ Wi-Fi networks, settings and firmware updates.
 | microSD card | 1 | FAT32, any size |
 | Weighing platter and housing | 1 | e.g. 3D-printed. The load cell needs one fixed end and one free end (Z-mount) |
 | Calibration weight | 1 | anything with a known mass, e.g. 500 g or 1 kg |
+| Tactile micro switch 6 × 6 × 10 mm | 1 | external power button, soldered in parallel to the on-board PWR key (see [Power button](#power-button)) |
 | Wires, screws | – | M4/M5 screws for the load cell, depending on the model |
 
 ---
@@ -130,6 +131,22 @@ B+ / B− of the HX711 stay unconnected. The UART header pins are used as plain 
 the reading goes *down* when you add weight, swap A+ and A−.
 
 Everything else (display, touch, speaker, microphone, IMU, RTC, SD card, battery charging) is already on the board.
+
+### Power button
+
+The board's own PWR key sits directly on the PCB, which makes it hard to reach once the board is
+mounted rigidly in a housing. The solution: a **6 × 6 × 10 mm tactile micro switch** in the housing,
+soldered **in parallel** to the on-board PWR key (one wire to each side of the key's contacts).
+The firmware does not notice any difference, and both buttons keep working:
+
+| Press | Action |
+|---|---|
+| short (while off) | switch on |
+| short | standby with dimmed clock, wake up by button, touch or placing weight |
+| hold 3 s | switch off (a ring shows the progress, releasing cancels) |
+
+Check with a multimeter which two pads of the on-board key are connected when it is pressed before
+soldering. The 10 mm plunger height lets the button reach through a typical 2–3 mm housing wall.
 
 ---
 
