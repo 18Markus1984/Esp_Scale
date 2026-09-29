@@ -51,7 +51,7 @@ The whole UI is available in **English and German** (display, web interface and 
 | 📶 **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
 | 🔊 **Sound and voice** | Sound schemes, spoken weights from WAV voice packs (German and English), experimental offline voice commands (ESP-SR). |
 | 🔋 **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
-| 🧪 **Quality tools** | Gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
+| 🧪 **Quality tools** | Periodic **check weight** reminder with pass/fail history, gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
 
 ### Modes
 
@@ -205,7 +205,7 @@ projects**. The scale does not use the demos, and they would not compile without
 3. Calibrate: **Setup → Scale → Calibration**. Empty the scale, place a known weight, confirm. Up to three calibration points compensate for load-cell non-linearity.
 4. Insert a FAT32 microSD card. The scale creates its folders on first start.
 5. Wi-Fi: **Setup → Time & Wi-Fi → Wi-Fi → Networks → + New network**.
-6. Language: **Setup → Scale → Language** (or *Settings → Language* in the browser).
+6. Language: **Setup → Sound → Language** (or *Settings → Language* in the browser).
 
 > **No hardware yet?** Set `SIM_WAAGE 1` in `config.h`. The scale then runs through simulated weights.
 
