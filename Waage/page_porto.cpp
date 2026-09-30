@@ -50,13 +50,13 @@ static void p_timer_cb(lv_timer_t *t) {
     ui_label_update(p_class, "Zu schwer für Brief");
     ui_label_update(p_margin, "Päckchen oder Paket nutzen");
   } else {
-    snprintf(b, sizeof(b), "%s · %d,%02d €", g_porto[k].name, g_porto[k].price_ct / 100,
+    snprintf(b, sizeof(b), "%s · %d,%02d €", T(g_porto[k].name), g_porto[k].price_ct / 100,
              g_porto[k].price_ct % 100);
     ui_label_update(p_class, b);
     snprintf(b, sizeof(b), T("bis %d g · noch %d g Luft"), g_porto[k].max_g,
              (int)(g_porto[k].max_g - g));
     ui_label_update(p_margin, b);
-    snprintf(b, sizeof(b), T("Porto: %s %d,%02d €"), g_porto[k].name, g_porto[k].price_ct / 100, g_porto[k].price_ct % 100);
+    snprintf(b, sizeof(b), T("Porto: %s %d,%02d €"), T(g_porto[k].name), g_porto[k].price_ct / 100, g_porto[k].price_ct % 100);
     if (track_update(g, scale_stable(), b)) ui_toast_show(p_toast, "Im Protokoll gespeichert", C_ACCENT);
   }
 
@@ -87,8 +87,13 @@ lv_obj_t *page_porto_create() {
   p_margin = ui_label(s, "", &font_sg_18, C_MUTED);
   lv_obj_align(p_margin, LV_ALIGN_CENTER, 0, 92);
 
-  lv_obj_t *note = ui_label(s, "Maße und Dicke beachten\nPreise änderbar im Setup", &font_sg_14, C_FAINT);
-  lv_obj_align(note, LV_ALIGN_CENTER, 0, 140);
+  lv_obj_t *note = ui_label(s, "Maße und Dicke beachten", &font_sg_14, C_FAINT);
+  lv_obj_align(note, LV_ALIGN_CENTER, 0, 112);
+
+  // Klassen, Grenzen und Preise direkt hier bearbeiten
+  lv_obj_t *kb = ui_btn(s, "Klassen", BTN_NORMAL);
+  lv_obj_align(kb, LV_ALIGN_CENTER, 0, 150);
+  lv_obj_add_event_cb(kb, [](lv_event_t *e) { ui_switch_page(page_porto_setup_create()); }, LV_EVENT_CLICKED, NULL);
 
   p_toast = ui_toast_create(s);
   lv_obj_align(p_toast, LV_ALIGN_CENTER, 0, 140);
@@ -126,7 +131,7 @@ static void pl_new_cb(lv_event_t *e) {
 }
 
 static void pl_done_cb(lv_event_t *e) {
-  ui_switch_page(page_setup_back());
+  ui_switch_page(page_porto_create());  // Klassen werden im Porto-Modus bearbeitet
 }
 
 lv_obj_t *page_porto_setup_create() {

@@ -18,6 +18,7 @@ void settings_load() {
   g_set.volume = p.getInt("volume", 60);
   g_set.scheme = p.getInt("scheme", 0);
   g_set.speak = p.getBool("speak", false);
+  g_set.speak_ev = p.getBool("speak_ev", g_set.speak);  // bisher an der Ansage gekoppelt
   g_set.voice_on = p.getBool("voice_on", false);
   memset(g_set.voice, 0, sizeof(g_set.voice));
   p.getString("voice", g_set.voice, sizeof(g_set.voice));
@@ -53,6 +54,7 @@ void settings_save() {
   p.putInt("volume", g_set.volume);
   p.putInt("scheme", g_set.scheme);
   p.putBool("speak", g_set.speak);
+  p.putBool("speak_ev", g_set.speak_ev);
   p.putBool("voice_on", g_set.voice_on);
   p.putString("voice", g_set.voice);
   p.putInt("unit", g_set.unit);

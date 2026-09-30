@@ -12,7 +12,8 @@ typedef struct {
   char pass[65];
   int  volume;        // Lautstärke 0..100 (0 = aus)
   int  scheme;        // Tonschema 0..3 (Klassisch, Sanft, Retro, Minimal)
-  bool speak;         // Gewicht ansagen (Sprachdateien auf der SD)
+  bool speak;         // Gewicht/Stückzahl ansagen (Sprachdateien auf der SD)
+  bool speak_ev;      // Sprüche des Stimmpakets (tara, Überlast, gespeichert …)
   bool voice_on;      // Spracherkennung (nur wirksam, wenn USE_VOICE 1)
   char voice[24];     // Stimmpaket: Unterordner in /Waage/Stimme
   int  unit;          // Einheit Wiegeseite/Protokoll: 0 g, 1 kg, 2 oz, 3 lb

@@ -210,7 +210,7 @@ static void row_value(int cat, int row, char *b, int len) {
     case 21: snprintf(b, len, "%s", scheme_name(g_set.scheme)); break;
     case 22:
       if (!sound_voice_available()) snprintf(b, len, T("keine Stimme"));
-      else snprintf(b, len, "%s", g_set.speak ? T("an") : T("aus"));
+      else snprintf(b, len, "%s", T(sound_speak_mode_name(sound_speak_mode())));
       break;
     case 23: {
       static char packs[VOICE_PACKS_MAX][24];
@@ -242,7 +242,7 @@ static void row_value(int cat, int row, char *b, int len) {
     }
     case 32: snprintf(b, len, T("Cg / Cgk ›")); break;
     case 33: snprintf(b, len, T("Nullpunkt ›")); break;
-    case 34: snprintf(b, len, T("Klassen ›")); break;
+    case 26: snprintf(b, len, T("Pegel ›")); break;
     case 35: snprintf(b, len, "%s", storage_ok() ? T("im Browser ›") : T("keine SD")); break;
     case 24: snprintf(b, len, "%s", g_set.lang == LANG_EN ? "English" : "Deutsch"); break;  // nicht übersetzen
     case 36:
@@ -291,8 +291,11 @@ static void row_cb(lv_event_t *e) {
       break;
     case 22:
       if (!sound_voice_available()) return;
-      g_set.speak = !g_set.speak;
+      // Zahlen + Sprüche -> nur Zahlen -> nur Sprüche -> aus
+      sound_speak_stop();
+      sound_speak_mode_set((sound_speak_mode() + 1) % 4);
       if (g_set.speak) sound_speak_weight(1234.5f, g_set.unit);  // Hörprobe
+      else if (g_set.speak_ev) sound_speak_word("tara");
       break;
     case 23: {  // Stimme: Auswahlliste (bei vielen Paketen besser als Durchtippen)
       static char packs[VOICE_PACKS_MAX][24];
@@ -310,7 +313,7 @@ static void row_cb(lv_event_t *e) {
     case 31: ui_switch_page(page_refset_create()); return;
     case 32: ui_switch_page(page_msa_create()); return;
     case 33: ui_switch_page(page_level_setup_create()); return;
-    case 34: ui_switch_page(page_porto_setup_create()); return;
+    case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
     case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -322,7 +325,7 @@ static void row_cb(lv_event_t *e) {
   }
   settings_save();  // direkt umgeschaltet
   char b[32];
-  if (row >= 8) return;
+  if (row >= 8 || !row_val[row]) return;
   row_value(id / 10, row, b, sizeof(b));
   lv_label_set_text(row_val[row], b);
   sound_play(SND_CLICK);
@@ -345,9 +348,18 @@ static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][8] = {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
     { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
-    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", NULL, NULL },
-    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Portoklassen", "Dateien", "Firmware", NULL },
+    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
+    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Dateien", "Firmware", NULL, NULL },
   };
+  // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
+  // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
+  static const int8_t IDS[4][8] = {
+    { 0, 1, 2, 3, 4, 5, 6, 7 },
+    { 10, 11, 12, 13, 14, -1, -1, -1 },
+    { 20, 21, 22, 23, 24, 25, 26, -1 },
+    { 30, 31, 32, 33, 35, 36, -1, -1 },
+  };
+  memset(row_val, 0, sizeof(row_val));
   lv_obj_t *s = ui_screen_create();
   title(s, CAT_TITLE[cat]);
 
@@ -369,13 +381,14 @@ static lv_obj_t *page_cat_create(int cat) {
     lv_obj_set_style_border_color(row, C_TRACK, 0);
     lv_obj_set_style_bg_color(row, C_SURFACE, LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
-    lv_obj_add_event_cb(row, row_cb, LV_EVENT_CLICKED, (void *)(intptr_t)(cat * 10 + r));
+    int id = IDS[cat][r], k = id % 10;
+    lv_obj_add_event_cb(row, row_cb, LV_EVENT_CLICKED, (void *)(intptr_t)id);
     lv_obj_t *l = ui_label(row, ROWS[cat][r], &font_sg_18, C_TEXT);
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 4, 0);
     char b[32];
-    row_value(cat, r, b, sizeof(b));
-    row_val[r] = ui_label(row, b, &font_sg_18, C_ACCENT);
-    lv_obj_align(row_val[r], LV_ALIGN_RIGHT_MID, -4, 0);
+    row_value(cat, k, b, sizeof(b));
+    row_val[k] = ui_label(row, b, &font_sg_18, C_ACCENT);
+    lv_obj_align(row_val[k], LV_ALIGN_RIGHT_MID, -4, 0);
   }
 
   if (cat == 2) {
@@ -1060,14 +1073,21 @@ static void qr_show() {
     snprintf(data, sizeof(data), "WIFI:T:nopass;S:%s;;", ssid);  // offenes WLAN der Waage
     snprintf(cap, sizeof(cap), T("WLAN „%s“"), web_ssid());
   } else {
-    snprintf(data, sizeof(data), "%s", web_url());
-    snprintf(cap, sizeof(cap), "%s", web_url());
+    // Immer den Namen: im Heimnetz per mDNS, im eigenen WLAN beantwortet
+    // der DNS-Server der Waage jeden Namen mit ihrer Adresse
+    snprintf(data, sizeof(data), "http://waage.local");
+    snprintf(cap, sizeof(cap), "waage.local");
   }
 #if LV_USE_QRCODE
   lv_qrcode_update(qr_code, data, strlen(data));
 #endif
   lv_label_set_text(qr_caption, cap);
-  if (!web_ap_mode()) lv_label_set_text(qr_hint, "Mit der Kamera scannen");
+  if (!web_ap_mode()) {
+    // Ersatzweg, falls das Handy .local nicht auflöst (manche Android-Geräte)
+    char h[48];
+    snprintf(h, sizeof(h), T("oder %s"), web_ip());
+    lv_label_set_text(qr_hint, h);
+  }
   else lv_label_set_text(qr_hint, qr_mode == 0 ? "Antippen: Adresse" : "Antippen: WLAN");
 }
 

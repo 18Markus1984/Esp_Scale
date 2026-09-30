@@ -257,6 +257,28 @@ Abweichung; gespeichert in Flash (`ref_*`), `/Waage/Pruefung/pruefgewicht.csv` u
 (auch nach einer Prüfung außer Toleranz) -> nach dem Start Seite „Prüfung fällig“ (Jetzt prüfen/Später).
 Ohne gestellte Uhr keine Erinnerung.
 
+**Ansagen ohne gegenseitiges Unterbrechen (29.09.2026):** sound.cpp hat zwei Warteschlangen:
+Töne (Länge 1, nur der neueste wartet) und Ansagen (FIFO, 4 Plätze). Eine Ansage wird immer ganz
+gesprochen; Töne warten bis danach, Klicks werden während einer Ansage verworfen. Dieselbe Ansage
+innerhalb von 2 s nur einmal. Speichern nach einer schon angesagten Auflage sagt nur noch
+„gespeichert“ (`speak_saved` in ui.cpp). „Waage leer“ nicht mehr, wenn nur tariert wurde (Tara > 20 g).
+Behobene Blockaden: Speichern brach die Gewichtsansage ab; ein Klick während einer wartenden Ansage
+warf sie weg; der Speicherton wurde von der Ansage verschluckt; Tara/Topf brachen Ansagen ab.
+**Ansage-Modus:** `g_set.speak` (Zahlen) + `g_set.speak_ev` (Sprüche, Flash-Schlüssel `speak_ev`),
+`sound_speak_mode()`/`_set()`: Zahlen + Sprüche / nur Zahlen / nur Sprüche / aus. Setup -> Ton -> Ansage,
+Browser: Auswahl. Wiegeseite: Lautsprecher-Knopf unter Tara/Speichern (nur mit Stimmpaket):
+spricht gerade -> `sound_speak_stop()`, sonst Modus weiterschalten (Symbole volume_up, numbers,
+record_voice_over, volume_off; Schrift font_icons_26 neu erzeugt).
+**QR-Code:** Adresse immer `http://waage.local`, darunter die IP als Ersatz.
+**Menü-Umbau (29.09.2026, mit Markus abgestimmt):** Mikrofon-Pegeltest aus System entfernt, jetzt
+Setup -> Ton -> Mikrofon (Zeile 26, direkt unter Sprachbefehle, mit Zurück-Knopf). Portoklassen aus
+Setup -> Waage entfernt; im Porto-Modus Knopf „Klassen“ (Fertig führt zurück in den Porto-Modus), im Web
+oben rechts „Klassen“ -> #/portoklassen. Setup-Zeilen haben feste Kennungen (`IDS[4][8]` in
+page_setup.cpp), 34 ist frei. Web-Einstellungen: Sprache und Sprachbefehle (voice_on, nur wenn
+`voice_ok`) im Abschnitt Ton wie am Gerät. Bewusst nicht umgesetzt: Töpfe bei Auto-Tara,
+Libelle/Wasserwaage zusammenlegen, Auto-Aus zum Akku, Kategorie Waage aufteilen.
+**Design:** komplette Oberfläche als gezeichnetes Canvas-Artefakt „Waage UI Design“ (claude.ai).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

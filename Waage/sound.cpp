@@ -118,8 +118,14 @@ typedef struct {
 } msg_t;
 
 static I2SClass s_i2s;
-static QueueHandle_t s_queue = NULL;
-static volatile bool s_abort = false;
+// Zwei Warteschlangen: Töne (nur der neueste wartet) und Ansagen (bis zu
+// 4 hintereinander). So unterbricht keine Ansage mehr eine andere und
+// ein Klick wirft keine wartende Ansage weg.
+static QueueHandle_t s_queue = NULL;   // Töne: uint8_t sound_t
+static QueueHandle_t s_speechq = NULL; // Ansagen: msg_t
+static TaskHandle_t s_task = NULL;
+static volatile bool s_abort = false;         // laufenden Ton abbrechen
+static volatile bool s_abort_speech = false;  // laufende Ansage abbrechen (Stopp-Knopf)
 static volatile bool s_playing_long = false;
 static volatile bool s_speaking = false;
 static bool s_voice = false;
@@ -206,7 +212,7 @@ static bool play_wav(const char *name) {
   float gain = (float)g_set.volume / 100.0f;
   float step = (float)rate / RATE;  // >1: Datei hat mehr Abtastwerte als nötig
   float pos = 0;
-  while (!s_abort) {
+  while (!s_abort_speech) {
     storage_lock();  // nur für das Lesen sperren, nicht während der Ausgabe
     int n = storage_ok() ? f.read((uint8_t *)in, sizeof(in)) : -1;
     storage_unlock();
@@ -317,20 +323,26 @@ static bool voice_check();
 
 static void sound_task(void *arg) {
   static msg_t m;
+  uint8_t snd;
   while (true) {
-    if (xQueueReceive(s_queue, &m, portMAX_DELAY) != pdTRUE) continue;
-    s_abort = false;
-    if (m.type == 0) {
-      const snd_def_t *d = &DEFS[m.sound];
+    // Töne haben Vorrang, laufen aber nie mitten in eine Ansage hinein:
+    // Eine Ansage wird immer zu Ende gesprochen (außer Stopp-Knopf).
+    if (xQueueReceive(s_queue, &snd, 0) == pdTRUE) {
+      s_abort = false;
+      const snd_def_t *d = &DEFS[snd];
       s_playing_long = d->cat == CAT_LONG;
       for (const tone_step_t *n = d->pat; n->ms; n++) play_note(n->freq, n->ms, d->cat);
       play_note(0, 15, d->cat);
       s_playing_long = false;
-    } else {
+    } else if (xQueueReceive(s_speechq, &m, 0) == pdTRUE) {
+      s_abort = false;
+      s_abort_speech = false;
       s_speaking = true;
-      for (int i = 0; i < m.count && !s_abort; i++) play_wav(m.words[i]);
+      for (int i = 0; i < m.count && !s_abort_speech; i++) play_wav(m.words[i]);
       play_note(0, 15, CAT_SIGNAL);
       s_speaking = false;
+    } else {
+      ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));  // warten, bis etwas kommt
     }
   }
 }
@@ -343,8 +355,9 @@ void sound_begin() {
   }
   s_voice = voice_check();
   printf("Sound: Stimme %s\r\n", s_voice ? "gefunden" : "nicht gefunden");
-  s_queue = xQueueCreate(1, sizeof(msg_t));
-  xTaskCreatePinnedToCore(sound_task, "Sound", 6144, NULL, 2, NULL, 0);  // liest auch WAVs von der SD
+  s_queue = xQueueCreate(1, sizeof(uint8_t));
+  s_speechq = xQueueCreate(4, sizeof(msg_t));
+  xTaskCreatePinnedToCore(sound_task, "Sound", 6144, NULL, 2, &s_task, 0);  // liest auch WAVs von der SD
 }
 
 // Prüft, ob das eingestellte Paket (oder die Dateien direkt im Ordner) da sind
@@ -459,20 +472,40 @@ void sound_play_tone(sound_t s) {
   s_last_snd = (uint8_t)s;
   s_last_ms = now;
 
+  // Während einer Ansage stören Klicks nur und würden sich stauen
+  if (s_speaking && DEFS[s].cat == CAT_CLICK) return;
   // Laufenden kurzen Ton abbrechen, lange Signale und Ansagen nicht
   if (!s_playing_long && !s_speaking) s_abort = true;
 
-  static msg_t m;
-  m.type = 0;
-  m.sound = (uint8_t)s;
-  m.count = 0;
-  xQueueOverwrite(s_queue, &m);  // nur der neueste Ton wartet
+  uint8_t v = (uint8_t)s;
+  xQueueOverwrite(s_queue, &v);  // nur der neueste Ton wartet
+  if (s_task) xTaskNotifyGive(s_task);
 }
 
-static void speak(msg_t *m) {
-  if (!s_queue || g_set.volume <= 0 || !g_set.speak || !sound_voice_available()) return;
-  s_abort = true;  // laufende Ansage ersetzen
-  xQueueOverwrite(s_queue, m);
+// kind: 0 = Zahlen (Gewicht, Stückzahl), 1 = Sprüche des Stimmpakets
+static void speak(msg_t *m, int kind) {
+  if (!s_speechq || g_set.volume <= 0 || !sound_voice_available()) return;
+  if (kind == 0 ? !g_set.speak : !g_set.speak_ev) return;
+  // Dieselbe Ansage kurz hintereinander nur einmal
+  static msg_t last;
+  static uint32_t last_ms = 0;
+  uint32_t now = millis();
+  if (now - last_ms < 2000 && last.count == m->count &&
+      memcmp(last.words, m->words, sizeof(m->words[0]) * m->count) == 0) return;
+  memcpy(&last, m, sizeof(msg_t));
+  last_ms = now;
+  m->type = 1;
+  xQueueSend(s_speechq, m, 0);  // voll (4 wartende Ansagen): neue verwerfen
+  if (s_task) xTaskNotifyGive(s_task);
+}
+
+bool sound_speaking() {
+  return s_speaking || (s_speechq && uxQueueMessagesWaiting(s_speechq) > 0);
+}
+
+void sound_speak_stop() {
+  if (s_speechq) xQueueReset(s_speechq);
+  s_abort_speech = true;
 }
 
 static void build_weight(msg_t *mp, float grams, int unit);
@@ -482,7 +515,7 @@ void sound_speak_weight(float grams, int unit) {
   m.type = 1;
   m.count = 0;
   build_weight(&m, grams, unit);
-  speak(&m);
+  speak(&m, 0);
 }
 
 static const char *word_file(const char *file);
@@ -493,7 +526,7 @@ void sound_speak_weight_word(float grams, int unit, const char *word) {
   m.count = 0;
   build_weight(&m, grams, unit);
   add_word(&m, word_file(word));
-  speak(&m);
+  speak(&m, 0);
 }
 
 static void build_weight(msg_t *mp, float grams, int unit) {
@@ -527,7 +560,7 @@ void sound_speak_count(int pieces) {
   m.count = 0;
   add_number(&m, pieces);
   add_word(&m, g_set.lang == LANG_EN ? "pieces" : "stueck");
-  speak(&m);
+  speak(&m, 0);
 }
 
 // Feste Ansagen werden im Code mit dem deutschen Namen aufgerufen,
@@ -551,7 +584,7 @@ void sound_speak_word(const char *file) {
   m.type = 1;
   m.count = 0;
   add_word(&m, word_file(file));
-  speak(&m);
+  speak(&m, 1);
 }
 
 // Ereignis-Ansagen der Stimmpakete (tara.wav, gespeichert.wav …). Dasselbe
@@ -566,7 +599,7 @@ static void voice_event(sound_t s) {
     case SND_DONE: w = "fertig"; break;
     default: return;
   }
-  if (!g_set.speak || g_set.volume <= 0 || !sound_voice_available()) return;
+  if (!g_set.speak_ev || g_set.volume <= 0 || !sound_voice_available()) return;
   static const char *last = NULL;
   static uint32_t last_ms = 0;
   uint32_t now = millis();
@@ -592,6 +625,8 @@ void sound_speak_count(int pieces) { (void)pieces; }
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
+bool sound_speaking() { return false; }
+void sound_speak_stop() {}
 int sound_voice_packs(char names[][24], int max) {
   static char dirs[64][STORAGE_NAME_LEN];
   int n = storage_list_dirs("/Waage/Stimme", dirs, 64), k = 0;
@@ -607,3 +642,24 @@ void sound_voice_next() {}
 void sound_voice_set(const char *pack) { strncpy(g_set.voice, pack, sizeof(g_set.voice) - 1); g_set.voice[sizeof(g_set.voice) - 1] = 0; }
 void sound_lang_changed() {}
 #endif
+
+// ------------------------------------------------------------
+//  Ansage-Modus (für Einstellungen, Web und den Lautsprecher-Knopf)
+// ------------------------------------------------------------
+int sound_speak_mode() {
+  if (g_set.speak && g_set.speak_ev) return SPEAK_ALL;
+  if (g_set.speak) return SPEAK_NUMBERS;
+  if (g_set.speak_ev) return SPEAK_LINES;
+  return SPEAK_OFF;
+}
+
+void sound_speak_mode_set(int mode) {
+  g_set.speak = mode == SPEAK_ALL || mode == SPEAK_NUMBERS;
+  g_set.speak_ev = mode == SPEAK_ALL || mode == SPEAK_LINES;
+  if (!g_set.speak && !g_set.speak_ev) sound_speak_stop();
+}
+
+const char *sound_speak_mode_name(int mode) {
+  static const char *const N[4] = { "Zahlen + Sprüche", "nur Zahlen", "nur Sprüche", "aus" };
+  return N[(mode < 0 || mode > 3) ? 3 : mode];
+}

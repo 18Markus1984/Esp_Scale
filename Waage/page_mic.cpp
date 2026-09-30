@@ -110,6 +110,11 @@ lv_obj_t *page_mic_create() {
   m_cmd = ui_label(s, "", &font_sg_18, C_FAINT);
   lv_obj_align(m_cmd, LV_ALIGN_CENTER, 0, 76);
 
+  // erreichbar über Setup -> Ton -> Mikrofon (neben den Sprachbefehlen)
+  lv_obj_t *bb = ui_btn(s, "Zurück", BTN_NORMAL);
+  lv_obj_align(bb, LV_ALIGN_CENTER, 0, 132);
+  lv_obj_add_event_cb(bb, [](lv_event_t *e) { ui_switch_page(page_setup_back()); }, LV_EVENT_CLICKED, NULL);
+
   m_loud = -90.0f;
   m_heard_at = 0;
   mic_reset_claps();

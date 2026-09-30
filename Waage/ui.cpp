@@ -33,7 +33,7 @@ static lv_obj_t *scr_home, *h_tv, *h_tile0;
 static lv_obj_t *h_wifi, *h_bat;
 static lv_obj_t *h_ring, *h_status, *h_pot, *h_weight, *h_unit, *h_state, *h_potinfo, *h_liquid;
 static void weight_show(const char *num, const char *unit);  // große Gewichtsanzeige (unten)
-static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast;
+static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast, *h_spk;
 static bool h_boot_prev = false;
 static int h_prev_state = -1;  // zuletzt gezeigter Zustand (misst/stabil/Überlast)
 
@@ -72,7 +72,6 @@ static const ui_list_item_t SYSTEM_ITEMS[] = {
   { "Töpfe", "Verwalten", ICON_TOEPFE },
   { "Wasserwaage", "Lage prüfen", ICON_LIBELLE },
   { "Akku", "Verlauf und Restzeit", ICON_AKKU },
-  { "Mikrofon", "Pegel prüfen", ICON_MIKRO },
   { "Setup", "Einstellungen", ICON_SETUP },
 };
 
@@ -95,7 +94,6 @@ static const page_create_fn SYSTEM_PAGES[] = {
   page_toepfe_create,     // Töpfe
   page_level_create,      // Wasserwaage
   page_akku_create,       // Akku
-  page_mic_create,        // Mikrofon
   page_setup_create,      // Setup
 };
 
@@ -209,6 +207,21 @@ static void tara_cb(lv_event_t *e) {
   show_toast("Tara gesetzt", C_ACCENT);
 }
 
+// Ansage-Zustand der Wiegeseite (siehe speak_check)
+static uint32_t sp_stable_since = 0;
+static bool sp_done = false;  // Gewicht dieser Auflage schon angesagt/eingereiht
+
+// Nach dem Speichern: Wurde das Gewicht gerade schon angesagt, nur noch
+// "gespeichert" – sonst Gewicht + "gespeichert" in einem Satz.
+static void speak_saved(float g) {
+  if (g_set.speak && !sp_done) {
+    sound_speak_weight_word(g, g_set.unit, "gespeichert");
+    sp_done = true;  // speak_check sagt dieselbe Auflage nicht noch einmal an
+  } else {
+    sound_speak_word("gespeichert");
+  }
+}
+
 static void save_cb(lv_event_t *e) {
   if (!scale_stable()) {
     sound_play(SND_WARN);
@@ -227,12 +240,12 @@ static void save_cb(lv_event_t *e) {
     show_toast("Keine SD-Karte", C_WARN);
   } else if (r < 0) {
     show_toast("Gespeichert · Uhr nicht gestellt", C_WARN);
-    sound_speak_weight_word(scale_net(), g_set.unit, "gespeichert");
+    speak_saved(g);
   } else {
     if (hal_time(&hh, &mm)) snprintf(buf, sizeof(buf), T("Gespeichert · %02d:%02d"), hh, mm);
     else snprintf(buf, sizeof(buf), T("Gespeichert"));
     show_toast(buf, C_ACCENT);
-    sound_speak_weight_word(scale_net(), g_set.unit, "gespeichert");
+    speak_saved(g);
   }
 }
 
@@ -387,10 +400,46 @@ static void autosave_check() {
 
 // ---------- Gewicht ansagen ----------
 // Einmal pro Auflegen, sobald der Wert ruhig liegt.
-static uint32_t sp_stable_since = 0;
-static bool sp_done = false;
+// Symbol und Farbe des Lautsprecher-Knopfs nachführen (alle 100 ms)
+static void speaker_update() {
+  if (!h_spk) return;
+  static int8_t shown = -2;  // -1 = versteckt
+  static bool was_talking = false;
+  bool avail = sound_voice_available() && g_set.volume > 0;
+  int mode = avail ? sound_speak_mode() : -1;
+  bool talking = avail && sound_speaking();
+  if (mode == shown && talking == was_talking) return;
+  shown = (int8_t)mode;
+  was_talking = talking;
+  if (mode < 0) {
+    lv_obj_add_flag(h_spk, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+  lv_obj_clear_flag(h_spk, LV_OBJ_FLAG_HIDDEN);
+  static const char *const IC[4] = { ICON_TON, ICON_ZAEHLEN, ICON_SPRUECHE, ICON_TON_AUS };
+  lv_obj_t *ic = lv_obj_get_child(h_spk, 0);
+  lv_label_set_text(ic, IC[mode]);
+  lv_obj_set_style_text_color(ic, talking ? C_ACCENT : (mode == SPEAK_OFF ? C_FAINT : C_MUTED), 0);
+}
+
+static void speaker_cb(lv_event_t *e) {
+  char b[48];
+  if (sound_speaking()) {
+    sound_speak_stop();
+    show_toast("Ansage gestoppt", C_MUTED);
+  } else {
+    int mode = (sound_speak_mode() + 1) % 4;
+    sound_speak_mode_set(mode);
+    settings_save();
+    sound_play_tone(SND_CLICK);
+    snprintf(b, sizeof(b), T("Ansage: %s"), T(sound_speak_mode_name(mode)));
+    show_toast(b, C_ACCENT);
+  }
+  speaker_update();
+}
 
 static void speak_check() {
+  speaker_update();
   float net = scale_net();
   static bool sp_was_on = false;   // es lag etwas, das angesagt wurde
   static uint32_t sp_empty_since = 0;
@@ -398,8 +447,10 @@ static void speak_check() {
     if (sp_done) sp_was_on = true;
     sp_done = false;
     sp_stable_since = 0;
-    // nach dem Abnehmen einmal "Waage leer" (wenn die Ansage an ist)
-    if (sp_was_on && g_set.speak && scale_stable()) {
+    // Null nur durch Tara (Topf/Ware steht noch drauf): nicht "Waage leer"
+    if (fabsf(scale_get_tare()) > 20.0f) sp_was_on = false;
+    // nach dem Abnehmen einmal "Waage leer" (wenn die Sprüche an sind)
+    if (sp_was_on && g_set.speak_ev && scale_stable()) {
       if (!sp_empty_since) sp_empty_since = hal_millis();
       if (hal_millis() - sp_empty_since > 800) {
         sound_speak_word("waage_leer");
@@ -863,6 +914,22 @@ static void build_weigh_tile(lv_obj_t *tile) {
   lv_obj_align(h_btn_remove, LV_ALIGN_CENTER, 0, 116);
   lv_obj_add_event_cb(h_btn_remove, remove_pot_cb, LV_EVENT_CLICKED, NULL);
   lv_obj_add_flag(h_btn_remove, LV_OBJ_FLAG_HIDDEN);
+
+  // Lautsprecher-Knopf: während einer Ansage stoppen, sonst den
+  // Ansage-Modus durchschalten (Zahlen + Sprüche / Zahlen / Sprüche / aus).
+  // Nur sichtbar, wenn ein Stimmpaket auf der SD-Karte liegt.
+  h_spk = lv_btn_create(tile);
+  lv_obj_remove_style_all(h_spk);
+  lv_obj_set_size(h_spk, 38, 38);
+  lv_obj_set_style_radius(h_spk, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(h_spk, C_SURFACE, LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(h_spk, LV_OPA_COVER, LV_STATE_PRESSED);
+  lv_obj_set_ext_click_area(h_spk, 10);
+  lv_obj_align(h_spk, LV_ALIGN_CENTER, 0, 162);
+  lv_obj_t *spk_ic = ui_label(h_spk, ICON_TON, &font_icons_26, C_MUTED);
+  lv_obj_center(spk_ic);
+  lv_obj_add_event_cb(h_spk, speaker_cb, LV_EVENT_CLICKED, NULL);
+  lv_obj_add_flag(h_spk, LV_OBJ_FLAG_HIDDEN);
 
   h_toast = ui_toast_create(tile);
   lv_obj_align(h_toast, LV_ALIGN_CENTER, 0, 152);

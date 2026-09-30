@@ -20,6 +20,7 @@
 #include "tools.h"
 #include "update_online.h"
 #include "refcheck.h"
+#include "voice.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
@@ -678,6 +679,8 @@ static void h_settings() {
              ",\"idle\":" + g_set.idle_min + ",\"autooff\":" + g_set.auto_off_min + ",\"autotara\":" + (g_set.autotara ? "true" : "false") +
              ",\"cd\":" + g_set.countdown_s + ",\"tol\":" + g_set.tol_g + ",\"vol\":" + g_set.volume +
              ",\"scheme\":" + g_set.scheme + ",\"speak\":" + (g_set.speak ? "true" : "false") +
+             ",\"speak_ev\":" + (g_set.speak_ev ? "true" : "false") +
+             ",\"voice_on\":" + (g_set.voice_on ? "true" : "false") + ",\"voice_ok\":" + (voice_available() ? "true" : "false") +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid;
@@ -734,6 +737,16 @@ static void h_settings_save() {
   g_set.volume = constrain((int)jval(b, "vol").toInt(), 0, 100);
   g_set.scheme = constrain((int)jval(b, "scheme").toInt(), 0, SCHEME_COUNT - 1);
   g_set.speak = jval(b, "speak") == "true";
+  if (jval(b, "speak_ev").length()) g_set.speak_ev = jval(b, "speak_ev") == "true";
+  // Sprachbefehle (nur wenn ESP-SR einkompiliert ist)
+  if (jval(b, "voice_on").length() && voice_available() && !voice_starting()) {
+    bool on = jval(b, "voice_on") == "true";
+    if (on != g_set.voice_on) {
+      g_set.voice_on = on;
+      if (on) voice_begin();
+      else voice_stop();
+    }
+  }
   String voice = jval(b, "voice");
   if (voice.length()) sound_voice_set(voice.c_str());  // prüft das neue Paket gleich
   settings_save();

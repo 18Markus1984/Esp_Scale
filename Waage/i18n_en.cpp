@@ -726,6 +726,17 @@ const i18n_pair_t I18N_EN[] = {
   { "Jetzt prüfen", "Check now" },
   { "Später", "Later" },
   { "Prüfgewicht: %s g %s", "Check weight: %s g %s" },
+  // ---- Ansage-Modus ----
+  { "Zahlen + Sprüche", "Numbers + lines" },
+  { "nur Zahlen", "numbers only" },
+  { "nur Sprüche", "lines only" },
+  { "Ansage gestoppt", "Announcement stopped" },
+  { "Ansage: %s", "Speech: %s" },
+  { "oder %s", "or %s" },
+  // ---- Menü-Umbau ----
+  { "Pegel ›", "Level ›" },
+  { "Maße und Dicke beachten", "Mind size and thickness" },
+  { "Klassen", "Classes" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);
