@@ -33,6 +33,7 @@ lv_obj_t *page_toepfe_create();                       // Töpfe verwalten
 lv_obj_t *page_protokoll_create();                    // Protokoll (heute)
 lv_obj_t *page_setup_create();                        // Einstellungen (Übersicht)
 lv_obj_t *page_setup_back();                          // zurück in die zuletzt offene Setup-Gruppe
+lv_obj_t *page_display_create();                      // Display drehen (Feinausrichtung)
 lv_obj_t *page_kalib_create();                        // Kalibrierung in 3 Schritten
 lv_obj_t *page_refset_create();                       // Prüfgewicht: Einstellungen und letzte Prüfung
 lv_obj_t *page_refcheck_create();                     // Prüfgewicht: Prüfung durchführen

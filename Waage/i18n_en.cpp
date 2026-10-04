@@ -737,6 +737,13 @@ const i18n_pair_t I18N_EN[] = {
   { "Pegel ›", "Level ›" },
   { "Maße und Dicke beachten", "Mind size and thickness" },
   { "Klassen", "Classes" },
+  // ---- Display drehen ----
+  { "Display", "Display" },
+  { "gerade ›", "straight ›" },
+  { "Display ausrichten", "Align display" },
+  { "Linien parallel zur Gehäusekante", "Lines parallel to the case edge" },
+  { "0,1° pro Tipp", "0.1° per tap" },
+  { "Gerade", "Straight" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

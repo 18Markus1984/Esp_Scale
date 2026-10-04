@@ -282,6 +282,13 @@ Bedienfarbe (`C_PRIMARY`/`C_ON_PRIMARY` in ui_theme.h: Hauptknöpfe, gewählter 
 Texteingabe), Grün #3DDC97 nur für Messwert und Zustand (Ring, „stabil“, Schalter an, Fortschritt),
 Gelb/Rot nur für Warnungen und als Umriss (BTN_WARN). Graustufen neutral statt grünlich. Im Web
 dieselben Tokens (`--pri`, `--on-pri`), dazu Druck-Feedback, sichtbarer Tastaturfokus, Tabellenziffern.
+**Display drehen (04.10.2026):** `disp_rot.*`. Setup -> Waage -> Display: Bild in 0,1°-Schritten um
+bis zu ±5° drehen (Fadenkreuz und Kreis als Hilfe, gedrückt halten zählt weiter), gespeichert als
+`disp_rot` (Zehntelgrad). Nur bei Wert != 0 wird beim Start umgebaut: LVGL zeichnet dann im
+direct_mode in ein eigenes Vollbild (PSRAM, 2 × 340 KB), der geänderte Bereich wird beim Ausgeben
+bilinear gedreht und an den unveränderten Waveshare-Flush übergeben; der Touch-Lesecallback wird
+passend zurückgedreht. Ausgabebereich auf 4er-Raster (SPD2010). Bei Drehung kosten große
+Bildwechsel etwas Bildrate.
 **Design:** Canvas-Artefakt „Waage UI Design“ (claude.ai) mit jeder Seite, gezeichnet aus Formen:
 Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei jedem S() dump/*.json,
 tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),

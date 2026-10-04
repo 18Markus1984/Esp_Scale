@@ -280,7 +280,7 @@ static lv_obj_t *page_porto_edit_create() {
   e_confirm = false;
   char b[48];
 
-  snprintf(b, sizeof(b), "%s ›", e_draft.name);
+  snprintf(b, sizeof(b), "%s ›", T(e_draft.name));
   lv_obj_t *nb = ui_btn(s, b, BTN_NORMAL);
   lv_obj_set_height(nb, 44);
   lv_obj_align(nb, LV_ALIGN_CENTER, 0, -118);

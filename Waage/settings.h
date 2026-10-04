@@ -24,6 +24,7 @@ typedef struct {
   float lvl_off_x;    // Nullpunkt der Libelle in Grad
   float lvl_off_y;
   bool precise;       // Präzisionsmodus: ruhige Werte mitteln, zwei Nachkommastellen
+  int disp_rot;      // Display drehen, Zehntelgrad (Feinausrichtung im Gehäuse)
   bool azt;           // Nullpunkt-Nachführung (Auto-Null)
   int  liquid;        // Flüssigkeit für die Einheit ml (Index in data.cpp)
   int  lang;          // Sprache von Anzeige, Weboberfläche und Ansage: 0 Deutsch, 1 English

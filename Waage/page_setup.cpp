@@ -7,6 +7,7 @@
 //               Uhrzeit per NTP abgleichen
 // ============================================================
 #include "ui_pages.h"
+#include "disp_rot.h"
 #include "ui.h"
 #include "ui_theme.h"
 #include "ui_widgets.h"
@@ -243,6 +244,14 @@ static void row_value(int cat, int row, char *b, int len) {
     case 32: snprintf(b, len, T("Cg / Cgk ›")); break;
     case 33: snprintf(b, len, T("Nullpunkt ›")); break;
     case 26: snprintf(b, len, T("Pegel ›")); break;
+    case 34:
+      if (g_set.disp_rot == 0) snprintf(b, len, T("gerade ›"));
+      else {
+        snprintf(b, len, "%+.1f° ›", g_set.disp_rot / 10.0f);
+        for (char *q = b; *q; q++)
+          if (*q == '.') *q = ',';
+      }
+      break;
     case 35: snprintf(b, len, "%s", storage_ok() ? T("im Browser ›") : T("keine SD")); break;
     case 24: snprintf(b, len, "%s", g_set.lang == LANG_EN ? "English" : "Deutsch"); break;  // nicht übersetzen
     case 36:
@@ -314,6 +323,7 @@ static void row_cb(lv_event_t *e) {
     case 32: ui_switch_page(page_msa_create()); return;
     case 33: ui_switch_page(page_level_setup_create()); return;
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
+    case 34: ui_switch_page(page_display_create()); return;
     case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -349,7 +359,7 @@ static lv_obj_t *page_cat_create(int cat) {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
     { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
-    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Dateien", "Firmware", NULL, NULL },
+    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Dateien", "Firmware", NULL },
   };
   // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
@@ -357,7 +367,7 @@ static lv_obj_t *page_cat_create(int cat) {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
     { 10, 11, 12, 13, 14, -1, -1, -1 },
     { 20, 21, 22, 23, 24, 25, 26, -1 },
-    { 30, 31, 32, 33, 35, 36, -1, -1 },
+    { 30, 31, 32, 33, 34, 35, 36, -1 },
   };
   memset(row_val, 0, sizeof(row_val));
   lv_obj_t *s = ui_screen_create();
@@ -1137,5 +1147,97 @@ lv_obj_t *page_wlan_qr_create() {
   qr_mode = 0;
   qr_show();
   ui_page_timer(s, qr_timer_cb, 1000);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Display ausrichten: das Bild um wenige Grad drehen, falls das
+//  Display leicht verdreht im Gehäuse sitzt. Fadenkreuz und Kreis
+//  helfen beim Vergleich mit der Gehäusekante.
+// ------------------------------------------------------------
+static lv_obj_t *dr_val;
+static int dr_start;  // Wert beim Öffnen (für Abbrechen)
+
+static void dr_show() {
+  char b[16];
+  if (g_set.disp_rot == 0) snprintf(b, sizeof(b), "0,0°");
+  else snprintf(b, sizeof(b), "%+.1f°", g_set.disp_rot / 10.0f);
+  for (char *p = b; *p; p++)
+    if (*p == '.') *p = ',';
+  lv_label_set_text(dr_val, b);
+}
+
+static void dr_step(int d) {
+  int v = g_set.disp_rot + d;
+  if (v > DISP_ROT_MAX) v = DISP_ROT_MAX;
+  if (v < -DISP_ROT_MAX) v = -DISP_ROT_MAX;
+  g_set.disp_rot = v;
+  disp_rot_set(v);
+  sound_play(SND_CLICK);
+  dr_show();
+}
+
+static lv_obj_t *dr_line(lv_obj_t *s, bool vertical) {
+  lv_obj_t *l = ui_box(s);
+  lv_obj_set_size(l, vertical ? 1 : 372, vertical ? 372 : 1);
+  lv_obj_set_style_bg_color(l, C_BORDER, 0);
+  lv_obj_set_style_bg_opa(l, LV_OPA_COVER, 0);
+  lv_obj_center(l);
+  return l;
+}
+
+lv_obj_t *page_display_create() {
+  lv_obj_t *s = ui_screen_create();
+  dr_start = g_set.disp_rot;
+
+  // Hilfslinien: Kreis knapp innerhalb des Randes und Fadenkreuz
+  lv_obj_t *ring = ui_box(s);
+  lv_obj_set_size(ring, 396, 396);
+  lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(ring, 1, 0);
+  lv_obj_set_style_border_color(ring, C_BORDER, 0);
+  lv_obj_center(ring);
+  dr_line(s, false);
+  dr_line(s, true);
+
+  lv_obj_t *t = ui_label(s, "Display ausrichten", &font_sg_18, C_MUTED);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 56);
+  lv_obj_t *hint = ui_label(s, "Linien parallel zur Gehäusekante", &font_sg_14, C_FAINT);
+  lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 82);
+
+  dr_val = ui_label(s, "", &font_sg_34, C_TEXT);
+  lv_obj_set_style_bg_color(dr_val, C_BG, 0);  // Linien hinter dem Wert ausblenden
+  lv_obj_set_style_bg_opa(dr_val, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(dr_val, 12, 0);
+  lv_obj_set_style_pad_ver(dr_val, 6, 0);
+  lv_obj_center(dr_val);
+
+  // − und + links und rechts vom Wert, auf der waagerechten Linie
+  lv_obj_t *m = ui_round_btn(s, "−", [](lv_event_t *e) { dr_step(-1); });
+  lv_obj_align(m, LV_ALIGN_CENTER, -118, 0);
+  lv_obj_t *p = ui_round_btn(s, "+", [](lv_event_t *e) { dr_step(1); });
+  lv_obj_align(p, LV_ALIGN_CENTER, 118, 0);
+  // gedrückt halten: weiterzählen
+  lv_obj_add_event_cb(m, [](lv_event_t *e) { dr_step(-1); }, LV_EVENT_LONG_PRESSED_REPEAT, NULL);
+  lv_obj_add_event_cb(p, [](lv_event_t *e) { dr_step(1); }, LV_EVENT_LONG_PRESSED_REPEAT, NULL);
+  lv_obj_t *step = ui_label(s, "0,1° pro Tipp", &font_sg_14, C_FAINT);
+  lv_obj_set_style_bg_color(step, C_BG, 0);
+  lv_obj_set_style_bg_opa(step, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(step, 8, 0);
+  lv_obj_align(step, LV_ALIGN_CENTER, 0, 46);
+
+  lv_obj_t *brow = ui_box(s);
+  lv_obj_set_size(brow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(brow, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(brow, 10, 0);
+  lv_obj_align(brow, LV_ALIGN_CENTER, 0, 112);
+  lv_obj_t *r = ui_btn(brow, "Gerade", BTN_NORMAL);
+  lv_obj_add_event_cb(r, [](lv_event_t *e) { dr_step(-g_set.disp_rot); }, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *ok = ui_btn(brow, "Fertig", BTN_PRIMARY);
+  lv_obj_add_event_cb(ok, [](lv_event_t *e) {
+    settings_save();
+    ui_switch_page(page_setup_back());
+  }, LV_EVENT_CLICKED, NULL);
+  dr_show();
   return s;
 }

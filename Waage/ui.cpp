@@ -17,6 +17,7 @@
 #include "tools.h"
 #include "update_online.h"
 #include "refcheck.h"
+#include "disp_rot.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -1159,6 +1160,7 @@ void ui_init() {
 
   hal_init();
   settings_load();
+  disp_rot_set(g_set.disp_rot);  // Feinausrichtung des Displays (nur wenn != 0)
   storage_begin();  // muss vor sound_begin() laufen, sonst wird die Stimme nicht gefunden
   {  // RTC ohne Strom gewesen? Dann die gesicherte Uhrzeit setzen
     int y, mo, d, h, mi, sec;
