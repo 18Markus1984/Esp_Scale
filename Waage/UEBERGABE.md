@@ -291,6 +291,14 @@ direct_mode in ein eigenes Vollbild (PSRAM, 2 × 340 KB), der geänderte Bereich
 bilinear gedreht und an den unveränderten Waveshare-Flush übergeben; der Touch-Lesecallback wird
 passend zurückgedreht. Ausgabebereich auf 4er-Raster (SPD2010). Bei Drehung kosten große
 Bildwechsel etwas Bildrate.
+Überarbeitet (04.10.2026): LVGL meldet im direct_mode immer das ganze Bild, der echte Bereich steht in
+`draw_ctx->clip_area`; jetzt wird nur der wirklich geänderte Bereich gedreht, jeder für sich (bis 8 pro
+Bild, sich berührende zusammengelegt). Bereiche ab ca. halbem Bild (Seitenwechsel, Wischen) schnell
+ohne Glättung, 250 ms nach der letzten großen Änderung einmal geglättet nachgezeichnet. Bei 0,0°
+wird der Originaltreiber wieder eingesetzt. Während des Online-Updates wird die Drehung ausgesetzt
+(`disp_rot_suspend`, gibt 680 KB PSRAM frei), bei einem Fehler wieder eingeschaltet. Update.begin
+unterscheidet jetzt „zu wenig Platz“ (Partition) und „zu wenig Arbeitsspeicher“; freier interner
+Speicher wird beim Update seriell ausgegeben.
 **Design:** Canvas-Artefakt „Waage UI Design“ (claude.ai) mit jeder Seite, gezeichnet aus Formen:
 Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei jedem S() dump/*.json,
 tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),

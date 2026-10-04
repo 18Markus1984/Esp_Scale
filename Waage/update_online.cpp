@@ -1,4 +1,6 @@
 #include "update_online.h"
+#include "disp_rot.h"
+#include <esp_heap_caps.h>
 #include "config.h"
 #include "net.h"
 #include "web.h"
@@ -208,10 +210,15 @@ static void do_install() {
     fail("Download fehlgeschlagen");
     return;
   }
+  printf("Update: %d Byte, frei intern %u (Block %u), PSRAM %u\r\n", len,
+         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+         (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
   if (!Update.begin(len, U_FLASH)) {
     printf("Update: %s\r\n", Update.errorString());
     http.end();
-    fail("Zu wenig Platz für das Update");
+    // Platz in der Update-Partition oder Arbeitsspeicher? Unterschiedliche Meldung
+    fail(Update.getError() == UPDATE_ERROR_SIZE ? "Zu wenig Platz für das Update" : "Zu wenig Arbeitsspeicher, bitte neu starten");
     return;
   }
   WiFiClient *st = http.getStreamPtr();
@@ -291,6 +298,17 @@ void upd_loop() {
   upd_state_t st = s_state;
   if (st != s_seen) {
     s_seen = st;
+    // Während des Ladens das Display-Drehen aussetzen: spart Rechenzeit und
+    // 680 KB Speicher, die Waage startet danach ohnehin neu
+    static bool rot_paused = false;
+    if (s_install && (st == UPD_CONNECT || st == UPD_DOWNLOAD) && !rot_paused) {
+      disp_rot_suspend();
+      rot_paused = true;
+    }
+    if (st == UPD_ERROR && rot_paused) {
+      disp_rot_resume();
+      rot_paused = false;
+    }
     if (st == UPD_AVAILABLE || st == UPD_LATEST) sound_play(SND_CLICK);
     if (st == UPD_ERROR) sound_play(SND_WARN);
     if (st == UPD_DONE) {

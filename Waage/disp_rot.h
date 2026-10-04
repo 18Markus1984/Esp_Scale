@@ -14,3 +14,5 @@
 
 void disp_rot_set(int tenths);  // sofort anwenden (installiert sich beim ersten Mal)
 int  disp_rot_get();
+void disp_rot_suspend();         // Originaltreiber zurück (z. B. während des Online-Updates)
+void disp_rot_resume();          // eingestellte Drehung wieder anwenden
