@@ -750,6 +750,8 @@ const i18n_pair_t I18N_EN[] = {
   { "Weiß", "White" },
   // ---- Update Speicher ----
   { "Zu wenig Arbeitsspeicher, bitte neu starten", "Not enough memory, please restart" },
+  // ---- Update Repo ----
+  { "Repository nicht gefunden", "Repository not found" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

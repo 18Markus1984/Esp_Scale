@@ -299,6 +299,14 @@ wird der Originaltreiber wieder eingesetzt. Während des Online-Updates wird die
 (`disp_rot_suspend`, gibt 680 KB PSRAM frei), bei einem Fehler wieder eingeschaltet. Update.begin
 unterscheidet jetzt „zu wenig Platz“ (Partition) und „zu wenig Arbeitsspeicher“; freier interner
 Speicher wird beim Update seriell ausgegeben.
+Nochmals überarbeitet (1.0.8): Schnellpfad ohne Glättung wieder entfernt (sah verschoben aus). Bilinear
+jetzt mit „aufgespreiztem“ RGB565 (eine Multiplikation pro Farbpaar, 5-Bit-Gewichte, Zeilen ohne
+Randprüfung, wenn sie ganz innen liegen) – immer geglättet, deutlich schneller.
+**Update-Suche ohne GitHub-API:** statt api.github.com (60 Anfragen/Stunde, große JSON-Antwort) wird
+nur `https://github.com/<Repo>/releases/latest` abgefragt (ohne Weiterleitung folgen); die Version steht
+im Location-Header (`/releases/tag/vX.Y.Z`), die Datei ist
+`https://github.com/<Repo>/releases/download/<tag>/Waage.ino.bin`. Bei Verbindungsfehler ein zweiter
+Versuch; Fehlercode und freier Speicher gehen auf die serielle Ausgabe.
 **Design:** Canvas-Artefakt „Waage UI Design“ (claude.ai) mit jeder Seite, gezeichnet aus Formen:
 Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei jedem S() dump/*.json,
 tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),

@@ -29,13 +29,6 @@ static int32_t s_cos = 65536, s_sin = 0;  // 16.16
 static lv_disp_draw_buf_t *s_orig_buf = NULL;
 static uint32_t s_orig_direct = 0, s_orig_full = 0;
 static lv_indev_drv_t *s_indev_drv = NULL;
-// Große Änderungen (Seitenwechsel, Wischen) schnell ohne Glättung, danach
-// einmal sauber geglättet nachzeichnen
-#define FAST_AREA 80000  // ab ca. halbem Bild (Seitenwechsel, Wischen) schnell
-static bool s_need_smooth = false;
-static bool s_force_smooth = false;
-static lv_timer_t *s_smooth_timer = NULL;
-
 static void update_trig() {
   float a = s_tenths * 0.1f * (float)M_PI / 180.0f;
   s_cos = (int32_t)lroundf(cosf(a) * 65536.0f);
@@ -49,44 +42,41 @@ static inline void src_of(int32_t x, int32_t y, int32_t w, int32_t h, int32_t *s
   *sy = ((-dx * s_sin + dy * s_cos) >> 1) + ((h - 1) << 15);
 }
 
-static inline lv_color_t px(int32_t x, int32_t y, int32_t w, int32_t h) {
-  if (x < 0 || y < 0 || x >= w || y >= h) return lv_color_black();
-  return s_fb[y * w + x];
-}
-
-// Schnell: nächster Nachbar (ein Lesezugriff pro Pixel)
-static void render_fast(const lv_area_t *dst) {
-  int32_t w = s_drv->hor_res, h = s_drv->ver_res;
-  int32_t ow = dst->x2 - dst->x1 + 1;
-  lv_color_t *o = s_out;
-  lv_color_t black = lv_color_black();
-  for (int32_t y = dst->y1; y <= dst->y2; y++) {
-    int32_t sx, sy;
-    src_of(dst->x1, y, w, h, &sx, &sy);
-    sx += 32768;  // runden
-    sy += 32768;
-    for (int32_t x = 0; x < ow; x++) {
-      int32_t ix = sx >> 16, iy = sy >> 16;
-      *o++ = ((uint32_t)ix < (uint32_t)w && (uint32_t)iy < (uint32_t)h) ? s_fb[iy * w + ix] : black;
-      sx += s_cos;
-      sy -= s_sin;
-    }
-  }
-}
-
-// Nach einer schnellen Ausgabe: sobald Ruhe ist, einmal geglättet neu zeichnen
-static void smooth_timer_cb(lv_timer_t *t) {
-  s_smooth_timer = NULL;
-#ifndef ARDUINO
-  if (getenv("ROTDBG")) printf("ROT smooth timer\n");
+// ------------------------------------------------------------
+//  Bilinear drehen, schnell: RGB565 wird so "aufgespreizt", dass Rot, Grün
+//  und Blau in einem 32-Bit-Wort Platz für eine 5-Bit-Gewichtung haben.
+//  Ein Mischschritt kostet dann nur eine Multiplikation pro Farbpaar.
+// ------------------------------------------------------------
+static inline uint32_t spread(lv_color_t c) {
+#if LV_COLOR_16_SWAP
+  uint32_t v = __builtin_bswap16(c.full);
+#else
+  uint32_t v = c.full;
 #endif
-  if (!s_installed || s_tenths == 0) return;
-  s_force_smooth = true;
-  lv_obj_invalidate(lv_scr_act());
-  lv_obj_invalidate(lv_layer_top());
+  return (v | (v << 16)) & 0x07E0F81Fu;
 }
 
-// Geglättet: bilinear (vier Lesezugriffe pro Pixel)
+static inline lv_color_t pack(uint32_t s) {
+  uint16_t v = (uint16_t)((s | (s >> 16)) & 0xFFFF);
+  lv_color_t c;
+#if LV_COLOR_16_SWAP
+  c.full = __builtin_bswap16(v);
+#else
+  c.full = v;
+#endif
+  return c;
+}
+
+// a + (b - a) * w / 32, auf allen drei Farben gleichzeitig
+static inline uint32_t lerp(uint32_t a, uint32_t b, uint32_t w) {
+  return ((a * (32 - w) + b * w) >> 5) & 0x07E0F81Fu;
+}
+
+static inline uint32_t px_s(int32_t x, int32_t y, int32_t w, int32_t h) {
+  if ((uint32_t)x >= (uint32_t)w || (uint32_t)y >= (uint32_t)h) return 0;  // außerhalb: schwarz
+  return spread(s_fb[y * w + x]);
+}
+
 static void render(const lv_area_t *dst) {
   int32_t w = s_drv->hor_res, h = s_drv->ver_res;
   int32_t ow = dst->x2 - dst->x1 + 1;
@@ -94,23 +84,30 @@ static void render(const lv_area_t *dst) {
   for (int32_t y = dst->y1; y <= dst->y2; y++) {
     int32_t sx, sy;
     src_of(dst->x1, y, w, h, &sx, &sy);
-    for (int32_t x = 0; x < ow; x++) {
-      int32_t ix = sx >> 16, iy = sy >> 16;
-      uint32_t fx = (sx >> 8) & 0xFF, fy = (sy >> 8) & 0xFF;  // Anteil 0..255
-      lv_color_t c00 = px(ix, iy, w, h), c10 = px(ix + 1, iy, w, h);
-      lv_color_t c01 = px(ix, iy + 1, w, h), c11 = px(ix + 1, iy + 1, w, h);
-      uint32_t w00 = (256 - fx) * (256 - fy), w10 = fx * (256 - fy), w01 = (256 - fx) * fy, w11 = fx * fy;
-      uint32_t r = (LV_COLOR_GET_R(c00) * w00 + LV_COLOR_GET_R(c10) * w10 + LV_COLOR_GET_R(c01) * w01 + LV_COLOR_GET_R(c11) * w11 + 32768) >> 16;
-      uint32_t g = (LV_COLOR_GET_G(c00) * w00 + LV_COLOR_GET_G(c10) * w10 + LV_COLOR_GET_G(c01) * w01 + LV_COLOR_GET_G(c11) * w11 + 32768) >> 16;
-      uint32_t b = (LV_COLOR_GET_B(c00) * w00 + LV_COLOR_GET_B(c10) * w10 + LV_COLOR_GET_B(c01) * w01 + LV_COLOR_GET_B(c11) * w11 + 32768) >> 16;
-      lv_color_t c;
-      c.full = 0;
-      LV_COLOR_SET_R(c, r);
-      LV_COLOR_SET_G(c, g);
-      LV_COLOR_SET_B(c, b);
-      *o++ = c;
-      sx += s_cos;  // ein Pixel nach rechts
-      sy -= s_sin;
+    // liegt die ganze Zeile innen? Dann ohne Randprüfung
+    int32_t ex = sx + (ow - 1) * s_cos, ey = sy - (ow - 1) * s_sin;
+    bool inside = (sx >> 16) >= 0 && (ex >> 16) >= 0 && (sx >> 16) < w - 1 && (ex >> 16) < w - 1 &&
+                  (sy >> 16) >= 0 && (ey >> 16) >= 0 && (sy >> 16) < h - 1 && (ey >> 16) < h - 1;
+    if (inside) {
+      for (int32_t x = 0; x < ow; x++) {
+        const lv_color_t *p = s_fb + (sy >> 16) * w + (sx >> 16);
+        uint32_t fx = (sx >> 11) & 31, fy = (sy >> 11) & 31;
+        uint32_t top = lerp(spread(p[0]), spread(p[1]), fx);
+        uint32_t bot = lerp(spread(p[w]), spread(p[w + 1]), fx);
+        *o++ = pack(lerp(top, bot, fy));
+        sx += s_cos;
+        sy -= s_sin;
+      }
+    } else {
+      for (int32_t x = 0; x < ow; x++) {
+        int32_t ix = sx >> 16, iy = sy >> 16;
+        uint32_t fx = (sx >> 11) & 31, fy = (sy >> 11) & 31;
+        uint32_t top = lerp(px_s(ix, iy, w, h), px_s(ix + 1, iy, w, h), fx);
+        uint32_t bot = lerp(px_s(ix, iy + 1, w, h), px_s(ix + 1, iy + 1, w, h), fx);
+        *o++ = pack(lerp(top, bot, fy));
+        sx += s_cos;
+        sy -= s_sin;
+      }
     }
   }
 }
@@ -161,9 +158,8 @@ static bool overlap_or_near(const lv_area_t *a, const lv_area_t *b) {
 
 // Einen Ausgabebereich rechnen und an den Treiber geben; bei weiteren
 // Bereichen auf das Ende der Übertragung warten (s_out wird wiederverwendet)
-static void out_region(lv_disp_drv_t *drv, const lv_area_t *dst, bool fast, bool last) {
-  if (fast) render_fast(dst);
-  else render(dst);
+static void out_region(lv_disp_drv_t *drv, const lv_area_t *dst, bool last) {
+  render(dst);
   drv->draw_buf->flushing = 1;
   drv->draw_buf->flushing_last = last ? 1 : 0;
   s_orig_flush(drv, dst, s_out);  // ruft lv_disp_flush_ready()
@@ -219,26 +215,11 @@ static void flush_rot(lv_disp_drv_t *drv, const lv_area_t *area_full, lv_color_t
   s_reg_overflow = false;
   s_have_dirty = false;
 
-  bool big = false;
   for (int i = 0; i < n; i++) {
-    int32_t a = (out[i].x2 - out[i].x1 + 1) * (out[i].y2 - out[i].y1 + 1);
-    bool fast = a > FAST_AREA && !s_force_smooth;
-    big = big || fast;
 #ifndef ARDUINO
-    if (getenv("ROTDBG")) printf("ROT region %d %dx%d %s\n", i, (int)(out[i].x2 - out[i].x1 + 1), (int)(out[i].y2 - out[i].y1 + 1), fast ? "schnell" : "glatt");
+    if (getenv("ROTDBG")) printf("ROT region %d %dx%d\n", i, (int)(out[i].x2 - out[i].x1 + 1), (int)(out[i].y2 - out[i].y1 + 1));
 #endif
-    out_region(drv, &out[i], fast, i == n - 1);
-  }
-  if (s_force_smooth) s_need_smooth = false;
-  s_force_smooth = false;
-  if (big) s_need_smooth = true;
-  // nach 250 ms ohne große Änderung einmal geglättet nachzeichnen
-  if (s_need_smooth && big) {
-    if (s_smooth_timer) lv_timer_reset(s_smooth_timer);
-    else {
-      s_smooth_timer = lv_timer_create(smooth_timer_cb, 250, NULL);
-      lv_timer_set_repeat_count(s_smooth_timer, 1);
-    }
+    out_region(drv, &out[i], i == n - 1);
   }
 }
 
@@ -311,10 +292,6 @@ int disp_rot_get() { return s_tenths; }
 // Bildausgabe läuft dann wie ohne Drehung, das Bild steht kurz gerade)
 void disp_rot_suspend() {
   if (!s_installed) return;
-  if (s_smooth_timer) {
-    lv_timer_del(s_smooth_timer);
-    s_smooth_timer = NULL;
-  }
   s_drv->flush_cb = s_orig_flush;
   s_drv->draw_buf = s_orig_buf;
   s_drv->direct_mode = s_orig_direct;

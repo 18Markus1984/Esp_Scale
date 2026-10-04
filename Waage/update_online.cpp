@@ -91,20 +91,6 @@ static bool ver_newer(const char *a, const char *b) {
   return false;
 }
 
-// Wert zu "key" als Text lesen, ab Position from (GitHub liefert "key": "wert")
-static int json_str(const String &js, const char *key, int from, char *out, int len) {
-  String k = String("\"") + key + "\"";
-  int p = js.indexOf(k, from);
-  if (p < 0) return -1;
-  p += k.length();
-  while (p < (int)js.length() && (js[p] == ' ' || js[p] == ':' || js[p] == '\n' || js[p] == '\t')) p++;
-  if (p >= (int)js.length() || js[p] != '"') return -1;
-  p++;
-  int n = 0;
-  while (p < (int)js.length() && js[p] != '"' && n < len - 1) out[n++] = js[p++];
-  out[n] = 0;
-  return p;
-}
 
 static bool wait_wifi() {
   if (WiFi.status() == WL_CONNECTED) return true;
@@ -122,61 +108,57 @@ static bool wait_wifi() {
 // ------------------------------------------------------------
 //  Neueste Version abfragen
 // ------------------------------------------------------------
+// Fragt nicht die GitHub-API (Limit 60 Anfragen pro Stunde und große
+// JSON-Antwort), sondern nur die Weiterleitung von .../releases/latest:
+// GitHub antwortet mit "Location: .../releases/tag/v1.2.3". Das kostet
+// fast keinen Speicher und unterliegt keinem API-Limit.
 static void do_check() {
   s_state = UPD_CHECK;
-  WiFiClientSecure cli;
-  // Zertifikat wird nicht geprüft (kein Zertifikatsspeicher in der Arduino-IDE).
-  // Das Update-Paket selbst prüft der ESP32 beim Schreiben (Prüfsumme).
-  cli.setInsecure();
-  HTTPClient http;
-  String url = String("https://api.github.com/repos/") + OTA_REPO + "/releases/latest";
-  if (!http.begin(cli, url)) {
+  printf("Update: frei intern %u (Block %u)\r\n", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+  int code = 0;
+  String loc;
+  for (int attempt = 0; attempt < 2; attempt++) {  // ein zweiter Versuch bei Verbindungsfehler
+    WiFiClientSecure cli;
+    // Zertifikat wird nicht geprüft (kein Zertifikatsspeicher in der Arduino-IDE).
+    // Das Update-Paket selbst prüft der ESP32 beim Schreiben (Prüfsumme).
+    cli.setInsecure();
+    HTTPClient http;
+    String url = String("https://github.com/") + OTA_REPO + "/releases/latest";
+    if (!http.begin(cli, url)) {
+      code = -1;
+      continue;
+    }
+    http.setTimeout(HTTP_TIMEOUT_MS);
+    http.setUserAgent(String("Waage/") + FW_VERSION);
+    http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+    const char *keys[] = { "Location" };
+    http.collectHeaders(keys, 1);
+    code = http.GET();
+    loc = http.header("Location");
+    http.end();
+    if (code > 0) break;
+    printf("Update: GitHub %d (%s)\r\n", code, HTTPClient::errorToString(code).c_str());
+    vTaskDelay(pdMS_TO_TICKS(1500));
+  }
+  if (code <= 0) {
     fail("GitHub nicht erreichbar");
     return;
   }
-  http.setTimeout(HTTP_TIMEOUT_MS);
-  http.setUserAgent(String("Waage/") + FW_VERSION);
-  http.addHeader("Accept", "application/vnd.github+json");
-  int code = http.GET();
-  if (code == 404) {
-    http.end();
-    fail("Kein Release gefunden");
+  printf("Update: GitHub %d -> %s\r\n", code, loc.c_str());
+  int t = loc.indexOf("/releases/tag/");
+  if ((code != 301 && code != 302) || t < 0) {
+    fail(code == 404 ? "Repository nicht gefunden" : "Kein Release gefunden");
     return;
   }
-  if (code != 200) {
-    printf("Update: GitHub antwortet %d\r\n", code);
-    http.end();
-    fail("GitHub nicht erreichbar");
-    return;
-  }
-  String js = http.getString();
-  http.end();
-
-  char tag[24];
-  if (json_str(js, "tag_name", 0, tag, sizeof(tag)) < 0) {
-    fail("Kein Release gefunden");
-    return;
-  }
-  const char *t = tag;
-  if (*t == 'v' || *t == 'V') t++;
-  snprintf(s_latest, sizeof(s_latest), "%s", t);
-
-  // Firmware-Datei unter den Anhängen suchen: bevorzugt Waage.ino.bin,
-  // sonst die erste .bin, die kein komplettes Flash-Abbild (merged) ist
-  s_url[0] = 0;
-  char u[256];
-  int p = 0;
-  while ((p = json_str(js, "browser_download_url", p, u, sizeof(u))) >= 0) {
-    int n = strlen(u);
-    bool bin = n > 4 && strcmp(u + n - 4, ".bin") == 0 && !strstr(u, "merged");
-    bool exact = n > (int)strlen(OTA_ASSET) && strcmp(u + n - strlen(OTA_ASSET), OTA_ASSET) == 0;
-    if (exact || (bin && !s_url[0])) snprintf(s_url, sizeof(s_url), "%s", u);
-    if (exact) break;
-  }
-  if (!s_url[0]) {
-    fail("Keine Firmware im Release");
-    return;
-  }
+  String tag = loc.substring(t + 14);
+  int q = tag.indexOf('?');
+  if (q >= 0) tag = tag.substring(0, q);
+  const char *v = tag.c_str();
+  if (*v == 'v' || *v == 'V') v++;
+  snprintf(s_latest, sizeof(s_latest), "%s", v);
+  // Firmware-Datei des Releases (Name wie im Workflow: Waage.ino.bin)
+  snprintf(s_url, sizeof(s_url), "https://github.com/%s/releases/download/%s/%s", OTA_REPO, tag.c_str(), OTA_ASSET);
   printf("Update: installiert %s, auf GitHub %s\r\n", FW_VERSION, s_latest);
   s_state = ver_newer(s_latest, FW_VERSION) ? UPD_AVAILABLE : UPD_LATEST;
 }
@@ -201,7 +183,7 @@ static void do_install() {
   if (code != 200) {
     printf("Update: Download %d\r\n", code);
     http.end();
-    fail("Download fehlgeschlagen");
+    fail(code == 404 ? "Keine Firmware im Release" : "Download fehlgeschlagen");
     return;
   }
   int len = http.getSize();
