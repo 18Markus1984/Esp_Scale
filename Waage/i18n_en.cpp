@@ -744,6 +744,10 @@ const i18n_pair_t I18N_EN[] = {
   { "Linien parallel zur Gehäusekante", "Lines parallel to the case edge" },
   { "0,1° pro Tipp", "0.1° per tap" },
   { "Gerade", "Straight" },
+  // ---- Farbschema ----
+  { "Farbe", "Colour" },
+  { "Grün", "Green" },
+  { "Weiß", "White" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

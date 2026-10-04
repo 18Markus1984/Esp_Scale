@@ -981,7 +981,23 @@ static void build_home() {
 
 // Sprache umgestellt: Startseite mit den neuen Texten neu aufbauen.
 // Unterseiten zeigen die neue Sprache, sobald sie das nächste Mal geöffnet werden.
+static void rebuild_home();
+
 void ui_lang_changed() {
+  rebuild_home();
+  ui_power_lang_changed();
+  sound_lang_changed();  // Stimmpaket der neuen Sprache wählen
+  settings_save();
+}
+
+// Farbschema umgestellt: Startseite in den neuen Farben neu aufbauen
+void ui_theme_changed() {
+  ui_theme_set(g_set.theme);
+  rebuild_home();
+  settings_save();
+}
+
+static void rebuild_home() {
   lv_obj_t *old = scr_home;
   bool active = lv_scr_act() == old;
   lv_coord_t tile_x = 0;
@@ -1005,9 +1021,6 @@ void ui_lang_changed() {
     lv_scr_load(scr_home);
   }
   lv_obj_del(old);
-  ui_power_lang_changed();
-  sound_lang_changed();  // Stimmpaket der neuen Sprache wählen
-  settings_save();
 }
 
 // ============================================================
@@ -1153,6 +1166,7 @@ static void web_timer_cb(lv_timer_t *t) {
 }
 
 void ui_init() {
+  ui_theme_set(THEME_GREEN);  // bis die Einstellungen geladen sind
   tune_touch();
   lv_timer_create(web_timer_cb, 5, NULL);
   // Kein Standard-Theme: alle Farben kommen aus ui_theme.h
@@ -1160,6 +1174,7 @@ void ui_init() {
 
   hal_init();
   settings_load();
+  ui_theme_set(g_set.theme);     // Farbschema Grün oder Weiß
   disp_rot_set(g_set.disp_rot);  // Feinausrichtung des Displays (nur wenn != 0)
   storage_begin();  // muss vor sound_begin() laufen, sonst wird die Stimme nicht gefunden
   {  // RTC ohne Strom gewesen? Dann die gesicherte Uhrzeit setzen

@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <string.h>
 
+ui_scheme_t g_scheme;
+static const uint32_t SCHEMES[2][5] = {
+  // Akzent,  Schrift darauf, Kachel-Symbol, Setup-Wert, Untertitel gewählt
+  { 0x3DDC97, 0x0B1F16, 0x3DDC97, 0x3DDC97, 0x1D4D38 },  // Grün
+  { 0xF4F4F1, 0x0A0A0A, 0xF4F4F1, 0xC4C4C0, 0x55554F },  // Weiß
+};
+
+void ui_theme_set(int theme) {
+  const uint32_t *c = SCHEMES[theme == THEME_WHITE ? 1 : 0];
+  g_scheme.accent = lv_color_hex(c[0]);
+  g_scheme.on_accent = lv_color_hex(c[1]);
+  g_scheme.icon = lv_color_hex(c[2]);
+  g_scheme.value = lv_color_hex(c[3]);
+  g_scheme.sub_sel = lv_color_hex(c[4]);
+  g_scheme.warn_filled = theme != THEME_WHITE;
+}
+
 lv_obj_t *ui_screen_create() {
   lv_obj_t *s = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(s, C_BG, 0);
@@ -36,7 +53,10 @@ lv_obj_t *ui_btn(lv_obj_t *parent, const char *txt, ui_btn_kind_t kind) {
   lv_color_t bg = C_SURFACE;
   lv_color_t fg = C_TEXT;
   if (kind == BTN_PRIMARY) { bg = C_PRIMARY; fg = C_ON_PRIMARY; }
-  if (kind == BTN_WARN)    { bg = C_SURFACE; fg = C_WARN; }  // nur Rahmen und Schrift gelb
+  if (kind == BTN_WARN) {
+    if (g_scheme.warn_filled) { bg = C_WARN; fg = lv_color_hex(0x2B1D02); }
+    else { bg = C_SURFACE; fg = C_WARN; }  // Weiß: nur Rahmen und Schrift gelb
+  }
 
   lv_obj_t *b = lv_btn_create(parent);
   lv_obj_set_height(b, 52);
@@ -45,10 +65,10 @@ lv_obj_t *ui_btn(lv_obj_t *parent, const char *txt, ui_btn_kind_t kind) {
   lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_color(b, bg, 0);
   lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(b, kind == BTN_PRIMARY ? 0 : 2, 0);
+  lv_obj_set_style_border_width(b, kind == BTN_NORMAL || (kind == BTN_WARN && !g_scheme.warn_filled) ? 2 : 0, 0);
   lv_obj_set_style_border_color(b, kind == BTN_WARN ? C_WARN : C_BORDER, 0);
   // gedrückt: weiße Knöpfe werden grauer, dunkle heller
-  lv_obj_set_style_bg_color(b, kind == BTN_PRIMARY ? lv_color_hex(0xC9C9C5) : lv_color_lighten(bg, LV_OPA_20), LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(b, kind == BTN_PRIMARY ? lv_color_darken(bg, LV_OPA_20) : lv_color_lighten(bg, LV_OPA_20), LV_STATE_PRESSED);
   lv_obj_set_style_bg_opa(b, LV_OPA_40, LV_STATE_DISABLED);
 
   lv_obj_t *l = ui_label(b, txt, &font_sg_18, fg);
@@ -70,11 +90,9 @@ lv_obj_t *ui_chip(lv_obj_t *parent, const char *txt, lv_color_t color) {
 void ui_chip_set(lv_obj_t *chip, const char *txt, lv_color_t color, bool filled) {
   ui_label_update(chip, txt);
   lv_obj_set_style_border_color(chip, color, 0);
-  // gefüllt (Toast): normale Meldungen weiß wie die Bedienfläche, Warnungen farbig
-  lv_color_t fill = (filled && color.full == C_ACCENT.full) ? C_PRIMARY : color;
-  lv_obj_set_style_bg_color(chip, fill, 0);
+  lv_obj_set_style_bg_color(chip, color, 0);
   lv_obj_set_style_bg_opa(chip, filled ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-  lv_obj_set_style_text_color(chip, filled ? C_ON_PRIMARY : color, 0);
+  lv_obj_set_style_text_color(chip, filled ? C_ON_ACCENT : color, 0);
 }
 
 lv_obj_t *ui_ring(lv_obj_t *parent, int size) {

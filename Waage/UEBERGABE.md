@@ -277,11 +277,13 @@ oben rechts „Klassen“ -> #/portoklassen. Setup-Zeilen haben feste Kennungen 
 page_setup.cpp), 34 ist frei. Web-Einstellungen: Sprache und Sprachbefehle (voice_on, nur wenn
 `voice_ok`) im Abschnitt Ton wie am Gerät. Bewusst nicht umgesetzt: Töpfe bei Auto-Tara,
 Libelle/Wasserwaage zusammenlegen, Auto-Aus zum Akku, Kategorie Waage aufteilen.
-**Farbschema passend zum Gehäuse (03.10.2026):** Schwarz #090909 Hintergrund, Weiß #F4F4F1 als
-Bedienfarbe (`C_PRIMARY`/`C_ON_PRIMARY` in ui_theme.h: Hauptknöpfe, gewählter Listeneintrag, Toasts,
-Texteingabe), Grün #3DDC97 nur für Messwert und Zustand (Ring, „stabil“, Schalter an, Fortschritt),
-Gelb/Rot nur für Warnungen und als Umriss (BTN_WARN). Graustufen neutral statt grünlich. Im Web
-dieselben Tokens (`--pri`, `--on-pri`), dazu Druck-Feedback, sichtbarer Tastaturfokus, Tabellenziffern.
+**Farbschemata (04.10.2026):** Setup -> Waage -> Farbe: **Grün** (Standard, das ursprüngliche
+Design) oder **Weiß** (alles, was sonst grün ist, in #F4F4F1: Ring, „stabil“, Hauptknöpfe, Auswahl,
+Toasts, Schalter, Balken; Warnknöpfe nur gelb umrandet). Gespeichert als `theme` (0/1).
+Umsetzung: `g_scheme` in ui_theme.cpp, `C_ACCENT`/`C_PRIMARY`/`C_ICON`/`C_VALUE`/`C_SUB_SEL` sind
+Laufzeitfarben; `ui_theme_changed()` baut die Startseite neu auf (wie beim Sprachwechsel).
+Hintergrund #090909 und neutrale Grautöne gelten für beide. Die Weboberfläche übernimmt das Schema
+über `th` in /api/state (`html[data-theme=w]`, zusätzlich im Browser gemerkt gegen Aufblitzen).
 **Display drehen (04.10.2026):** `disp_rot.*`. Setup -> Waage -> Display: Bild in 0,1°-Schritten um
 bis zu ±5° drehen (Fadenkreuz und Kreis als Hilfe, gedrückt halten zählt weiter), gespeichert als
 `disp_rot` (Zehntelgrad). Nur bei Wert != 0 wird beim Start umgebaut: LVGL zeichnet dann im

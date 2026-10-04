@@ -32,6 +32,7 @@ void settings_load() {
   g_set.precise = p.getBool("precise", false);
   g_set.azt = p.getBool("azt", true);
   g_set.disp_rot = p.getInt("disp_rot", 0);
+  g_set.theme = p.getInt("theme", 0);
   g_set.liquid = p.getInt("liquid", 0);
   g_set.lang = p.getInt("lang", 0);
   if (g_set.lang < 0 || g_set.lang > 1) g_set.lang = 0;
@@ -68,6 +69,7 @@ void settings_save() {
   p.putBool("precise", g_set.precise);
   p.putBool("azt", g_set.azt);
   p.putInt("disp_rot", g_set.disp_rot);
+  p.putInt("theme", g_set.theme);
   p.putFloat("ref_g", g_set.ref_g);
   p.putInt("ref_days", g_set.ref_days);
   p.putFloat("ref_tol", g_set.ref_tol);

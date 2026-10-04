@@ -145,7 +145,7 @@ lv_obj_t *page_setup_create() {
     lv_obj_set_style_border_color(t, C_BORDER, 0);
     lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(t, tile_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-    lv_obj_t *ic = ui_label(t, CAT_ICON[i], &font_icons_26, C_TEXT);
+    lv_obj_t *ic = ui_label(t, CAT_ICON[i], &font_icons_26, C_ICON);
     lv_obj_align(ic, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_t *l = ui_label(t, CAT_TITLE[i], &font_sg_18, C_TEXT);
     lv_obj_set_width(l, 120);
@@ -244,6 +244,7 @@ static void row_value(int cat, int row, char *b, int len) {
     case 32: snprintf(b, len, T("Cg / Cgk ›")); break;
     case 33: snprintf(b, len, T("Nullpunkt ›")); break;
     case 26: snprintf(b, len, T("Pegel ›")); break;
+    case 37: snprintf(b, len, "%s", g_set.theme == THEME_WHITE ? T("Weiß") : T("Grün")); break;
     case 34:
       if (g_set.disp_rot == 0) snprintf(b, len, T("gerade ›"));
       else {
@@ -324,6 +325,12 @@ static void row_cb(lv_event_t *e) {
     case 33: ui_switch_page(page_level_setup_create()); return;
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
     case 34: ui_switch_page(page_display_create()); return;
+    case 37:  // Farbschema Grün <-> Weiß, alle Seiten in den neuen Farben
+      g_set.theme = g_set.theme == THEME_WHITE ? THEME_GREEN : THEME_WHITE;
+      ui_theme_changed();
+      sound_play(SND_CLICK);
+      ui_switch_page(page_cat_create(3));
+      return;
     case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -359,7 +366,7 @@ static lv_obj_t *page_cat_create(int cat) {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
     { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
-    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Dateien", "Firmware", NULL },
+    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
   };
   // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
@@ -367,7 +374,7 @@ static lv_obj_t *page_cat_create(int cat) {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
     { 10, 11, 12, 13, 14, -1, -1, -1 },
     { 20, 21, 22, 23, 24, 25, 26, -1 },
-    { 30, 31, 32, 33, 34, 35, 36, -1 },
+    { 30, 31, 32, 33, 34, 37, 35, 36 },
   };
   memset(row_val, 0, sizeof(row_val));
   lv_obj_t *s = ui_screen_create();
@@ -397,7 +404,7 @@ static lv_obj_t *page_cat_create(int cat) {
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 4, 0);
     char b[32];
     row_value(cat, k, b, sizeof(b));
-    row_val[k] = ui_label(row, b, &font_sg_18, C_TEXT2);
+    row_val[k] = ui_label(row, b, &font_sg_18, C_VALUE);
     lv_obj_align(row_val[k], LV_ALIGN_RIGHT_MID, -4, 0);
   }
 

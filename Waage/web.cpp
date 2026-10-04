@@ -147,7 +147,7 @@ static void h_state() {
              "\",\"unit\":\"" + unit_name(u) + "\",\"stable\":" + (scale_stable() ? "true" : "false") +
              ",\"over\":" + (scale_overload() ? "true" : "false") + ",\"pot\":\"" + esc(ui_active_pot()) +
              "\",\"off\":" + web_seconds_left() + ",\"time\":\"" + t + "\",\"bat\":" + hal_battery_percent() +
-             ",\"ble\":" + (ble_kbd_connected() ? "true" : "false") + ",\"max\":" + String((int)WAAGE_MAX_G);
+             ",\"ble\":" + (ble_kbd_connected() ? "true" : "false") + ",\"max\":" + String((int)WAAGE_MAX_G) + ",\"th\":" + g_set.theme;
   // Hintergrunddienste: nächster Timer (s, -1 = keiner), klingelt einer?, Langzeitmessung
   int tn = timer_next();
   bool ring = false;

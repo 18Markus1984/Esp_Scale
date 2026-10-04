@@ -32,6 +32,7 @@ void ui_input_lock();
 
 // Nach dem Umstellen der Sprache aufrufen: baut die Startseite neu auf
 void ui_lang_changed();
+void ui_theme_changed();  // Farbschema umgestellt: Startseite neu aufbauen
 
 // Name des aktiven Topfs ("" = keiner), z. B. für die Weboberfläche
 const char *ui_active_pot();

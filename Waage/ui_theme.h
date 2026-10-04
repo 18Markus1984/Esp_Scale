@@ -49,9 +49,9 @@ LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
 LV_FONT_DECLARE(font_sg_80);  // Ziffern, % und , . - : ? (Gewicht, Uhr)
 LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 
-// Farben passend zum Gehäuse: schwarzer Rahmen, weiße Bedienfläche.
-// Weiß ist die Bedienfarbe (Knöpfe, Auswahl), Grün nur für Messwert und Zustand
-// (Ring, "stabil", Schalter an), Gelb/Rot nur für Warnungen.
+// Grundfarben: schwarzer Hintergrund, weiße Schrift, Gelb/Rot nur für Warnungen.
+// Die Akzentfarbe (Knöpfe, Auswahl, Ring, "stabil" …) kommt aus dem Farbschema:
+// "Grün" (Standard) oder "Weiß" (alles in Weiß, passend zur Gehäuseoberseite).
 #define C_BG        lv_color_hex(0x090909)
 #define C_TEXT      lv_color_hex(0xF4F4F1)
 #define C_TEXT2     lv_color_hex(0xC4C4C0)
@@ -60,10 +60,26 @@ LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 #define C_SURFACE   lv_color_hex(0x181818)
 #define C_BORDER    lv_color_hex(0x3A3A3A)
 #define C_TRACK     lv_color_hex(0x232323)
-#define C_PRIMARY   lv_color_hex(0xF4F4F1)
-#define C_ON_PRIMARY lv_color_hex(0x0A0A0A)
-#define C_ACCENT    lv_color_hex(0x3DDC97)
-#define C_ON_ACCENT lv_color_hex(0x0A0A0A)
+typedef struct {
+  lv_color_t accent;     // Ring, Zustände, Hauptknöpfe, Auswahl, Toasts
+  lv_color_t on_accent;  // Schrift auf der Akzentfarbe
+  lv_color_t icon;       // Symbole der Setup-Kacheln
+  lv_color_t value;      // Werte rechts in den Setup-Zeilen
+  lv_color_t sub_sel;    // Untertitel im gewählten Listeneintrag
+  bool warn_filled;      // Warnknöpfe gelb gefüllt (Grün) oder nur umrandet (Weiß)
+} ui_scheme_t;
+extern ui_scheme_t g_scheme;
+#define THEME_GREEN 0
+#define THEME_WHITE 1
+void ui_theme_set(int theme);  // Farben setzen (Seiten danach neu aufbauen)
+
+#define C_ACCENT     (g_scheme.accent)
+#define C_ON_ACCENT  (g_scheme.on_accent)
+#define C_PRIMARY    (g_scheme.accent)
+#define C_ON_PRIMARY (g_scheme.on_accent)
+#define C_ICON       (g_scheme.icon)
+#define C_VALUE      (g_scheme.value)
+#define C_SUB_SEL    (g_scheme.sub_sel)
 #define C_WARN      lv_color_hex(0xF5B83D)
 #define C_DANGER    lv_color_hex(0xFF6B5E)
 

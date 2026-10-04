@@ -117,7 +117,7 @@ lv_obj_t *ui_curved_list(lv_obj_t *parent, const ui_list_item_t *items, int coun
     lv_obj_t *title = ui_label(item, items[i].title, &font_sg_18, C_TEXT2);
     lv_obj_align(title, LV_ALIGN_CENTER, items[i].icon ? 14 : 0, 0);
     if (items[i].sub) {
-      lv_obj_t *sub = ui_label(item, items[i].sub, &font_sg_14, lv_color_hex(0x55554F));
+      lv_obj_t *sub = ui_label(item, items[i].sub, &font_sg_14, C_SUB_SEL);
       lv_obj_align(sub, LV_ALIGN_CENTER, 0, 15);
       lv_obj_add_flag(sub, LV_OBJ_FLAG_HIDDEN);
     }
