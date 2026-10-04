@@ -23,6 +23,7 @@ static volatile int s_progress = 0;
 static const char *s_error = "";
 static char s_latest[24] = "";
 static char s_url[256] = "";
+static bool s_rot_paused = false;  // Display-Drehung für das Update ausgesetzt
 static bool s_install = false;  // Task soll laden statt suchen
 static bool s_task = false;     // Task läuft
 static uint32_t s_done_ms = 0;
@@ -259,6 +260,13 @@ static void start(bool install) {
   s_error = "";
   // Verbindung anstoßen (eigenes WLAN der Weboberfläche dabei offen lassen)
   if (WiFi.status() != WL_CONNECTED) net_connect_start(web_running() && web_ap_mode());
+  // Während Suche und Download das Display-Drehen aussetzen: TLS und WLAN
+  // brauchen den internen Speicher und die Rechenzeit (wird in upd_loop
+  // wieder eingeschaltet). Alle Aufrufer laufen im LVGL-Kontext.
+  if (disp_rot_get() != 0) {
+    disp_rot_suspend();
+    s_rot_paused = true;
+  }
   s_task = true;
   s_state = UPD_CONNECT;
   // TLS braucht Stapel; auf Kern 0 neben dem WLAN, die Anzeige läuft weiter
@@ -280,23 +288,18 @@ void upd_loop() {
   upd_state_t st = s_state;
   if (st != s_seen) {
     s_seen = st;
-    // Während des Ladens das Display-Drehen aussetzen: spart Rechenzeit und
-    // 680 KB Speicher, die Waage startet danach ohnehin neu
-    static bool rot_paused = false;
-    if (s_install && (st == UPD_CONNECT || st == UPD_DOWNLOAD) && !rot_paused) {
-      disp_rot_suspend();
-      rot_paused = true;
-    }
-    if (st == UPD_ERROR && rot_paused) {
-      disp_rot_resume();
-      rot_paused = false;
-    }
+
     if (st == UPD_AVAILABLE || st == UPD_LATEST) sound_play(SND_CLICK);
     if (st == UPD_ERROR) sound_play(SND_WARN);
     if (st == UPD_DONE) {
       sound_play(SND_DONE);
       s_done_ms = millis();
     }
+  }
+  // Display-Drehung nach Suche oder Fehler wieder einschalten (bei Erfolg startet die Waage neu)
+  if (s_rot_paused && !s_task && st != UPD_DONE) {
+    disp_rot_resume();
+    s_rot_paused = false;
   }
   // WLAN wieder abgeben, wenn es nur für die Suche an war
   if (s_was_task && !s_task && st != UPD_DONE) net_wifi_release();

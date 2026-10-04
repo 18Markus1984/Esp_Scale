@@ -307,6 +307,14 @@ nur `https://github.com/<Repo>/releases/latest` abgefragt (ohne Weiterleitung fo
 im Location-Header (`/releases/tag/vX.Y.Z`), die Datei ist
 `https://github.com/<Repo>/releases/download/<tag>/Waage.ino.bin`. Bei Verbindungsfehler ein zweiter
 Versuch; Fehlercode und freier Speicher gehen auf die serielle Ausgabe.
+**1.0.9:** Gedrehte Ausgabe nicht mehr über einen eigenen 340-KB-Puffer im PSRAM, sondern in Streifen
+über die Original-Puffer des Treibers (interner DMA-Speicher). Vermutete Ursache der Update-Probleme:
+Aus einem PSRAM-Puffer legt der SPI-Treiber für jede Übertragung Hilfspuffer im internen RAM an, der
+dann WLAN/TLS fehlt (Abstürze, „GitHub nicht erreichbar“). Streifen-Höhe = Puffergröße / Breite (4er-Raster),
+mit zwei Puffern wird der nächste Streifen gerechnet, während der vorige überträgt. Jeder Streifen
+wird geteilt: obere Hälfte rechnet die Anzeige (Kern 1), untere ein Helfer-Task auf Kern 0 („rot“).
+Die Drehung wird jetzt schon bei der Update-Suche ausgesetzt (synchron in start(), Aufrufer laufen im
+LVGL-Kontext) und danach wieder eingeschaltet.
 **Design:** Canvas-Artefakt „Waage UI Design“ (claude.ai) mit jeder Seite, gezeichnet aus Formen:
 Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei jedem S() dump/*.json,
 tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),

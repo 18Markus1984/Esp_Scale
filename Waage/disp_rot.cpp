@@ -9,6 +9,8 @@
 #include <stdio.h>
 #ifdef ARDUINO
 #include <esp_heap_caps.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 static void *big_alloc(size_t n) { return heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 #else
 static void *big_alloc(size_t n) { return malloc(n); }
@@ -21,7 +23,6 @@ static void (*s_orig_flush)(lv_disp_drv_t *, const lv_area_t *, lv_color_t *) = 
 static void (*s_orig_read)(lv_indev_drv_t *, lv_indev_data_t *) = NULL;
 static lv_disp_draw_buf_t s_buf;
 static lv_color_t *s_fb = NULL;   // LVGL zeichnet hier hinein (Vollbild)
-static lv_color_t *s_out = NULL;  // gedrehter Ausschnitt für den Treiber
 static lv_area_t s_dirty;         // geänderter Bereich dieses Bildes
 static bool s_have_dirty = false;
 static int32_t s_cos = 65536, s_sin = 0;  // 16.16
@@ -77,13 +78,12 @@ static inline uint32_t px_s(int32_t x, int32_t y, int32_t w, int32_t h) {
   return spread(s_fb[y * w + x]);
 }
 
-static void render(const lv_area_t *dst) {
+// Zeilen y0..y1 (Spalten ab x1, Breite ow) gedreht nach o schreiben
+static void render_rows(int32_t x1, int32_t ow, int32_t y0, int32_t y1, lv_color_t *o) {
   int32_t w = s_drv->hor_res, h = s_drv->ver_res;
-  int32_t ow = dst->x2 - dst->x1 + 1;
-  lv_color_t *o = s_out;
-  for (int32_t y = dst->y1; y <= dst->y2; y++) {
+  for (int32_t y = y0; y <= y1; y++) {
     int32_t sx, sy;
-    src_of(dst->x1, y, w, h, &sx, &sy);
+    src_of(x1, y, w, h, &sx, &sy);
     // liegt die ganze Zeile innen? Dann ohne Randprüfung
     int32_t ex = sx + (ow - 1) * s_cos, ey = sy - (ow - 1) * s_sin;
     bool inside = (sx >> 16) >= 0 && (ex >> 16) >= 0 && (sx >> 16) < w - 1 && (ex >> 16) < w - 1 &&
@@ -156,18 +156,77 @@ static bool overlap_or_near(const lv_area_t *a, const lv_area_t *b) {
   return a->x1 <= b->x2 + 8 && b->x1 <= a->x2 + 8 && a->y1 <= b->y2 + 8 && b->y1 <= a->y2 + 8;
 }
 
-// Einen Ausgabebereich rechnen und an den Treiber geben; bei weiteren
-// Bereichen auf das Ende der Übertragung warten (s_out wird wiederverwendet)
-static void out_region(lv_disp_drv_t *drv, const lv_area_t *dst, bool last) {
-  render(dst);
-  drv->draw_buf->flushing = 1;
-  drv->draw_buf->flushing_last = last ? 1 : 0;
-  s_orig_flush(drv, dst, s_out);  // ruft lv_disp_flush_ready()
-  if (!last) {
-    uint32_t t0 = lv_tick_get();
-    while (drv->draw_buf->flushing && lv_tick_elaps(t0) < 100) {
-    }
+// ------------------------------------------------------------
+//  Zweiter Kern rechnet mit: Kern 0 hat neben dem WLAN viel Leerlauf.
+//  Jeder Streifen wird geteilt, oben rechnet die Anzeige, unten der Helfer.
+// ------------------------------------------------------------
+#ifdef ARDUINO
+static TaskHandle_t s_worker = NULL;
+static SemaphoreHandle_t s_go = NULL, s_done = NULL;
+static volatile int32_t j_x1, j_ow, j_y0, j_y1;
+static lv_color_t *volatile j_out;
+
+static void worker(void *arg) {
+  for (;;) {
+    xSemaphoreTake(s_go, portMAX_DELAY);
+    render_rows(j_x1, j_ow, j_y0, j_y1, j_out);
+    xSemaphoreGive(s_done);
   }
+}
+#endif
+
+static void render_rows_par(int32_t x1, int32_t ow, int32_t y0, int32_t y1, lv_color_t *o) {
+#ifdef ARDUINO
+  int32_t rows = y1 - y0 + 1;
+  if (s_worker && rows >= 4) {
+    int32_t mid = y0 + rows / 2;
+    j_x1 = x1;
+    j_ow = ow;
+    j_y0 = mid;
+    j_y1 = y1;
+    j_out = o + (mid - y0) * ow;
+    xSemaphoreGive(s_go);
+    render_rows(x1, ow, y0, mid - 1, o);
+    xSemaphoreTake(s_done, portMAX_DELAY);
+    return;
+  }
+#endif
+  render_rows(x1, ow, y0, y1, o);
+}
+
+static void wait_flush(lv_disp_drv_t *drv) {
+  uint32_t t0 = lv_tick_get();
+  while (drv->draw_buf->flushing && lv_tick_elaps(t0) < 100) {
+  }
+}
+
+// Einen Ausgabebereich in Streifen rechnen und an den Treiber geben.
+// Als Zwischenspeicher dienen die Original-Puffer des Treibers (interner,
+// DMA-fähiger Speicher). So braucht der Treiber keine Hilfspuffer im
+// knappen internen RAM, die sonst WLAN und TLS fehlen.
+static void out_region(lv_disp_drv_t *drv, const lv_area_t *dst, bool last) {
+  int32_t ow = dst->x2 - dst->x1 + 1;
+  lv_color_t *bufs[2] = { (lv_color_t *)s_orig_buf->buf1,
+                          (lv_color_t *)(s_orig_buf->buf2 ? s_orig_buf->buf2 : s_orig_buf->buf1) };
+  int32_t rows = (int32_t)(s_orig_buf->size / ow);
+  if (rows >= 8) rows &= ~3;  // auf das 4er-Raster des Displays
+  if (rows < 1) rows = 1;
+  int bi = 0;
+  for (int32_t y = dst->y1; y <= dst->y2; y += rows) {
+    int32_t y2 = y + rows - 1;
+    if (y2 > dst->y2) y2 = dst->y2;
+    lv_color_t *ob = bufs[bi];
+    if (bufs[0] == bufs[1]) wait_flush(drv);  // nur ein Puffer: erst frei werden lassen
+    render_rows_par(dst->x1, ow, y, y2, ob);
+    wait_flush(drv);  // vorheriger Streifen fertig übertragen
+    lv_area_t strip = { dst->x1, (lv_coord_t)y, dst->x2, (lv_coord_t)y2 };
+    bool lst = last && y2 == dst->y2;
+    drv->draw_buf->flushing = 1;
+    drv->draw_buf->flushing_last = lst ? 1 : 0;
+    s_orig_flush(drv, &strip, ob);  // ruft lv_disp_flush_ready()
+    bi ^= 1;
+  }
+  if (!last) wait_flush(drv);
 }
 
 static void flush_rot(lv_disp_drv_t *drv, const lv_area_t *area_full, lv_color_t *color_p) {
@@ -214,6 +273,7 @@ static void flush_rot(lv_disp_drv_t *drv, const lv_area_t *area_full, lv_color_t
   s_nreg = 0;
   s_reg_overflow = false;
   s_have_dirty = false;
+  drv->draw_buf->flushing = 0;  // LVGL hat es für diesen Aufruf gesetzt; ab hier zählen unsere Streifen
 
   for (int i = 0; i < n; i++) {
 #ifndef ARDUINO
@@ -238,14 +298,16 @@ static bool install() {
   if (!disp) return false;
   s_drv = disp->driver;
   size_t n = (size_t)s_drv->hor_res * s_drv->ver_res;
+  if (!s_drv->draw_buf || !s_drv->draw_buf->buf1) return false;
   s_fb = (lv_color_t *)big_alloc(n * sizeof(lv_color_t));
-  s_out = (lv_color_t *)big_alloc(n * sizeof(lv_color_t));
-  if (!s_fb || !s_out) {
-    free(s_fb);
-    free(s_out);
-    s_fb = s_out = NULL;
-    return false;
+  if (!s_fb) return false;
+#ifdef ARDUINO
+  if (!s_worker) {
+    s_go = xSemaphoreCreateBinary();
+    s_done = xSemaphoreCreateBinary();
+    if (s_go && s_done) xTaskCreatePinnedToCore(worker, "rot", 3072, NULL, 2, &s_worker, 0);
   }
+#endif
   memset(s_fb, 0, n * sizeof(lv_color_t));
   lv_disp_draw_buf_init(&s_buf, s_fb, NULL, n);
   s_orig_flush = s_drv->flush_cb;
@@ -298,8 +360,7 @@ void disp_rot_suspend() {
   s_drv->full_refresh = s_orig_full;
   if (s_indev_drv && s_orig_read) s_indev_drv->read_cb = s_orig_read;
   free(s_fb);
-  free(s_out);
-  s_fb = s_out = NULL;
+  s_fb = NULL;
   s_installed = false;
   s_have_dirty = false;
   lv_obj_invalidate(lv_scr_act());
