@@ -60,7 +60,7 @@ static void list_restyle(lv_obj_t *cont) {
     lv_coord_t dd = dist[i] > FADE_DIST ? FADE_DIST : dist[i];
     lv_opa_t mix = (lv_opa_t)(255 - (dd * 200) / FADE_DIST);
     mix &= 0xF0;  // in Stufen, damit nicht jeder Pixel Bewegung neu zeichnet
-    lv_color_t c = sel ? C_ON_ACCENT : lv_color_mix(C_TEXT2, C_BG, mix);
+    lv_color_t c = sel ? C_ON_PRIMARY : lv_color_mix(C_TEXT2, C_BG, mix);
     if (s_force || lv_obj_get_style_text_color(title, 0).full != c.full) {
       lv_obj_set_style_text_color(title, c, 0);
       // Symbol (letztes Kind des Eintrags) in derselben Farbe
@@ -110,14 +110,14 @@ lv_obj_t *ui_curved_list(lv_obj_t *parent, const ui_list_item_t *items, int coun
     lv_obj_add_flag(item, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(item, LV_OBJ_FLAG_SNAPPABLE);
     lv_obj_set_style_radius(item, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(item, C_ACCENT, 0);
+    lv_obj_set_style_bg_color(item, C_PRIMARY, 0);
     lv_obj_set_user_data(item, (void *)(intptr_t)i);
     lv_obj_add_event_cb(item, item_click_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *title = ui_label(item, items[i].title, &font_sg_18, C_TEXT2);
     lv_obj_align(title, LV_ALIGN_CENTER, items[i].icon ? 14 : 0, 0);
     if (items[i].sub) {
-      lv_obj_t *sub = ui_label(item, items[i].sub, &font_sg_14, lv_color_hex(0x1D4D38));
+      lv_obj_t *sub = ui_label(item, items[i].sub, &font_sg_14, lv_color_hex(0x55554F));
       lv_obj_align(sub, LV_ALIGN_CENTER, 0, 15);
       lv_obj_add_flag(sub, LV_OBJ_FLAG_HIDDEN);
     }

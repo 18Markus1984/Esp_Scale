@@ -277,7 +277,15 @@ oben rechts „Klassen“ -> #/portoklassen. Setup-Zeilen haben feste Kennungen 
 page_setup.cpp), 34 ist frei. Web-Einstellungen: Sprache und Sprachbefehle (voice_on, nur wenn
 `voice_ok`) im Abschnitt Ton wie am Gerät. Bewusst nicht umgesetzt: Töpfe bei Auto-Tara,
 Libelle/Wasserwaage zusammenlegen, Auto-Aus zum Akku, Kategorie Waage aufteilen.
-**Design:** komplette Oberfläche als gezeichnetes Canvas-Artefakt „Waage UI Design“ (claude.ai).
+**Farbschema passend zum Gehäuse (03.10.2026):** Schwarz #090909 Hintergrund, Weiß #F4F4F1 als
+Bedienfarbe (`C_PRIMARY`/`C_ON_PRIMARY` in ui_theme.h: Hauptknöpfe, gewählter Listeneintrag, Toasts,
+Texteingabe), Grün #3DDC97 nur für Messwert und Zustand (Ring, „stabil“, Schalter an, Fortschritt),
+Gelb/Rot nur für Warnungen und als Umriss (BTN_WARN). Graustufen neutral statt grünlich. Im Web
+dieselben Tokens (`--pri`, `--on-pri`), dazu Druck-Feedback, sichtbarer Tastaturfokus, Tabellenziffern.
+**Design:** Canvas-Artefakt „Waage UI Design“ (claude.ai) mit jeder Seite, gezeichnet aus Formen:
+Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei jedem S() dump/*.json,
+tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),
+build_canvas.py erzeugt alle Artboards. Nach UI-Änderungen: Sim + Rundgang laufen lassen, build_canvas.py.
 
 ## 6. Offene Punkte
 

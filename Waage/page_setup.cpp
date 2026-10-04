@@ -144,7 +144,7 @@ lv_obj_t *page_setup_create() {
     lv_obj_set_style_border_color(t, C_BORDER, 0);
     lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(t, tile_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-    lv_obj_t *ic = ui_label(t, CAT_ICON[i], &font_icons_26, C_ACCENT);
+    lv_obj_t *ic = ui_label(t, CAT_ICON[i], &font_icons_26, C_TEXT);
     lv_obj_align(ic, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_t *l = ui_label(t, CAT_TITLE[i], &font_sg_18, C_TEXT);
     lv_obj_set_width(l, 120);
@@ -387,7 +387,7 @@ static lv_obj_t *page_cat_create(int cat) {
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 4, 0);
     char b[32];
     row_value(cat, k, b, sizeof(b));
-    row_val[k] = ui_label(row, b, &font_sg_18, C_ACCENT);
+    row_val[k] = ui_label(row, b, &font_sg_18, C_TEXT2);
     lv_obj_align(row_val[k], LV_ALIGN_RIGHT_MID, -4, 0);
   }
 
@@ -468,8 +468,8 @@ static void fu_timer_cb(lv_timer_t *t) {
   else lv_obj_clear_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
   bool inst = st == UPD_AVAILABLE;
   lv_label_set_text(lv_obj_get_child(fu_btn, 0), inst ? "Installieren" : "Online suchen");
-  lv_obj_set_style_bg_color(fu_btn, inst ? C_ACCENT : C_SURFACE, 0);
-  lv_obj_set_style_text_color(lv_obj_get_child(fu_btn, 0), inst ? C_ON_ACCENT : C_TEXT, 0);
+  lv_obj_set_style_bg_color(fu_btn, inst ? C_PRIMARY : C_SURFACE, 0);
+  lv_obj_set_style_text_color(lv_obj_get_child(fu_btn, 0), inst ? C_ON_PRIMARY : C_TEXT, 0);
   lv_obj_set_style_border_width(fu_btn, inst ? 0 : 2, 0);
   if (st == UPD_DOWNLOAD) ui_label_update(fu_sub, T("Nicht ausschalten"));
   else {

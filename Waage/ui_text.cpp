@@ -159,7 +159,7 @@ static void show_press(int idx) {
   key_offset(idx, &x, &y);
   lv_obj_align(s_hl, LV_ALIGN_CENTER, x, y);
   lv_obj_clear_flag(s_hl, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_color(s_keys[idx], C_ON_ACCENT, 0);
+  lv_obj_set_style_text_color(s_keys[idx], C_ON_PRIMARY, 0);
 
   int n = n_keys();
   lv_label_set_text(s_lp_prev, SETS[s_set][(idx + n - 1) % n]);
@@ -240,7 +240,7 @@ lv_obj_t *ui_text_page_create(const char *title, const char *initial, int max_le
   lv_obj_set_size(s_hl, 40, 40);
   lv_obj_set_style_radius(s_hl, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_opa(s_hl, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(s_hl, C_ACCENT, 0);
+  lv_obj_set_style_bg_color(s_hl, C_PRIMARY, 0);
   lv_obj_add_flag(s_hl, LV_OBJ_FLAG_HIDDEN);
 
   for (int i = 0; i < KEYS_MAX; i++) s_keys[i] = ui_label(ring, "", &font_sg_18, C_TEXT2);
@@ -296,8 +296,8 @@ lv_obj_t *ui_text_page_create(const char *title, const char *initial, int max_le
   lv_obj_set_size(circle, 92, 92);
   lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(circle, C_ACCENT, 0);
-  s_lp_cur = ui_label(circle, "", &font_sg_34, C_ON_ACCENT);
+  lv_obj_set_style_bg_color(circle, C_PRIMARY, 0);
+  s_lp_cur = ui_label(circle, "", &font_sg_34, C_ON_PRIMARY);
   lv_obj_center(s_lp_cur);
   s_lp_next = ui_label(lrow, "", &font_sg_24, C_FAINT);
   ui_label(s_lupe, "Loslassen übernimmt", &font_sg_14, C_MUTED);

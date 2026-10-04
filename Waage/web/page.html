@@ -6,10 +6,14 @@
 <title>Waage</title>
 <style>
 /* Farben wie auf dem Display (ui_theme.h), damit Waage und Browser gleich aussehen */
-:root{--bg:#0E0F0D;--card:#1E1F1B;--card2:#171815;--line:#2A2B26;--line2:#242520;--text:#F3F0E8;
---text2:#BDBAB0;--mut:#A6A398;--faint:#6F6D64;--acc:#3DDC97;--acc2:#2FB77C;--on-acc:#0B1F16;
---accbg:#14281F;--bar:#2FB77C;--warn:#F5B83D;--warnbg:#2A2214;--dan:#FF6B5E;--danbg:#2B1714;--track:#2A2B26}
+:root{--bg:#090909;--card:#181818;--card2:#121212;--line:#2C2C2C;--line2:#222222;--text:#F4F4F1;
+--text2:#C4C4C0;--mut:#9C9C98;--faint:#62625F;--pri:#F4F4F1;--on-pri:#0A0A0A;--acc:#3DDC97;--acc2:#2FB77C;--on-acc:#0A0A0A;
+--accbg:#10241A;--bar:#2FB77C;--warn:#F5B83D;--warnbg:#2A2214;--dan:#FF6B5E;--danbg:#2B1714;--track:#232323}
 *{box-sizing:border-box}
+button,.btn,a.chip,a.tile{transition:transform .12s,background-color .2s}
+button:active,.btn:active,a.chip:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.big,.mid,h1{font-variant-numeric:tabular-nums}
 html,body{margin:0;background:var(--bg);color:var(--text);
 font:16px/1.45 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);-webkit-tap-highlight-color:transparent}
@@ -23,8 +27,8 @@ h2{margin:0;font:600 17px/1.3 "Space Grotesk",system-ui,sans-serif}
 color:var(--text);display:flex;align-items:center;justify-content:center;text-decoration:none;padding:0}
 .back svg{display:block;width:22px;height:22px}
 a.tile .ic svg{width:26px;height:26px;display:block}
-a.chip svg{display:block;color:var(--acc)}
-.act{color:var(--acc);text-decoration:none;font-size:15px;font-weight:500;padding:6px 2px}
+a.chip svg{display:block;color:var(--text2)}
+.act{color:var(--text);text-decoration:none;font-size:15px;font-weight:500;padding:6px 2px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .pill{font-size:13px;padding:5px 11px;border-radius:14px;background:var(--accbg);color:var(--acc);white-space:nowrap}
 .pill.w{background:var(--warnbg);color:var(--warn)}.pill.d{background:var(--danbg);color:var(--dan)}
@@ -50,14 +54,14 @@ display:flex;flex-direction:column;gap:12px;min-width:0}
 button,.btn{min-height:46px;padding:0 18px;border-radius:14px;border:1px solid var(--line);background:var(--card2);
 color:var(--text);font-family:inherit;font-size:16px;font-weight:500;line-height:1;cursor:pointer;
 display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
-button.p,.btn.p{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+button.p,.btn.p{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
 button.d{color:var(--dan)}button.g,.btn.g{flex:1}
 button:disabled{opacity:.4}
 button.sm,.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
 /* runde Aktionsknöpfe wie am Gerät */
 .rnd{display:flex;gap:14px;justify-content:center;align-items:center}
 .rnd button{width:74px;height:74px;border-radius:50%;padding:0;font-size:15px}
-.rnd button.p{box-shadow:0 6px 18px rgba(61,220,151,.18)}
+.rnd button.p{box-shadow:0 6px 18px rgba(244,244,241,.10)}
 input,select,textarea{min-height:46px;border:1px solid var(--line);border-radius:12px;padding:0 12px;
 font-family:inherit;font-size:16px;background:var(--card2);color:var(--text);width:100%;min-width:0}
 select{-webkit-appearance:none;appearance:none;padding-right:34px;
@@ -77,19 +81,19 @@ input[type=range]{accent-color:var(--acc);min-height:28px;border:0;padding:0;bac
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 a.tile{text-decoration:none;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:7px;font-size:13px;text-align:center}
 a.tile .ic{width:56px;height:56px;border-radius:18px;background:var(--card);border:1px solid var(--line);
-display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)}
-a.tile:active .ic{background:var(--accbg)}
+display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text)}
+a.tile:active .ic{background:var(--line)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 a.chip,button.chip,span.chip{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border-radius:14px;
 background:var(--card);border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:14px;min-height:0}
-button.chip.on{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+button.chip.on{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
 .sec{font:600 15px/1.3 "Space Grotesk",system-ui,sans-serif;color:var(--text);margin:6px 2px -2px}
 .list .it{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:50px;border-bottom:1px solid var(--line2)}
 .list .it:last-child{border-bottom:0}
 .dot{width:14px;height:14px;border-radius:50%;flex:0 0 14px}
 .seg{display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card2)}
 .seg button{flex:1;border:0;border-radius:0;min-height:44px;white-space:nowrap;padding:0 8px;background:transparent;color:var(--text2)}
-.seg button.on{background:var(--acc);color:var(--on-acc)}
+.seg button.on{background:var(--pri);color:var(--on-pri)}
 .ing{display:grid;grid-template-columns:minmax(0,1fr) 92px 44px;gap:8px;align-items:center}
 .ing button{padding:0}
 table{width:100%;border-collapse:collapse}td,th{padding:10px 12px 10px 0;border-bottom:1px solid var(--line2);text-align:left;font-weight:400;vertical-align:top}
@@ -99,10 +103,10 @@ th{font-size:13px;color:var(--mut)}td.r,th.r{text-align:right;white-space:nowrap
 .chart div{flex:1;background:var(--track);border-radius:5px 5px 0 0;min-height:3px}
 .chart div.on{background:var(--acc)}
 .chartl{display:flex;gap:8px}.chartl span{flex:1;text-align:center;font-size:12px;color:var(--mut)}
-.info{background:var(--accbg);color:var(--acc);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;border:1px solid #1E3B2C}
+.info{background:var(--card2);color:var(--text);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;border:1px solid var(--line)}
 .info input{background:var(--card2);color:var(--text)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);
-background:var(--acc);color:var(--on-acc);padding:11px 18px;border-radius:14px;font-size:15px;font-weight:500;
+background:var(--pri);color:var(--on-pri);padding:11px 18px;border-radius:14px;font-size:15px;font-weight:500;
 opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
 .toast.on{opacity:1}
 .stepper{display:flex;align-items:center;gap:10px}.stepper input{text-align:center;font-size:20px}
@@ -113,12 +117,12 @@ opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
 .frow{display:flex;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid var(--line2)}
 .frow:last-child{border-bottom:0}
 .fico{width:36px;height:36px;border-radius:12px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 36px;color:var(--mut)}
-.fico.d{background:var(--accbg);color:var(--acc)}
+.fico.d{background:var(--line2);color:var(--text)}
 .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fname a,.list a{color:var(--text);text-decoration:none}
 .fsize{font-size:13px;color:var(--faint);white-space:nowrap}
 .crumb{display:flex;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--mut)}
-.crumb a{color:var(--acc);text-decoration:none}
+.crumb a{color:var(--text);text-decoration:none}
 .swatch{display:flex;gap:8px;flex-wrap:wrap}
 .swatch button{width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;border:2px solid transparent}
 .swatch button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}

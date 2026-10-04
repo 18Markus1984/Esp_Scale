@@ -49,17 +49,21 @@ LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
 LV_FONT_DECLARE(font_sg_80);  // Ziffern, % und , . - : ? (Gewicht, Uhr)
 LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 
-// Farben wie im Canvas
-#define C_BG        lv_color_hex(0x0E0F0D)
-#define C_TEXT      lv_color_hex(0xF3F0E8)
-#define C_TEXT2     lv_color_hex(0xBDBAB0)
-#define C_MUTED     lv_color_hex(0xA6A398)
-#define C_FAINT     lv_color_hex(0x6F6D64)
-#define C_SURFACE   lv_color_hex(0x1E1F1B)
-#define C_BORDER    lv_color_hex(0x4A4A44)
-#define C_TRACK     lv_color_hex(0x2A2B26)
+// Farben passend zum Gehäuse: schwarzer Rahmen, weiße Bedienfläche.
+// Weiß ist die Bedienfarbe (Knöpfe, Auswahl), Grün nur für Messwert und Zustand
+// (Ring, "stabil", Schalter an), Gelb/Rot nur für Warnungen.
+#define C_BG        lv_color_hex(0x090909)
+#define C_TEXT      lv_color_hex(0xF4F4F1)
+#define C_TEXT2     lv_color_hex(0xC4C4C0)
+#define C_MUTED     lv_color_hex(0x9C9C98)
+#define C_FAINT     lv_color_hex(0x62625F)
+#define C_SURFACE   lv_color_hex(0x181818)
+#define C_BORDER    lv_color_hex(0x3A3A3A)
+#define C_TRACK     lv_color_hex(0x232323)
+#define C_PRIMARY   lv_color_hex(0xF4F4F1)
+#define C_ON_PRIMARY lv_color_hex(0x0A0A0A)
 #define C_ACCENT    lv_color_hex(0x3DDC97)
-#define C_ON_ACCENT lv_color_hex(0x0B1F16)
+#define C_ON_ACCENT lv_color_hex(0x0A0A0A)
 #define C_WARN      lv_color_hex(0xF5B83D)
 #define C_DANGER    lv_color_hex(0xFF6B5E)
 
