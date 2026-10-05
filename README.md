@@ -1,4 +1,11 @@
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-wordmark-dark.svg">
+    <img src="docs/images/logo-wordmark-light.svg" alt="esp scale" width="360">
+  </picture>
+</p>
+
+<p align="center">
   <img src="docs/images/hero.png" alt="ESP Scale – a smart kitchen and workshop scale with a round touch display" width="100%">
 </p>
 
@@ -49,7 +56,7 @@ The whole UI is available in **English and German** (display, web interface and 
 | 📱 **Built-in web app** | Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
 | ☁️ **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. The scale finds the release and installs it with one tap. |
 | 📶 **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
-| 🔊 **Sound and voice** | Sound schemes, spoken weights from WAV voice packs (German and English), experimental offline voice commands (ESP-SR). |
+| 🔊 **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, experimental offline voice commands (ESP-SR). |
 | 🔋 **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
 | 🧪 **Quality tools** | Periodic **check weight** reminder with pass/fail history, gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
 
@@ -201,7 +208,7 @@ projects**. The scale does not use the demos, and they would not compile without
 ### 4. Flash and first start
 
 1. Open `Waage/Waage.ino` and upload via USB.
-2. Keep the platter **empty** while the scale starts. The zero point is measured at boot, after a short level check.
+2. Keep the platter **empty** while the scale starts. The logo fades in from the black display, then a short level check runs and the zero point is measured.
 3. Calibrate: **Setup → Scale → Calibration**. Empty the scale, place a known weight, confirm. Up to three calibration points compensate for load-cell non-linearity.
 4. Insert a FAT32 microSD card. The scale creates its folders on first start.
 5. Wi-Fi: **Setup → Time & Wi-Fi → Wi-Fi → Networks → + New network**.
@@ -282,6 +289,7 @@ Esp_Scale/
 │   ├── config.h                     settings: range, OTA repository, features
 │   ├── scale.*                      weighing engine (HX711, filter, tare, auto-zero)
 │   ├── ui*.cpp, page_*.cpp          LVGL screens, one file per mode
+│   ├── ui_splash.*, img_splash.c    start screen: logo glows up from black, then fades to the level check
 │   ├── tools.*                      background timers and long-term logging
 │   ├── web.*, web/page.html         web server + single-page app (run web/build.py after edits)
 │   ├── net.*                        Wi-Fi (multiple networks), NTP
@@ -289,7 +297,7 @@ Esp_Scale/
 │   ├── i18n*                        English translations of the German UI
 │   └── (Waveshare driver files)
 ├── lv_conf.h                        LVGL configuration used by the CI build
-├── docs/images/                     pictures for this README
+├── docs/images/                     pictures for this README (logo: logo.svg, logo-wordmark-*.svg)
 └── GITHUB.md                        release setup guide (German)
 ```
 

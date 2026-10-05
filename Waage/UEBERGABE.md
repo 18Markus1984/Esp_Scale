@@ -320,6 +320,20 @@ Display = Objektbaum des Simulators (Testumgebung/design/dump.inc schreibt bei j
 tohtml.py baut daraus Divs/Bögen/QR-Rechtecke), Web = DOM aus dem Browser-Rundgang (tour.py -> de_dom/),
 build_canvas.py erzeugt alle Artboards. Nach UI-Änderungen: Sim + Rundgang laufen lassen, build_canvas.py.
 
+**Logo und Startbild:** Logo = Variante „F1“ aus dem Logo-Canvas „Waage Logos“ (claude.ai): eure
+Gehäuseform von oben, ganz in Grün #3DDC97, Platte und Display als Öffnungen; Schriftzug „esp scale“ in
+Space Grotesk 600. Startbild in `ui_splash.cpp`: Die Hintergrundbeleuchtung bleibt ab `Driver_Init()`
+aus (vorher 60 % – dadurch waren beim Einschalten Testbild/Bildreste des Controllers zu sehen) und
+fährt erst hoch, wenn das erste Bild gezeichnet ist. Ablauf (≈ 2,9 s): Licht 0 → BRIGHT_ON, das Leuchten
+um das Logo blüht auf und klingt ab, Logo erscheint, „esp scale“ gleitet ein, alles blendet zurück ins
+Schwarz, dann Lagecheck. Bilder in `img_splash.c` (nur Deckkraft, LV_IMG_CF_ALPHA_8BIT, ≈ 100 KB Flash),
+die Farbe kommt aus dem Farbschema (Grün bzw. Weiß). Überblendet wird nur über `img_opa` der Bilder,
+nicht über die Bildschirm-Überblendung (die erzeugt helle Kästen). `BRIGHT_ON` steht jetzt in
+`ui_power.h`; `ui_power_init()` schaltet das Licht nicht mehr selbst ein.
+**Web-Symbol:** Logo F1 als SVG-Favicon und 180-px-Touch-Icon (schwarzer Grund) direkt in `page.html`
+eingebettet (Data-URI, kein zusätzlicher Pfad am Server). README zeigt oben das Logo mit Schriftzug
+(`docs/images/logo*.svg`, hell/dunkel per `<picture>`).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "ui_splash.h"
 #include "ui_theme.h"
 #include "ui_widgets.h"
 #include "ui_pages.h"
@@ -1194,6 +1195,9 @@ void ui_init() {
 
   ui_power_init();
 
-  lv_obj_t *start = build_start();
-  lv_scr_load_anim(start, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
+  // Erst das Startbild (Logo leuchtet auf), danach der Lagecheck
+  ui_splash_start([]() {
+    lv_obj_t *start = build_start();
+    lv_scr_load_anim(start, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
+  });
 }

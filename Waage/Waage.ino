@@ -39,7 +39,7 @@ void Driver_Init() {
   Set_EXIO(EXIO_PIN1, Low);
   delay(200);
   Backlight_Init();
-  Set_Backlight(60);  // 0..100
+  Set_Backlight(0);   // aus, bis das Startbild gezeichnet ist (kein Testbild/Bildmüll beim Einschalten)
   PCF85063_Init();
   QMI8658_Init();
 }

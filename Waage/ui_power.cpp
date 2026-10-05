@@ -13,7 +13,6 @@
 
 #define SHORT_MAX_MS 800     // bis hier: kurzer Druck
 #define OFF_HOLD_MS 3000     // so lange halten zum Ausschalten
-#define BRIGHT_ON 60         // Helligkeit im Betrieb (%)
 #define BRIGHT_STANDBY 8     // Helligkeit der Standby-Uhr (%)
 #define WAKE_WEIGHT_G 5.0f   // so viel Gewichtsänderung weckt auf
 #define OFF_WARN_S 15        // so lange vor dem Auto-Aus warnen
@@ -162,7 +161,7 @@ void ui_power_init() {
 
   // Wurde die Waage mit der Taste eingeschaltet, ist sie evtl. noch gedrückt
   s_ignore_press = hal_pwr_pressed();
-  hal_backlight(BRIGHT_ON);
+  // Hintergrundbeleuchtung schaltet das Startbild ein (ui_splash.cpp)
 }
 
 bool ui_power_standby() {
