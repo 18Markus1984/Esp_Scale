@@ -113,6 +113,7 @@ static int s_cat = 0;  // zuletzt geöffnete Gruppe
 static lv_obj_t *page_cat_create(int cat);
 static lv_obj_t *page_update_create();
 static lv_obj_t *page_voice_pick_create();
+static lv_obj_t *page_color_pick_create();
 static lv_obj_t *page_sound_create();
 
 static const char *const CAT_TITLE[4] = { "Wiegen", "Zeit & Funk", "Ton", "Waage" };
@@ -244,7 +245,7 @@ static void row_value(int cat, int row, char *b, int len) {
     case 32: snprintf(b, len, T("Cg / Cgk ›")); break;
     case 33: snprintf(b, len, T("Nullpunkt ›")); break;
     case 26: snprintf(b, len, T("Pegel ›")); break;
-    case 37: snprintf(b, len, "%s", g_set.theme == THEME_WHITE ? T("Weiß") : T("Grün")); break;
+    case 37: snprintf(b, len, "%s ›", T(ui_theme_name(g_set.theme))); break;
     case 34:
       if (g_set.disp_rot == 0) snprintf(b, len, T("gerade ›"));
       else {
@@ -325,12 +326,7 @@ static void row_cb(lv_event_t *e) {
     case 33: ui_switch_page(page_level_setup_create()); return;
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
     case 34: ui_switch_page(page_display_create()); return;
-    case 37:  // Farbschema Grün <-> Weiß, alle Seiten in den neuen Farben
-      g_set.theme = g_set.theme == THEME_WHITE ? THEME_GREEN : THEME_WHITE;
-      ui_theme_changed();
-      sound_play(SND_CLICK);
-      ui_switch_page(page_cat_create(3));
-      return;
+    case 37: ui_switch_page(page_color_pick_create()); return;  // Farbschema wählen
     case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -444,6 +440,51 @@ static lv_obj_t *page_voice_pick_create() {
   lv_obj_t *s = ui_screen_create();
   ui_curved_list(s, items, n, vp_pick_cb);
   lv_obj_t *t = ui_label(s, "Stimme", &font_sg_14, C_MUTED);
+  lv_obj_set_style_bg_color(t, C_BG, 0);
+  lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(t, 60, 0);
+  lv_obj_set_style_pad_top(t, 26, 0);
+  lv_obj_set_style_pad_bottom(t, 10, 0);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Farbe: Akzentfarbe passend zu den gedruckten Gehäuseteilen
+// ------------------------------------------------------------
+static void color_pick_cb(int index) {
+  g_set.theme = index;
+  settings_save();
+  ui_theme_changed();  // Startseite in den neuen Farben neu aufbauen
+  sound_play(SND_CLICK);
+  ui_switch_page(page_cat_create(3));  // zurück zur Gruppe „Waage“, schon in der neuen Farbe
+}
+
+static lv_obj_t *page_color_pick_create() {
+  static ui_list_item_t items[THEME_COUNT];
+  for (int i = 0; i < THEME_COUNT; i++) {
+    items[i].title = T(ui_theme_name(i));
+    items[i].sub = i == g_set.theme ? T("aktiv") : T("antippen: wählen");
+    items[i].icon = NULL;
+  }
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *list = ui_curved_list(s, items, THEME_COUNT, color_pick_cb);
+  // Farbpunkt links in jedem Eintrag (als letztes Kind, die Liste färbt ihn nicht um)
+  for (int i = 0; i < THEME_COUNT; i++) {
+    lv_obj_t *item = lv_obj_get_child(list, i);
+    lv_obj_t *dot = ui_box(item);
+    lv_obj_set_size(dot, 22, 22);
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(dot, ui_theme_color(i), 0);
+    lv_obj_set_style_border_width(dot, 2, 0);
+    lv_obj_set_style_border_color(dot, C_BG, 0);
+    lv_obj_align(dot, LV_ALIGN_LEFT_MID, 26, 0);
+  }
+  // gewählte Farbe in die Mitte holen
+  lv_obj_t *cur = lv_obj_get_child(list, g_set.theme >= 0 && g_set.theme < THEME_COUNT ? g_set.theme : 0);
+  lv_obj_scroll_to_view(cur, LV_ANIM_OFF);
+  lv_obj_t *t = ui_label(s, "Farbe", &font_sg_14, C_MUTED);
   lv_obj_set_style_bg_color(t, C_BG, 0);
   lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
   lv_obj_set_style_pad_hor(t, 60, 0);

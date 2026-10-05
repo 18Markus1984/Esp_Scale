@@ -332,6 +332,32 @@ static void pot_detect() {
   if (idx >= 0) cd_show(idx, net);
 }
 
+// ---------- Auto-Tara bei negativem Wert ----------
+// Wurde mit Schüssel tariert und die Schüssel abgenommen, steht dauerhaft ein
+// Minuswert da. Ist die Waage dabei wirklich leer (Brutto nahe 0) und liegt
+// der Wert eine Weile ruhig, wird automatisch neu tariert. Liegt noch etwas
+// darauf (z. B. Glas, aus dem entnommen wird), bleibt der Minuswert stehen.
+#define NEG_TARE_G 1.0f        // ab so viel unter 0
+#define NEG_TARE_MS 3000       // so lange ruhig im Minus
+static uint32_t s_neg_since = 0;
+
+static void neg_tare_check() {
+  float net = scale_net();
+  bool cand = net < -NEG_TARE_G && scale_gross() < EMPTY_G && scale_stable() &&
+              !scale_overload() && s_pot_mode == POT_NONE && !cd_active && !web_hide_weight();
+  if (!cand) {
+    s_neg_since = 0;
+    return;
+  }
+  uint32_t now = hal_millis();
+  if (s_neg_since == 0) s_neg_since = now;
+  if (now - s_neg_since < NEG_TARE_MS) return;
+  s_neg_since = 0;
+  scale_tare();
+  sound_play(SND_TARA);
+  show_toast("Tara gesetzt", C_ACCENT);
+}
+
 // ---------- Launcher ----------
 static int s_group = 0;
 static lv_obj_t *group_page_create();
@@ -661,6 +687,7 @@ static void home_update_cb(lv_timer_t *t) {
   lv_obj_t *act = lv_tileview_get_tile_act(h_tv);
   if (act == NULL || act == h_tile0) {
     pot_detect();
+    neg_tare_check();
     autosave_check();
     speak_check();
   }

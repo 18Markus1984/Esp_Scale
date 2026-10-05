@@ -6,6 +6,7 @@
 #include "BAT_Driver.h"
 #include "Display_SPD2010.h"
 #include "esp_lcd_panel_ops.h"
+#include "driver/gpio.h"
 
 extern esp_lcd_panel_handle_t panel_handle;  // aus Display_SPD2010.cpp
 
@@ -13,13 +14,24 @@ extern esp_lcd_panel_handle_t panel_handle;  // aus Display_SPD2010.cpp
 #define PIN_PWR_KEY 6    // PWR-Taste, LOW = gedrückt
 #define PIN_PWR_HOLD 7   // Selbsthaltung: HIGH = Akku bleibt an
 
+// Selbsthaltung so früh wie möglich einschalten. Diese Funktion läuft beim
+// Programmstart noch vor initArduino() (dort wird u. a. der 8-MB-PSRAM
+// getestet, das dauert spürbar) und vor setup(). So reicht beim Einschalten
+// ein kürzerer Druck auf die PWR-Taste. Den Bootloader davor kann die Firmware
+// nicht verkürzen.
+__attribute__((constructor(101))) static void early_power_hold() {
+  gpio_reset_pin((gpio_num_t)PIN_PWR_HOLD);
+  gpio_set_direction((gpio_num_t)PIN_PWR_HOLD, GPIO_MODE_OUTPUT);
+  gpio_set_level((gpio_num_t)PIN_PWR_HOLD, 1);
+}
+
 void hal_init() {
   pinMode(BOOT_PIN, INPUT_PULLUP);
   pinMode(PIN_PWR_KEY, INPUT);
 }
 
 void hal_power_hold(bool on) {
-  pinMode(PIN_PWR_HOLD, OUTPUT);
+  pinMode(PIN_PWR_HOLD, OUTPUT);  // ändert den Pegel nicht, der bleibt aus early_power_hold() HIGH
   digitalWrite(PIN_PWR_HOLD, on ? HIGH : LOW);
 }
 

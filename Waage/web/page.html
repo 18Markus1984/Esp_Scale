@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Waage</title>
 <!-- Logo „esp scale“ (F1) als Symbol im Browser-Tab und auf dem Startbildschirm -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M26.2,81.7 A73.7,73.7 0 0,1 173.7,81.7 V144 A48,48 0 0,1 125.7,192 H74.2 A48,48 0 0,1 26.2,144 Z M39.7,82 a60.3,60.3 0 1,0 120.6,0 a60.3,60.3 0 1,0 -120.6,0 Z M81.9,169.5 a18.1,18.1 0 1,0 36.2,0 a18.1,18.1 0 1,0 -36.2,0 Z' fill='%233DDC97' fill-rule='evenodd'/%3E%3C/svg%3E">
+<link rel="icon" id="favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M26.2,81.7 A73.7,73.7 0 0,1 173.7,81.7 V144 A48,48 0 0,1 125.7,192 H74.2 A48,48 0 0,1 26.2,144 Z M39.7,82 a60.3,60.3 0 1,0 120.6,0 a60.3,60.3 0 1,0 -120.6,0 Z M81.9,169.5 a18.1,18.1 0 1,0 36.2,0 a18.1,18.1 0 1,0 -36.2,0 Z' fill='%233DDC97' fill-rule='evenodd'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/png;base64,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">
 <meta name="theme-color" content="#090909">
 <style>
@@ -13,7 +13,7 @@
 :root{--bg:#090909;--card:#181818;--card2:#121212;--line:#2C2C2C;--line2:#222222;--text:#F4F4F1;
 --text2:#C4C4C0;--mut:#9C9C98;--faint:#62625F;--acc:#3DDC97;--acc2:#2FB77C;--on-acc:#0B1F16;
 --accbg:#14281F;--accbd:#1E3B2C;--bar:#2FB77C;--warn:#F5B83D;--warnbg:#2A2214;--dan:#FF6B5E;--danbg:#2B1714;--track:#232323;
---pri:var(--acc);--on-pri:var(--on-acc);--ui:var(--acc)}
+--pri:var(--acc);--on-pri:var(--on-acc);--ui:var(--acc);--accsh:rgba(61,220,151,.18)}
 /* Farbschema "Weiß" (an der Waage: Setup -> Waage -> Farbe): alle Akzente in Weiß */
 html[data-theme=w]{--acc:#F4F4F1;--acc2:#C4C4C0;--on-acc:#0A0A0A;--accbg:#1C1C1C;--accbd:#2C2C2C;--bar:#C4C4C0;--pri:var(--acc);--on-pri:var(--on-acc);--ui:var(--text)}
 *{box-sizing:border-box}
@@ -68,7 +68,7 @@ button.sm,.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
 /* runde Aktionsknöpfe wie am Gerät */
 .rnd{display:flex;gap:14px;justify-content:center;align-items:center}
 .rnd button{width:74px;height:74px;border-radius:50%;padding:0;font-size:15px}
-.rnd button.p{box-shadow:0 6px 18px rgba(61,220,151,.18)}
+.rnd button.p{box-shadow:0 6px 18px var(--accsh)}
 html[data-theme=w] .rnd button.p{box-shadow:0 6px 18px rgba(244,244,241,.10)}
 input,select,textarea{min-height:46px;border:1px solid var(--line);border-radius:12px;padding:0 12px;
 font-family:inherit;font-size:16px;background:var(--card2);color:var(--text);width:100%;min-width:0}
@@ -338,7 +338,23 @@ new MutationObserver(ms=>{if(!LANG)return;for(const m of ms){if(m.type=="charact
  window.confirm=m=>c(trLines(m));window.prompt=(m,d)=>p(tr(m),d)}
 function setLang(l){LANG=l?1:0;ls("lang",LANG);document.documentElement.lang=LANG?"en":"de"}
 // Farbschema der Waage übernehmen (0 = Grün, 1 = Weiß), gemerkt gegen Aufblitzen beim Laden
-function setTheme(t){const w=t==1;if((document.documentElement.dataset.theme=="w")!=w){document.documentElement.dataset.theme=w?"w":"";ls("theme",w?1:0)}}
+/* Farbschemata wie ui_theme.cpp: Index = Einstellung der Waage. Grün steht in :root, Weiß in html[data-theme=w],
+   die übrigen Farben setzen hier die Variablen: Akzent, Schrift darauf, dunkler Akzent, Fläche, Rand */
+const THEMES=[null,null,["4DA8FF","0A1723","3F8BD3","0C1A28","12283D"],["A68CFF","171323","8974D3","1A1628","27213D"],
+ ["FF7AB8","231119","D36598","28131D","3D1D2C"],["FF9A3C","231508","D37F31","281809","3D240E"],
+ ["FFD84A","231E0A","D3B33D","28220B","3D3311"],["FF5C5C","230C0C","D34C4C","280E0E","3D1616"]];
+let curTheme=null;
+function setTheme(t){t=+t||0;if(t<0||t>=THEMES.length)t=0;if(t===curTheme)return;curTheme=t;const r=document.documentElement,c=THEMES[t];
+ r.dataset.theme=t==1?"w":"";
+ for(const k of["--acc","--on-acc","--acc2","--accbg","--accbd","--bar","--accsh"])r.style.removeProperty(k);
+ if(c){const h=c[0],rgb=[0,2,4].map(i=>parseInt(h.substr(i,2),16)).join(",");
+  r.style.setProperty("--acc","#"+h);r.style.setProperty("--on-acc","#"+c[1]);r.style.setProperty("--acc2","#"+c[2]);
+  r.style.setProperty("--bar","#"+c[2]);r.style.setProperty("--accbg","#"+c[3]);r.style.setProperty("--accbd","#"+c[4]);
+  r.style.setProperty("--accsh","rgba("+rgb+",.18)")}
+ // Browser-Symbol (Logo) in der gewählten Farbe; im Original steht Grün (%233DDC97)
+ const fi=document.getElementById("favicon");if(fi){fi.dataset.g=fi.dataset.g||fi.href;
+  const acc=(t==1?"F4F4F1":(c?c[0]:"3DDC97"));fi.href=fi.dataset.g.replace(/%233DDC97/gi,"%23"+acc)}
+ ls("theme",t)}
 setTheme(ls("theme"));
 function tick(){
  if(busy>0)return;  // keine Zustandsabfrage dazwischenschieben

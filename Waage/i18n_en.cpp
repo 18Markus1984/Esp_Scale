@@ -748,6 +748,12 @@ const i18n_pair_t I18N_EN[] = {
   { "Farbe", "Colour" },
   { "Grün", "Green" },
   { "Weiß", "White" },
+  { "Blau", "Blue" },
+  { "Violett", "Violet" },
+  { "Pink", "Pink" },
+  { "Orange", "Orange" },
+  { "Gelb", "Yellow" },
+  { "Rot", "Red" },
   // ---- Update Speicher ----
   { "Zu wenig Arbeitsspeicher, bitte neu starten", "Not enough memory, please restart" },
   // ---- Update Repo ----

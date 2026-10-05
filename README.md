@@ -1,12 +1,9 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-wordmark-dark.svg">
-    <img src="docs/images/logo-wordmark-light.svg" alt="esp scale" width="360">
-  </picture>
+  <img src="docs/images/hero.jpg" alt="esp scale – the finished, 3D-printed scale on a kitchen counter, round display showing 0,0 g" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/images/hero.png" alt="ESP Scale – a smart kitchen and workshop scale with a round touch display" width="100%">
+  <img src="docs/images/hero-ui.png" alt="ESP Scale user interface: weighing screen with precision mode, portioning and the half-and-half game" width="100%">
 </p>
 
 <p align="center">
@@ -28,6 +25,13 @@ interface is served by the scale itself. New firmware is built by GitHub Actions
 
 The whole UI is available in **English and German** (display, web interface and voice output).
 
+<p align="center">
+  <img src="docs/images/real-pour.jpg" alt="Pouring water into a mixing bowl on the scale" width="32%">
+  <img src="docs/images/real-front.jpg" alt="Front view: white platter, black housing, round display and power button" width="32%">
+  <img src="docs/images/real-angle.jpg" alt="The scale on a stone kitchen counter" width="32%">
+</p>
+<p align="center"><sub>The prototype: 3D-printed housing in black and white, round display set into the front panel.</sub></p>
+
 ---
 
 ## Contents
@@ -35,6 +39,7 @@ The whole UI is available in **English and German** (display, web interface and 
 - [Highlights](#highlights)
 - [Screens](#screens)
 - [Web interface](#web-interface)
+- [Housing design](#housing-design)
 - [Hardware](#hardware)
 - [Wiring](#wiring)
 - [How it fits together](#how-it-fits-together)
@@ -51,13 +56,14 @@ The whole UI is available in **English and German** (display, web interface and 
 | | |
 |---|---|
 | ⚖️ **Precise weighing** | 0.1 g resolution, stability detection, **precision mode** (averaging, two decimals), **auto-zero** drift tracking, multi-point calibration, units g / kg / oz / lb / **ml** (12 liquids with density). |
-| 🍲 **Pot detection** | Place an empty pot you have saved before and it is tared automatically after a short countdown. |
+| 🍲 **Pot detection** | Place an empty pot you have saved before and it is tared automatically after a short countdown. Took a tared bowl off? A steady minus value on an empty scale is tared away after 3 s. |
 | 🧭 **20+ modes** | Grouped into *Kitchen*, *Workshop* and *Games*, each with guided steps, a progress ring and a "parking sensor" beeper that gets faster as you approach the target. |
 | 📱 **Built-in web app** | Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
 | ☁️ **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. The scale finds the release and installs it with one tap. |
 | 📶 **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
 | 🔊 **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, experimental offline voice commands (ESP-SR). |
 | 🔋 **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
+| 🎨 **Your colour** | Accent colour to match your printed parts: green (default), white, blue, violet, pink, orange, yellow or red – on the display, the start screen and in the web app. |
 | 🧪 **Quality tools** | Periodic **check weight** reminder with pass/fail history, gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
 
 ### Modes
@@ -101,6 +107,19 @@ Wi-Fi networks, settings and firmware updates.
 
 ---
 
+## Housing design
+
+The housing was designed in **Autodesk Fusion**. Rendering and section view:
+
+<p align="center">
+  <img src="docs/images/design-fusion.png" alt="Fusion renderings of the scale and section views through the housing, platter and load cell" width="100%">
+</p>
+<p align="center"><sub>Left: rendering. Right: angled section view. Base plate (green), load cell (orange) and
+platter (violet) form the Z-mount – the load cell is screwed to the base at one end and carries the platter
+at the other. The round display sits in the front panel, the board directly behind it.</sub></p>
+
+---
+
 ## Hardware
 
 | Part | Qty | Notes |
@@ -114,6 +133,11 @@ Wi-Fi networks, settings and firmware updates.
 | Calibration weight | 1 | anything with a known mass, e.g. 500 g or 1 kg |
 | Tactile micro switch 6 × 6 × 10 mm | 1 | external power button, soldered in parallel to the on-board PWR key (see [Power button](#power-button)) |
 | Wires, screws | – | M4/M5 screws for the load cell, depending on the model |
+
+<p align="center">
+  <img src="docs/images/real-inside.jpg" alt="Inside the prototype: base plate with load cell, HX711 board, LiPo battery and speaker" width="80%">
+</p>
+<p align="center"><sub>Inside the prototype: load cell in the middle (one end fixed to the base, one end carrying the platter), HX711 top right, LiPo below, speaker on the right.</sub></p>
 
 ---
 
@@ -148,7 +172,7 @@ The firmware does not notice any difference, and both buttons keep working:
 
 | Press | Action |
 |---|---|
-| short (while off) | switch on |
+| short (while off) | switch on (the firmware latches the power as early as possible during boot, so a short press is enough) |
 | short | standby with dimmed clock, wake up by button, touch or placing weight |
 | hold 3 s | switch off (a ring shows the progress, releasing cancels) |
 
@@ -297,7 +321,7 @@ Esp_Scale/
 │   ├── i18n*                        English translations of the German UI
 │   └── (Waveshare driver files)
 ├── lv_conf.h                        LVGL configuration used by the CI build
-├── docs/images/                     pictures for this README (logo: logo.svg, logo-wordmark-*.svg)
+├── docs/images/                     pictures for this README (heroes, photos, Fusion renderings, logo)
 └── GITHUB.md                        release setup guide (German)
 ```
 

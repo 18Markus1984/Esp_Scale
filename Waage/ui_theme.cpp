@@ -3,20 +3,46 @@
 #include <string.h>
 
 ui_scheme_t g_scheme;
-static const uint32_t SCHEMES[2][5] = {
-  // Akzent,  Schrift darauf, Kachel-Symbol, Setup-Wert, Untertitel gewählt
-  { 0x3DDC97, 0x0B1F16, 0x3DDC97, 0x3DDC97, 0x1D4D38 },  // Grün
-  { 0xF4F4F1, 0x0A0A0A, 0xF4F4F1, 0xC4C4C0, 0x55554F },  // Weiß
+// Farbschemata: die Akzentfarbe passt zur Farbe der gedruckten Gehäuseteile.
+// Grün ist der Standard, Weiß der Sonderfall (Werte in Hellgrau statt Weiß).
+// Index = gespeicherter Wert (g_set.theme), Reihenfolge nicht ändern.
+typedef struct {
+  const char *name;
+  uint32_t accent, on_accent, value, sub_sel;
+  bool warn_filled;  // Gelb/Orange/Weiß: Warnknöpfe nur umranden, sonst verwechselbar
+} scheme_def_t;
+static const scheme_def_t SCHEMES[THEME_COUNT] = {
+  // Name       Akzent    Schrift   Setup-Wert Untertitel gewählt
+  { "Grün",    0x3DDC97, 0x0B1F16, 0x3DDC97, 0x1D4D38, true },
+  { "Weiß",    0xF4F4F1, 0x0A0A0A, 0xC4C4C0, 0x55554F, false },
+  { "Blau",    0x4DA8FF, 0x0A1723, 0x4DA8FF, 0x1A3A59, true },
+  { "Violett", 0xA68CFF, 0x171323, 0xA68CFF, 0x3A3159, true },
+  { "Pink",    0xFF7AB8, 0x231119, 0xFF7AB8, 0x592A40, true },
+  { "Orange",  0xFF9A3C, 0x231508, 0xFF9A3C, 0x593515, false },
+  { "Gelb",    0xFFD84A, 0x231E0A, 0xFFD84A, 0x594B19, false },
+  { "Rot",     0xFF5C5C, 0x230C0C, 0xFF5C5C, 0x592020, true },
 };
 
+static int theme_idx(int theme) {
+  return (theme >= 0 && theme < THEME_COUNT) ? theme : THEME_GREEN;
+}
+
 void ui_theme_set(int theme) {
-  const uint32_t *c = SCHEMES[theme == THEME_WHITE ? 1 : 0];
-  g_scheme.accent = lv_color_hex(c[0]);
-  g_scheme.on_accent = lv_color_hex(c[1]);
-  g_scheme.icon = lv_color_hex(c[2]);
-  g_scheme.value = lv_color_hex(c[3]);
-  g_scheme.sub_sel = lv_color_hex(c[4]);
-  g_scheme.warn_filled = theme != THEME_WHITE;
+  const scheme_def_t &c = SCHEMES[theme_idx(theme)];
+  g_scheme.accent = lv_color_hex(c.accent);
+  g_scheme.on_accent = lv_color_hex(c.on_accent);
+  g_scheme.icon = lv_color_hex(c.accent);
+  g_scheme.value = lv_color_hex(c.value);
+  g_scheme.sub_sel = lv_color_hex(c.sub_sel);
+  g_scheme.warn_filled = c.warn_filled;
+}
+
+const char *ui_theme_name(int theme) {
+  return SCHEMES[theme_idx(theme)].name;
+}
+
+lv_color_t ui_theme_color(int theme) {
+  return lv_color_hex(SCHEMES[theme_idx(theme)].accent);
 }
 
 lv_obj_t *ui_screen_create() {

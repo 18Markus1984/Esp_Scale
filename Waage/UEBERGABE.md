@@ -334,6 +334,26 @@ nicht über die Bildschirm-Überblendung (die erzeugt helle Kästen). `BRIGHT_ON
 eingebettet (Data-URI, kein zusätzlicher Pfad am Server). README zeigt oben das Logo mit Schriftzug
 (`docs/images/logo*.svg`, hell/dunkel per `<picture>`).
 
+**Farben, Auto-Tara negativ, Einschalten, README-Fotos (05.10.2026):**
+- **Farbe:** Setup -> Waage -> Farbe öffnet jetzt eine Auswahlliste mit Farbpunkten: Grün (Standard),
+  Weiß, Blau, Violett, Pink, Orange, Gelb, Rot (Index = `g_set.theme`, Reihenfolge nicht ändern).
+  Tabelle `SCHEMES` in ui_theme.cpp (Akzent, Schrift darauf, Setup-Wert, Untertitel gewählt,
+  Warnknöpfe gefüllt/umrandet; bei Weiß, Gelb und Orange nur umrandet, sonst mit Gelb verwechselbar).
+  Startbild/Logo (Bilder nur Deckkraft, Farbe = C_ACCENT), Ring, Knöpfe, Auswahl folgen automatisch;
+  das Browser-Symbol (Favicon) färbt `setTheme()` in page.html ebenfalls um. Web: `THEMES` in page.html setzt die
+  CSS-Variablen (--acc, --on-acc, --acc2, --accbg, --accbd, --bar, --accsh), Weiß bleibt
+  `html[data-theme=w]`. Rot liegt nah an der Fehlerfarbe (#FF6B5E) – bewusst trotzdem angeboten.
+- **Auto-Tara bei negativem Wert** (`neg_tare_check()` in ui.cpp, nur Wiegeseite): Netto < −1 g,
+  Brutto < 3 g (Waage wirklich leer), ruhig, kein Topf/Countdown/Schätzspiel -> nach 3 s Tara mit
+  Ton und „Tara gesetzt“. Liegt noch etwas auf (z. B. Glas, aus dem entnommen wird), bleibt der
+  Minuswert stehen. Getestet im Simulator (Schüssel ab -> 0,0; 800 g tariert, 200 g entnommen -> −200).
+- **Einschalten:** `early_power_hold()` in hal_board.cpp (Konstruktor, Priorität 101) setzt GPIO7
+  schon vor `initArduino()` (dort PSRAM-Init mit Speichertest) auf HIGH. Vorher erst in `setup()`.
+  Der ROM-/2nd-Stage-Bootloader davor bleibt; am Gerät noch zu messen, wie kurz der Druck jetzt sein darf.
+- **README:** neues Hero-Bild aus dem echten Foto (docs/images/hero.jpg, Logo F1 + Schriftzug links),
+  drei Fotos aus der Küche unter der Einleitung, Innenleben unter „Hardware“. Fotos zugeschnitten,
+  leicht entsättigt/kontrastiert und mit Vignette; Markenprodukte im Hintergrund weggeschnitten.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

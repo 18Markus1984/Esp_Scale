@@ -51,7 +51,8 @@ LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 
 // Grundfarben: schwarzer Hintergrund, weiße Schrift, Gelb/Rot nur für Warnungen.
 // Die Akzentfarbe (Knöpfe, Auswahl, Ring, "stabil" …) kommt aus dem Farbschema:
-// "Grün" (Standard) oder "Weiß" (alles in Weiß, passend zur Gehäuseoberseite).
+// Grün (Standard), Weiß oder eine weitere Farbe passend zu den gedruckten Gehäuseteilen
+// (Setup -> Waage -> Farbe). Tabelle in ui_theme.cpp.
 #define C_BG        lv_color_hex(0x090909)
 #define C_TEXT      lv_color_hex(0xF4F4F1)
 #define C_TEXT2     lv_color_hex(0xC4C4C0)
@@ -66,12 +67,15 @@ typedef struct {
   lv_color_t icon;       // Symbole der Setup-Kacheln
   lv_color_t value;      // Werte rechts in den Setup-Zeilen
   lv_color_t sub_sel;    // Untertitel im gewählten Listeneintrag
-  bool warn_filled;      // Warnknöpfe gelb gefüllt (Grün) oder nur umrandet (Weiß)
+  bool warn_filled;      // Warnknöpfe gelb gefüllt oder nur umrandet (bei Weiß, Gelb, Orange)
 } ui_scheme_t;
 extern ui_scheme_t g_scheme;
 #define THEME_GREEN 0
 #define THEME_WHITE 1
+#define THEME_COUNT 8  // Grün, Weiß, Blau, Violett, Pink, Orange, Gelb, Rot
 void ui_theme_set(int theme);  // Farben setzen (Seiten danach neu aufbauen)
+const char *ui_theme_name(int theme);   // deutscher Name, für die Anzeige mit T() übersetzen
+lv_color_t  ui_theme_color(int theme);  // Akzentfarbe des Schemas
 
 #define C_ACCENT     (g_scheme.accent)
 #define C_ON_ACCENT  (g_scheme.on_accent)
