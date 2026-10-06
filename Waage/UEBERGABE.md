@@ -354,6 +354,12 @@ eingebettet (Data-URI, kein zusätzlicher Pfad am Server). README zeigt oben das
   drei Fotos aus der Küche unter der Einleitung, Innenleben unter „Hardware“. Fotos zugeschnitten,
   leicht entsättigt/kontrastiert und mit Vignette; Markenprodukte im Hintergrund weggeschnitten.
 
+**Zählen (06.10.2026):** Jede neue Stückzahl, die 1,5 s ruhig liegt, wird einmal ins Protokoll
+geschrieben und angesagt (vorher nur einmal pro Auflegen über `track_update()`, beim Nachlegen kam
+nichts mehr). Gleiche Zahl = keine Wiederholung; nach dem Leeren wird wieder angesagt. Simulator:
+`SPKDBG=1 ./sim de` zeigt die Ansagen (10 -> 15 -> 20 -> leer -> 5).
+GitHub-Workflow läuft fest auf `ubuntu-24.04` statt `ubuntu-latest`.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/hero-ui.png" alt="ESP Scale user interface: weighing screen with precision mode, portioning and the half-and-half game" width="100%">
+  <img src="docs/images/hero-ui.png" alt="20+ modes on one round touch display: precision weighing, portioning and the half-and-half game" width="100%">
 </p>
 
 <p align="center">
@@ -26,11 +26,11 @@ interface is served by the scale itself. New firmware is built by GitHub Actions
 The whole UI is available in **English and German** (display, web interface and voice output).
 
 <p align="center">
-  <img src="docs/images/real-pour.jpg" alt="Pouring water into a mixing bowl on the scale" width="32%">
-  <img src="docs/images/real-front.jpg" alt="Front view: white platter, black housing, round display and power button" width="32%">
-  <img src="docs/images/real-angle.jpg" alt="The scale on a stone kitchen counter" width="32%">
+  <img src="docs/images/real-pour.jpg" alt="Kitchen: pouring water into a mixing bowl on the scale" width="32%">
+  <img src="docs/images/real-workshop.jpg" alt="Workshop: counting screws in a parts bin, the display shows 63 pieces" width="32%">
+  <img src="docs/images/real-party.jpg" alt="Games: the scale in colourful party light showing the blind-pour leaderboard" width="32%">
 </p>
-<p align="center"><sub>The prototype: 3D-printed housing in black and white, round display set into the front panel.</sub></p>
+<p align="center"><sub>Kitchen · Workshop · Games – the 3D-printed prototype in all three mode groups.</sub></p>
 
 ---
 

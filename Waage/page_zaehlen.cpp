@@ -9,6 +9,7 @@
 #include "ble_kbd.h"
 #include "sound.h"
 #include "data.h"
+#include "hal.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -110,6 +111,8 @@ static lv_obj_t *zc_bt, *zc_count, *zc_info, *zc_toast;
 static lv_timer_t *zc_timer;
 static int zc_prev_bt, zc_prev_unsure;
 static int zc_last_count;
+static int zc_done_count = -1;      // zuletzt mitgeschriebene/angesagte Stückzahl
+static uint32_t zc_stable_since = 0;
 
 static void zc_ref_cb(lv_event_t *e) {
   ui_switch_page(page_ref_create());
@@ -151,8 +154,28 @@ static void zc_timer_cb(lv_timer_t *t) {
   snprintf(b, sizeof(b), "%d", count);
   ui_label_update(zc_count, b);
 
-  snprintf(b, sizeof(b), T("Zählen: %d Stk"), count);  // automatisch mitschreiben
-  if (track_update(scale_net(), scale_stable(), b)) ui_toast_show(zc_toast, "Im Protokoll gespeichert", C_ACCENT);
+  // Jede neue, ruhig liegende Stückzahl einmal mitschreiben und ansagen.
+  // Beim Zählen wird meist nachgelegt, ohne die Waage zu leeren – deshalb nicht
+  // nur einmal pro Auflegen (wie auf der Wiegeseite), sondern bei jeder Änderung.
+  {
+    float net = scale_net();
+    uint32_t now = hal_millis();
+    if (fabsf(net) < 3.0f) {           // leer: nächste Zahl wieder ansagen
+      zc_done_count = -1;
+      zc_stable_since = 0;
+    } else if (!scale_stable() || count <= 0 || count == zc_done_count) {
+      zc_stable_since = 0;
+    } else {
+      if (zc_stable_since == 0) zc_stable_since = now;
+      if (now - zc_stable_since >= 1500) {
+        zc_done_count = count;
+        zc_stable_since = 0;
+        snprintf(b, sizeof(b), T("Zählen: %d Stk"), count);
+        if (log_add(net, b)) ui_toast_show(zc_toast, "Im Protokoll gespeichert", C_ACCENT);
+        sound_speak_count(count);
+      }
+    }
+  }
 
   // Liegt das Gewicht deutlich zwischen zwei Stückzahlen?
   int unsure = (count > 0 && fabsf(pieces - count) > UNSICHER_ANTEIL) ? 1 : 0;
@@ -212,6 +235,8 @@ static lv_obj_t *page_count_create() {
   zc_prev_bt = -1;
   track_reset();
   zc_prev_unsure = -1;
+  zc_done_count = -1;  // beim Öffnen die aktuelle Stückzahl einmal ansagen
+  zc_stable_since = 0;
   zc_timer = ui_page_timer(s, zc_timer_cb, 100);
   zc_timer_cb(NULL);
   return s;

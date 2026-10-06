@@ -621,7 +621,7 @@ static bool pack_ok_host(const char *pack) {
 }
 bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }
 void sound_speak_weight(float grams, int unit) { (void)grams; (void)unit; }
-void sound_speak_count(int pieces) { (void)pieces; }
+void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
