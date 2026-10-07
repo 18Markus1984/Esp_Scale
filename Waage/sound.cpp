@@ -57,6 +57,7 @@ const char *scheme_name(int scheme) {
 // ============================================================
 #include <Arduino.h>
 #include <ESP_I2S.h>
+#include "sound_swell.h"
 #include <FS.h>
 #include <SD_MMC.h>
 #include "storage.h"
@@ -89,9 +90,8 @@ static const tone_step_t N_DONE[]     = { { 1320, 90 }, { 1760, 90 }, { 2090, 90
 static const tone_step_t N_PARK[]     = { { 1760, 40 }, { 0, 0 } };
 static const tone_step_t N_REACHED[]  = { { 2090, 600 }, { 0, 0 } };
 static const tone_step_t N_TEST[]     = { { 1760, 150 }, { 0, 0 } };
-// Ein-/Ausschalten: weich, drei Töne auf- bzw. absteigend (G5 – D6 – G6)
-static const tone_step_t N_PWR_ON[]   = { { 784, 90 }, { 1175, 90 }, { 1568, 200 }, { 0, 0 } };
-static const tone_step_t N_PWR_OFF[]  = { { 1568, 90 }, { 1175, 90 }, { 784, 200 }, { 0, 0 } };
+// Ein-/Ausschalten: keine Tonfolge, sondern ein weicher Akkord (sound_swell.h)
+static const tone_step_t N_SWELL[]    = { { 0, 0 } };
 static const tone_step_t N_DRUM[]     = { { 180, 25 }, { 0, 35 }, { 180, 25 }, { 0, 35 }, { 200, 25 }, { 0, 30 },
                                           { 200, 25 }, { 0, 30 }, { 220, 25 }, { 0, 25 }, { 240, 25 }, { 0, 25 },
                                           { 260, 25 }, { 0, 20 }, { 280, 25 }, { 0, 20 }, { 1320, 90 }, { 1760, 90 },
@@ -110,7 +110,7 @@ static const snd_def_t DEFS[] = {
   { N_TICK, CAT_CLICK, false },    { N_POT, CAT_SIGNAL, false },   { N_DONE, CAT_LONG, false },
   { N_PARK, CAT_CLICK, true },     { N_REACHED, CAT_LONG, true },  { N_TEST, CAT_SIGNAL, true },
   { N_DRUM, CAT_LONG, false },
-  { N_PWR_ON, CAT_LONG, true },    { N_PWR_OFF, CAT_LONG, true },
+  { N_SWELL, CAT_LONG, true },     { N_SWELL, CAT_LONG, true },
 };
 
 // Nachricht an den Ton-Task
@@ -322,6 +322,22 @@ static void add_number(msg_t *m, int n) {
 
 // ------------------------------------------------------------
 //  Task
+// Weicher Akkord zum Ein-/Ausschalten (Hüllkurven siehe sound_swell.h)
+static_assert(RATE == SWELL_RATE, "sound_swell.h rechnet mit derselben Abtastrate");
+static void play_swell(const swell_t *sw, cat_t cat) {
+  static swell_state_t st;
+  static float f[256];
+  static int16_t buf[256 * 2];
+  float amp = scheme_amp(cat);
+  swell_start(&st, sw);
+  int n;
+  while ((n = swell_render(&st, f, 256)) > 0) {
+    if (s_abort) return;
+    for (int i = 0; i < n; i++) buf[2 * i] = buf[2 * i + 1] = (int16_t)(f[i] * amp);
+    s_i2s.write((uint8_t *)buf, n * 4);
+  }
+}
+
 // ------------------------------------------------------------
 static bool voice_check();
 
@@ -335,7 +351,10 @@ static void sound_task(void *arg) {
       s_abort = false;
       const snd_def_t *d = &DEFS[snd];
       s_playing_long = d->cat == CAT_LONG;
-      for (const tone_step_t *n = d->pat; n->ms; n++) play_note(n->freq, n->ms, d->cat);
+      if (snd == SND_POWER_ON) play_swell(&SWELL_ON, d->cat);
+      else if (snd == SND_POWER_OFF) play_swell(&SWELL_OFF, d->cat);
+      else
+        for (const tone_step_t *n = d->pat; n->ms; n++) play_note(n->freq, n->ms, d->cat);
       play_note(0, 15, d->cat);
       s_playing_long = false;
     } else if (xQueueReceive(s_speechq, &m, 0) == pdTRUE) {

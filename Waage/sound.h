@@ -29,8 +29,8 @@ typedef enum {
   SND_REACHED,
   SND_TEST,
   SND_DRUM,
-  SND_POWER_ON,  // Einschalten: aufsteigend, Taste darf jetzt los
-  SND_POWER_OFF  // Ausschalten: absteigend
+  SND_POWER_ON,  // Einschalten: Akkord blüht langsam auf (2,4 s), Taste darf jetzt los
+  SND_POWER_OFF  // Ausschalten: derselbe Akkord verglüht (1,2 s)
 } sound_t;
 
 // Tonschema (Einstellung "Ton")
