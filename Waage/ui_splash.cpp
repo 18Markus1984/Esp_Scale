@@ -2,6 +2,7 @@
 #include "ui_theme.h"
 #include "ui_power.h"
 #include "hal.h"
+#include "sound.h"
 
 LV_IMG_DECLARE(img_splash_logo);
 LV_IMG_DECLARE(img_splash_glow);
@@ -93,6 +94,10 @@ void ui_splash_start(void (*done)()) {
 
   lv_scr_load_anim(s_scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
   lv_refr_now(NULL);  // erstes Bild (schwarz) zeichnen, bevor das Licht angeht
+  // Einschaltklang genau mit der Animation starten: Er blüht mit dem Leuchten
+  // auf (Spitze nach ≈0,8 s). Vorher in setup() kam er zu früh, weil ui_init()
+  // (SD, Stimme, WLAN, Wägezelle) einige Sekunden braucht.
+  sound_play(SND_POWER_ON);
   s_t0 = hal_millis();
   s_timer = lv_timer_create(splash_tick, 16, NULL);
 }

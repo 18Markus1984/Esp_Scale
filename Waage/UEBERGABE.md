@@ -368,11 +368,18 @@ Zeit & Funk ist entfallen (ID 13 bleibt ungenutzt), „Dateien ›“ unter Waag
 der letzten Ansage um mehr als max(1 g, 0,5 %), wird es neu angesagt (`speak_change_g()`), z. B. beim
 Nachfüllen in einen per Auto-Tara erkannten Topf. Simulator: `SPKDBG=1` (Topf -> +200 -> +200).
 
-**Ein-/Ausschalt-Ton (07.10.2026):** `SND_POWER_ON` (G5–D6–G6 aufsteigend) direkt in `setup()` nach
-`Driver_Init()`: `settings_load()` + `sound_begin()` laufen dort schon einmal, damit der Ton kommt, bevor
-Display und LVGL starten – Signal „Taste darf los“. `sound_begin()` ist jetzt mehrfach aufrufbar (der
-Aufruf in `ui_init()` sucht nur noch die Stimme neu, wenn die SD-Karte bereit ist). Ausschalten spielt
-`SND_POWER_OFF` (absteigend) statt des Überlast-Tons. Beide auch im Schema „Minimal“, bei Lautstärke 0 still.
+**Ein-/Ausschalt-Ton (07.10.2026):** `SND_POWER_ON` startet in `ui_splash_start()` direkt vor `s_t0`,
+also gleichzeitig mit der Startanimation (Markus' Test: aus `setup()` heraus kam er zu früh, weil `ui_init()`
+mit SD, Stimme, WLAN und Wägezelle einige Sekunden braucht). `sound_begin()` ist mehrfach aufrufbar.
+Längeres Halten der Taste beim Einschalten schadet nicht (`s_ignore_press`). Ausschalten spielt
+`SND_POWER_OFF` statt des Überlast-Tons. Beide auch im Schema „Minimal“, bei Lautstärke 0 still.
+Klang (Markus' Wahl: Variante A „Aufblühen“): keine Tonfolge, sondern ein Akkord aus Sinus-Teiltönen
+mit eigener Hüllkurve, `sound_swell.h` (plattformunabhängig, Werte + Normierung dort). Ein: G4–D5–G5–H5
+schwellen gestaffelt an (Spitze nach ≈0,8 s, passend zum Leuchten), Funke G6 bei 0,8 s, Länge 2,4 s.
+Aus „Verglühen“: derselbe Akkord, oben zuerst verklingend, 1,2 s; deshalb gibt `ui_power.cpp` den Akku
+erst nach `OFF_RELEASE_MS` = 1300 ms frei (vorher 400). `play_swell()` in `sound.cpp`, CAT_LONG (wird
+nicht von Klicks abgebrochen). Schema „Sanft“ nur leiser, „Retro“ bleibt Sinus. Die Normierung wurde mit
+einem Host-Test gemessen (C-Ausgabe = Hörprobe, max. Abweichung < 0,1 %).
 
 ## 6. Offene Punkte
 

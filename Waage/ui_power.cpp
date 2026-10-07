@@ -13,6 +13,7 @@
 
 #define SHORT_MAX_MS 800     // bis hier: kurzer Druck
 #define OFF_HOLD_MS 3000     // so lange halten zum Ausschalten
+#define OFF_RELEASE_MS 1300  // Akku erst nach dem Ausschaltklang (1,2 s) freigeben
 #define BRIGHT_STANDBY 8     // Helligkeit der Standby-Uhr (%)
 #define WAKE_WEIGHT_G 5.0f   // so viel Gewichtsänderung weckt auf
 #define OFF_WARN_S 15        // so lange vor dem Auto-Aus warnen
@@ -205,7 +206,7 @@ void ui_power_tick() {
 
   // Ausgeschaltet: Akku freigeben. Läuft die Waage danach noch, hängt sie am USB.
   if (s_state == P_OFF) {
-    if (!s_released && now - s_off_at > 400) {
+    if (!s_released && now - s_off_at > OFF_RELEASE_MS) {  // erst nach dem Ausschaltklang
       hal_power_hold(false);
       s_released = true;
     }

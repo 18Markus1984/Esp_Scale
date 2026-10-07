@@ -179,7 +179,7 @@ Im Gehäuse ist ein externer Mikrotaster (6 × 6 × 10 mm) parallel zur PWR-Tast
 gelötet. Er verhält sich genau wie die Taste auf der Platine.
 
 Der Akku bleibt dauerhaft angeschlossen, geschaltet wird über die PWR-Taste:
-- **Einschalten:** PWR-Taste drücken, bis der Einschaltklang beginnt, dann loslassen.
+- **Einschalten:** PWR-Taste drücken, bis das Logo aufleuchtet und der Einschaltklang beginnt.
   Die Software hält die Versorgung danach selbst (GPIO7).
 - **Kurz drücken:** Standby mit gedimmter Uhr. Aufwecken per Taste, Antippen oder
   Gewicht auflegen.
