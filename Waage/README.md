@@ -12,7 +12,7 @@ die vielen Seiten nicht. In `libraries/lvgl/src/lv_conf.h` diese Zeile ändern:
 Dann nutzt LVGL den normalen Heap des ESP32. Ohne die Änderung bricht das
 Kompilieren mit einem Hinweis ab.
 
-Für den QR-Code (Setup → Weboberfläche) in derselben Datei außerdem:
+Für den QR-Code (System → Weboberfläche) in derselben Datei außerdem:
 
     #define LV_USE_QRCODE 1
 
@@ -313,7 +313,7 @@ Die Messmittelprüfung zeigt an Waage und Browser das Live-Gewicht und übernimm
 Wert automatisch nach 0,8 s Ruhe oder von Hand über „Übernehmen“ – so hängt sie nicht
 an der Stabilitätserkennung fest.
 
-Setup -> Zeit & WLAN -> Weboberfläche -> „Starten“. Die Waage verbindet sich mit
+Startseite nach links wischen bis „System“ -> „Weboberfläche“ antippen (startet sofort). Die Waage verbindet sich mit
 dem gespeicherten WLAN (`http://waage.local`) oder macht ohne Heimnetz ein eigenes
 WLAN „Waage-Setup“ auf (Adresse steht dann auf dem Display). Nach **10 Minuten ohne
 Zugriff** schaltet sich der Server samt WLAN selbst ab; solange die Seite offen ist,
@@ -453,7 +453,7 @@ Vier Gruppen als Kacheln:
   Auto-Speichern (einmal pro Auflegen, wenn das Gewicht 2 s ruhig liegt, ab 5 g),
   Auto-Weiter (Rezept und Cocktail schalten selbst weiter, wenn die Menge
   erreicht ist und ruhig liegt), Zur Wiegeseite, Auto-Tara, Auto-Aus.
-- **Zeit & Funk:** Uhrzeit, Datum, WLAN, Weboberfläche, Bluetooth.
+- **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth. Die Weboberfläche steht jetzt ganz oben in der Systemliste.
 - **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprachbefehle.
 - **Waage:** Kalibrierung, Libelle, Portoklassen.
 

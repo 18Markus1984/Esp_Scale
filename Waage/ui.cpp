@@ -70,6 +70,7 @@ static const ui_list_item_t GROUP_SPIELE[] = {
 };
 
 static const ui_list_item_t SYSTEM_ITEMS[] = {
+  { "Weboberfläche", "Bedienen mit dem Handy", ICON_WEB },  // oben: kleines Display -> schnell zum Handy
   { "Protokoll", "Heutige Wägungen", ICON_PROTOKOLL },
   { "Töpfe", "Verwalten", ICON_TOEPFE },
   { "Wasserwaage", "Lage prüfen", ICON_LIBELLE },
@@ -92,6 +93,7 @@ static const page_create_fn *const GROUP_PAGES[] = { PAGES_KUECHE, PAGES_WERKSTA
 static const int GROUP_COUNT[] = { 6, 6, 4 };
 
 static const page_create_fn SYSTEM_PAGES[] = {
+  page_web_quick_create,  // Weboberfläche (startet sie gleich)
   page_protokoll_create,  // Protokoll
   page_toepfe_create,     // Töpfe
   page_level_create,      // Wasserwaage
@@ -211,14 +213,22 @@ static void tara_cb(lv_event_t *e) {
 
 // Ansage-Zustand der Wiegeseite (siehe speak_check)
 static uint32_t sp_stable_since = 0;
-static bool sp_done = false;  // Gewicht dieser Auflage schon angesagt/eingereiht
+static bool sp_done = false;  // aktuelles Gewicht schon angesagt/eingereiht
+static float sp_spoken_g = 0;  // zuletzt angesagtes Gewicht
+// Ab dieser Änderung gilt das Gewicht als neu und wird wieder angesagt
+// (z. B. Nachfüllen in einen erkannten Topf). Mindestens 1 g bzw. 0,5 %.
+static float speak_change_g(float g) {
+  float d = fabsf(g) * 0.005f;
+  return d > 1.0f ? d : 1.0f;
+}
 
 // Nach dem Speichern: Wurde das Gewicht gerade schon angesagt, nur noch
 // "gespeichert" – sonst Gewicht + "gespeichert" in einem Satz.
 static void speak_saved(float g) {
   if (g_set.speak && !sp_done) {
     sound_speak_weight_word(g, g_set.unit, "gespeichert");
-    sp_done = true;  // speak_check sagt dieselbe Auflage nicht noch einmal an
+    sp_done = true;  // speak_check sagt dasselbe Gewicht nicht noch einmal an
+    sp_spoken_g = g;
   } else {
     sound_speak_word("gespeichert");
   }
@@ -491,6 +501,12 @@ static void speak_check() {
     return;
   }
   sp_empty_since = 0;
+  // Gewicht hat sich seit der letzten Ansage deutlich geändert (nachgelegt,
+  // nachgefüllt, etwas entnommen)? Dann das neue Gewicht wieder ansagen.
+  if (sp_done && fabsf(net - sp_spoken_g) > speak_change_g(sp_spoken_g)) {
+    sp_done = false;
+    sp_stable_since = 0;
+  }
   if (!g_set.speak || sp_done || cd_active || fabsf(net) < 2.0f) return;
   if (!scale_stable()) {
     sp_stable_since = 0;
@@ -500,6 +516,7 @@ static void speak_check() {
   if (sp_stable_since == 0) sp_stable_since = now;
   if (now - sp_stable_since < 1500) return;
   sp_done = true;
+  sp_spoken_g = net;
   sound_speak_weight(net, g_set.unit);
 }
 

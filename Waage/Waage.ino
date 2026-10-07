@@ -11,6 +11,8 @@
 #include "BAT_Driver.h"
 #include "ui.h"
 #include "hal.h"
+#include "settings.h"
+#include "sound.h"
 
 // Sensoren laufen in einem eigenen Task auf Kern 0,
 // die Oberfläche läuft in loop() auf Kern 1.
@@ -49,6 +51,11 @@ void setup() {
   // sobald die PWR-Taste nach dem Einschalten losgelassen wird.
   hal_power_hold(true);
   Driver_Init();
+  // Einschalt-Ton so früh wie möglich: Die Versorgung hält jetzt selbst,
+  // der Ton sagt „Taste darf los“. Lautstärke und Tonschema aus den Einstellungen.
+  settings_load();
+  sound_begin();
+  sound_play(SND_POWER_ON);
   LCD_Init();
   Lvgl_Init();
   ui_init();

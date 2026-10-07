@@ -360,6 +360,20 @@ nichts mehr). Gleiche Zahl = keine Wiederholung; nach dem Leeren wird wieder ang
 `SPKDBG=1 ./sim de` zeigt die Ansagen (10 -> 15 -> 20 -> leer -> 5).
 GitHub-Workflow läuft fest auf `ubuntu-24.04` statt `ubuntu-latest`.
 
+**Weboberfläche schneller erreichbar (07.10.2026):** erster Eintrag der Systemliste (dritte Seite der
+Startseite, Symbol Smartphone U+E7BA neu in font_icons_26). `page_web_quick_create()` startet die
+Weboberfläche sofort; „Fertig“ führt dann zur Wiegeseite (`wb_from_system`). Die Zeile in Setup ->
+Zeit & Funk ist entfallen (ID 13 bleibt ungenutzt), „Dateien ›“ unter Waage führt weiter dorthin.
+**Ansage auf der Wiegeseite:** nicht mehr nur einmal pro Auflegen. Ändert sich das ruhige Gewicht seit
+der letzten Ansage um mehr als max(1 g, 0,5 %), wird es neu angesagt (`speak_change_g()`), z. B. beim
+Nachfüllen in einen per Auto-Tara erkannten Topf. Simulator: `SPKDBG=1` (Topf -> +200 -> +200).
+
+**Ein-/Ausschalt-Ton (07.10.2026):** `SND_POWER_ON` (G5–D6–G6 aufsteigend) direkt in `setup()` nach
+`Driver_Init()`: `settings_load()` + `sound_begin()` laufen dort schon einmal, damit der Ton kommt, bevor
+Display und LVGL starten – Signal „Taste darf los“. `sound_begin()` ist jetzt mehrfach aufrufbar (der
+Aufruf in `ui_init()` sucht nur noch die Stimme neu, wenn die SD-Karte bereit ist). Ausschalten spielt
+`SND_POWER_OFF` (absteigend) statt des Überlast-Tons. Beide auch im Schema „Minimal“, bei Lautstärke 0 still.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

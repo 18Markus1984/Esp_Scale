@@ -43,6 +43,7 @@ LV_FONT_DECLARE(font_sg_34);
 #define ICON_BLIND     "\xEE\x9E\x98"  // water_drop (U+E798)
 #define ICON_HALB      "\xEE\x85\x8E"  // content_cut (U+E14E)
 #define ICON_TON_AUS   "\xEE\x81\x8F"  // volume_off (U+E04F)
+#define ICON_WEB       "\xEE\x9E\xBA"  // smartphone (U+E7BA)
 #define ICON_SPRUECHE  "\xEE\xA4\x9F"  // record_voice_over (U+E91F)
 
 LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen

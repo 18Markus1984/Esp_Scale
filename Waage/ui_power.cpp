@@ -97,7 +97,7 @@ static void power_off() {
   show(o_hold, false);
   show(o_standby, false);
   show(o_off, true);
-  sound_play(SND_OVERLOAD);
+  sound_play(SND_POWER_OFF);
   s_off_at = hal_millis();
   s_released = false;
 }

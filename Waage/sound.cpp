@@ -89,6 +89,9 @@ static const tone_step_t N_DONE[]     = { { 1320, 90 }, { 1760, 90 }, { 2090, 90
 static const tone_step_t N_PARK[]     = { { 1760, 40 }, { 0, 0 } };
 static const tone_step_t N_REACHED[]  = { { 2090, 600 }, { 0, 0 } };
 static const tone_step_t N_TEST[]     = { { 1760, 150 }, { 0, 0 } };
+// Ein-/Ausschalten: weich, drei Töne auf- bzw. absteigend (G5 – D6 – G6)
+static const tone_step_t N_PWR_ON[]   = { { 784, 90 }, { 1175, 90 }, { 1568, 200 }, { 0, 0 } };
+static const tone_step_t N_PWR_OFF[]  = { { 1568, 90 }, { 1175, 90 }, { 784, 200 }, { 0, 0 } };
 static const tone_step_t N_DRUM[]     = { { 180, 25 }, { 0, 35 }, { 180, 25 }, { 0, 35 }, { 200, 25 }, { 0, 30 },
                                           { 200, 25 }, { 0, 30 }, { 220, 25 }, { 0, 25 }, { 240, 25 }, { 0, 25 },
                                           { 260, 25 }, { 0, 20 }, { 280, 25 }, { 0, 20 }, { 1320, 90 }, { 1760, 90 },
@@ -107,6 +110,7 @@ static const snd_def_t DEFS[] = {
   { N_TICK, CAT_CLICK, false },    { N_POT, CAT_SIGNAL, false },   { N_DONE, CAT_LONG, false },
   { N_PARK, CAT_CLICK, true },     { N_REACHED, CAT_LONG, true },  { N_TEST, CAT_SIGNAL, true },
   { N_DRUM, CAT_LONG, false },
+  { N_PWR_ON, CAT_LONG, true },    { N_PWR_OFF, CAT_LONG, true },
 };
 
 // Nachricht an den Ton-Task
@@ -348,6 +352,11 @@ static void sound_task(void *arg) {
 }
 
 void sound_begin() {
+  if (s_task) {  // läuft schon (früh beim Einschalten gestartet): nur die Stimme neu suchen
+    s_voice = voice_check();
+    printf("Sound: Stimme %s\r\n", s_voice ? "gefunden" : "nicht gefunden");
+    return;
+  }
   s_i2s.setPins(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
   if (!s_i2s.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO)) {
     printf("Sound: I2S-Start fehlgeschlagen\r\n");
@@ -620,7 +629,7 @@ static bool pack_ok_host(const char *pack) {
   return storage_exists(path);
 }
 bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }
-void sound_speak_weight(float grams, int unit) { (void)grams; (void)unit; }
+void sound_speak_weight(float grams, int unit) { (void)unit; if (getenv("SPKDBG")) printf("ANSAGE %.1f g\n", grams); }  // Testumgebung
 void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }

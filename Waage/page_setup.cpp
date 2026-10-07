@@ -33,6 +33,7 @@ static lv_obj_t *page_date_create();
 static lv_obj_t *page_wlan_create();
 static lv_obj_t *page_scan_create();
 static lv_obj_t *page_web_create();
+static bool wb_from_system = false;  // Weboberfläche über die Systemliste geöffnet (Fertig -> Wiegeseite)
 
 lv_obj_t *page_setup_back();
 
@@ -293,7 +294,7 @@ static void row_cb(lv_event_t *e) {
     case 10: ui_switch_page(page_time_create()); return;
     case 11: ui_switch_page(page_date_create()); return;
     case 12: ui_switch_page(page_wlan_create()); return;
-    case 13: ui_switch_page(page_web_create()); return;
+    case 13: wb_from_system = false; ui_switch_page(page_web_create()); return;
     case 14: ui_switch_page(page_bluetooth_setup_create()); return;
     case 20: ui_switch_page(page_sound_create()); return;
     case 21:
@@ -327,7 +328,7 @@ static void row_cb(lv_event_t *e) {
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
     case 34: ui_switch_page(page_display_create()); return;
     case 37: ui_switch_page(page_color_pick_create()); return;  // Farbschema wählen
-    case 35: ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
+    case 35: wb_from_system = false; ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
       g_set.lang = g_set.lang == LANG_EN ? LANG_DE : LANG_EN;
@@ -360,7 +361,7 @@ static void cat_timer_cb(lv_timer_t *t) {
 static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][8] = {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
-    { "Uhrzeit", "Datum", "WLAN", "Weboberfläche", "Bluetooth", NULL, NULL, NULL },
+    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
     { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
   };
@@ -368,7 +369,7 @@ static lv_obj_t *page_cat_create(int cat) {
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
   static const int8_t IDS[4][8] = {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
-    { 10, 11, 12, 13, 14, -1, -1, -1 },
+    { 10, 11, 12, 14, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste
     { 20, 21, 22, 23, 24, 25, 26, -1 },
     { 30, 31, 32, 33, 34, 37, 35, 36 },
   };
@@ -1098,10 +1099,22 @@ static lv_obj_t *page_web_create() {
   wb_btn = ui_btn(row, "Starten", BTN_PRIMARY);
   lv_obj_add_event_cb(wb_btn, wb_btn_cb, LV_EVENT_CLICKED, NULL);
 
-  done_btn(s, 144);
+  lv_obj_t *done = done_btn(s, 144);
+  if (wb_from_system) {  // aus der Systemliste geöffnet: Fertig führt zur Wiegeseite
+    lv_obj_remove_event_cb(done, back_to_setup_cb);
+    lv_obj_add_event_cb(done, [](lv_event_t *e) { ui_go_home(); }, LV_EVENT_CLICKED, NULL);
+  }
   ui_page_timer(s, wb_timer_cb, 500);
   wb_timer_cb(NULL);
   return s;
+}
+
+// Schnellzugang aus der Systemliste: Weboberfläche gleich starten, damit man
+// ohne Umweg über das Setup zur Bedienung am Handy kommt
+lv_obj_t *page_web_quick_create() {
+  if (!web_running()) web_start();
+  wb_from_system = true;  // bleibt gesetzt, auch beim Zurück vom QR-Code
+  return page_web_create();
 }
 
 // ------------------------------------------------------------

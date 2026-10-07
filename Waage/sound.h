@@ -28,14 +28,16 @@ typedef enum {
   SND_PARK,
   SND_REACHED,
   SND_TEST,
-  SND_DRUM
+  SND_DRUM,
+  SND_POWER_ON,  // Einschalten: aufsteigend, Taste darf jetzt los
+  SND_POWER_OFF  // Ausschalten: absteigend
 } sound_t;
 
 // Tonschema (Einstellung "Ton")
 #define SCHEME_COUNT 4
 const char *scheme_name(int scheme);  // Klassisch, Sanft, Retro, Minimal
 
-void sound_begin();
+void sound_begin();  // mehrfach aufrufbar: erster Aufruf startet I2S und Ton-Task, spätere prüfen nur die Stimme neu
 void sound_play(sound_t s);
 
 // Parkpiepser: im Ziel-/Rezeptmodus alle 100 ms aufrufen
