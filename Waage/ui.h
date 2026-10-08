@@ -9,6 +9,9 @@ void ui_init();
 
 // Aus Unterseiten zurück zur Startseite (Wiegen/Modi/System)
 void ui_go_home();
+// Wischen nach rechts führt auf der aktuellen Seite zu fn() statt zur Wiegeseite
+// (nach ui_switch_page() aufrufen; gilt für einmal Wischen)
+void ui_set_back(lv_obj_t *(*fn)());
 
 // Unterseite öffnen (wird beim Verlassen automatisch gelöscht)
 void ui_open_page(lv_obj_t *page);

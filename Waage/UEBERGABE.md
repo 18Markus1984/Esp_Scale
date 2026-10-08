@@ -381,6 +381,24 @@ erst nach `OFF_RELEASE_MS` = 1300 ms frei (vorher 400). `play_swell()` in `sound
 nicht von Klicks abgebrochen). Schema „Sanft“ nur leiser, „Retro“ bleibt Sinus. Die Normierung wurde mit
 einem Host-Test gemessen (C-Ausgabe = Hörprobe, max. Abweichung < 0,1 %).
 
+**Libelle und Akku (08.10.2026):** Libelle: X und Y des Lagesensors waren gegenüber dem Display
+vertauscht (Markus' Test am Gerät). `config.h`: `LEVEL_SWAP_XY 1`, dazu `LEVEL_FLIP_X`/`LEVEL_FLIP_Y`, falls
+eine Achse danach noch falsch herum läuft; angewendet in `ui_read_tilt_raw()` vor `DISPLAY_MOUNT`. Der
+gespeicherte Nullpunkt liegt jetzt unter `lvl_x2`/`lvl_y2`; ein alter Nullpunkt (`lvl_x`/`lvl_y`) wird
+beim ersten Laden getauscht übernommen. Akku: aus der Systemliste entfernt, jetzt Setup -> Zeit & Funk ->
+Akku (Zeilen-ID 15, Wert „72 % ›“, Untertitel der Kachel „Uhr, WLAN, Akku“). Neu `ui_set_back(fn)` in
+ui.cpp: Wischen nach rechts auf der Akku-Seite führt zurück zu Zeit & Funk statt zur Wiegeseite.
+
+**Rezepte mit Eiern (08.10.2026, mit Markus abgestimmt):** Enthält ein Rezept die Zutat „Ei“/„Eier“
+(auch „Egg(s)“, `is_egg()` in page_rezept.cpp bzw. `isEgg` im Web), zählt der Minus/Plus-Knopf ganze
+Eier statt Portionen. Eier im Grundrezept = round(Gramm / `EGG_G`), `EGG_G` = 55 g in config.h (Web:
+Konstante `EGG_G` in page.html, gleich halten). Abwiegen: Eier immer zuerst (`s_order`), Anzeige
+„3 Eier aufschlagen“, Ring grün ab 80 %, nie „zu viel“, kein Parkpiepser, kein Auto-Weiter. Bei
+„Weiter“ wird der Faktor aus dem echten Eigewicht berechnet (`s_factor` = gewogen / Eier-Gramm im
+Grundrezept, unter 10 g bleibt der Plan); folgende Schritte zeigen „an 178 g Eier angepasst“. Zurück zu
+den Eiern setzt den Faktor wieder auf den Plan. Rezepte ohne Eier unverändert. Eigelb/Eiweiß zählen
+bewusst nicht als Eier.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

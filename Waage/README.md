@@ -136,6 +136,12 @@ Rezept (z. B. `pfannkuchen.txt`, ohne Umlaute im Dateinamen):
     Milch;500
 
 Ist der Rezeptordner leer, legt die Waage dieses Beispiel selbst an.
+
+**Rezepte mit Eiern** (Zutat „Ei“ oder „Eier“) skalieren nicht nach Portionen, sondern nach
+ganzen Eiern: Aus `Eier;110` werden 2 Eier im Grundrezept (55 g je Ei, `EGG_G` in `config.h`).
+In der Vorschau wählst du die Anzahl Eier. Die Eier wiegst du als Erstes ab, danach richten sich
+alle anderen Zutaten nach ihrem tatsächlichen Gewicht – kleine oder große Eier sind also egal.
+Bei den Eiern gibt es keinen Parkpiepser und kein Auto-Weiter.
 Einstellungen (Auto-Tara, WLAN) liegen im internen Flash und bleiben auch ohne Karte erhalten.
 
 ## Topferkennung (Auto-Tara)
@@ -271,7 +277,7 @@ den ganzen Bereich auf etwa 5 Minuten genau.
 Solange der eigene Verbrauch noch nicht gemessen ist, rechnet die Restzeitanzeige
 mit diesen 10,1 h (`BAT_RUNTIME_H` in `hal.h`).
 
-System -> Akku zeigt Ladestand, Zustand, Verlauf der letzten Stunden als Balken,
+System -> Setup -> Zeit & Funk -> Akku zeigt Ladestand, Zustand, Verlauf der letzten Stunden als Balken,
 Verbrauch in Prozent pro Stunde und die geschätzte Restlaufzeit. Alle 5 Minuten kommt
 ein Messpunkt dazu, zusätzlich wandert er tageweise auf die SD-Karte
 (/Waage/Akku/<Datum>.txt). Dieselben Daten gibt es in der Weboberfläche unter „Akku“.
@@ -323,7 +329,7 @@ Aufbau wie im Design-Sheet: Übersicht mit Live-Gewicht, Auslastungsbalken, Tara
 und Speichern, darunter Kacheln für alle Modi und die Verwaltung.
 
 - **Ziel:** Zielgewicht, Balken bis zum Ziel, die Waage piept als Parkpiepser mit.
-- **Rezept:** Rezept wählen, Portionen, Schritt für Schritt mit Auto-Tara.
+- **Rezept:** Rezept wählen, Portionen (bei Eiern: Anzahl Eier), Schritt für Schritt mit Auto-Tara.
 - **Spule:** Material, Leerspule, Durchmesser, Restmeter live; neue Leerspule anlegen.
 - **Zählen:** Referenz übernehmen, Stückzahl live, Zählliste mit Bezeichnungen
   (als CSV herunterladbar), Senden per Bluetooth.
@@ -453,7 +459,8 @@ Vier Gruppen als Kacheln:
   Auto-Speichern (einmal pro Auflegen, wenn das Gewicht 2 s ruhig liegt, ab 5 g),
   Auto-Weiter (Rezept und Cocktail schalten selbst weiter, wenn die Menge
   erreicht ist und ruhig liegt), Zur Wiegeseite, Auto-Tara, Auto-Aus.
-- **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth. Die Weboberfläche steht jetzt ganz oben in der Systemliste.
+- **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth, Akku (Ladestand, Verlauf, Restzeit; Wischen nach rechts führt
+  zurück). Die Weboberfläche steht jetzt ganz oben in der Systemliste.
 - **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprachbefehle.
 - **Waage:** Kalibrierung, Libelle, Portoklassen.
 

@@ -202,11 +202,18 @@ bool ui_read_tilt_raw(float *dx_deg, float *dy_deg) {
   if (!hal_accel(&x, &y, &z)) return false;
   float g = sqrtf(x * x + y * y + z * z);
   if (g < 0.01f) return false;
+#if LEVEL_SWAP_XY
+  float rx = y, ry = x;  // Sensorachsen liegen quer zum Display (config.h)
+#else
   float rx = x, ry = y;
+#endif
+  if (LEVEL_FLIP_X) rx = -rx;
+  if (LEVEL_FLIP_Y) ry = -ry;
+  float sx = rx, sy = ry;
   switch (DISPLAY_MOUNT) {
-    case 1: rx = y;  ry = -x; break;
-    case 2: rx = -x; ry = -y; break;
-    case 3: rx = -y; ry = x;  break;
+    case 1: rx = sy;  ry = -sx; break;
+    case 2: rx = -sx; ry = -sy; break;
+    case 3: rx = -sy; ry = sx;  break;
     default: break;
   }
   const float RAD2DEG = 57.29578f;

@@ -27,8 +27,10 @@ void settings_load() {
   g_set.auto_next = p.getBool("autonext", true);
   g_set.idle_min = p.getInt("idle_min", 5);
   g_set.auto_off_min = p.getInt("auto_off", 30);
-  g_set.lvl_off_x = p.getFloat("lvl_x", 0.0f);
-  g_set.lvl_off_y = p.getFloat("lvl_y", 0.0f);
+  // Nullpunkt der Libelle. Seit 10/2026 sind X und Y der Lagesensor-Achsen
+  // getauscht (LEVEL_SWAP_XY); ein alter Nullpunkt wird passend übernommen.
+  g_set.lvl_off_x = p.getFloat("lvl_x2", p.getFloat("lvl_y", 0.0f));
+  g_set.lvl_off_y = p.getFloat("lvl_y2", p.getFloat("lvl_x", 0.0f));
   g_set.precise = p.getBool("precise", false);
   g_set.azt = p.getBool("azt", true);
   g_set.disp_rot = p.getInt("disp_rot", 0);
@@ -64,8 +66,8 @@ void settings_save() {
   p.putBool("autonext", g_set.auto_next);
   p.putInt("idle_min", g_set.idle_min);
   p.putInt("auto_off", g_set.auto_off_min);
-  p.putFloat("lvl_x", g_set.lvl_off_x);
-  p.putFloat("lvl_y", g_set.lvl_off_y);
+  p.putFloat("lvl_x2", g_set.lvl_off_x);
+  p.putFloat("lvl_y2", g_set.lvl_off_y);
   p.putBool("precise", g_set.precise);
   p.putBool("azt", g_set.azt);
   p.putInt("disp_rot", g_set.disp_rot);

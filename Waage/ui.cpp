@@ -74,7 +74,6 @@ static const ui_list_item_t SYSTEM_ITEMS[] = {
   { "Protokoll", "Heutige Wägungen", ICON_PROTOKOLL },
   { "Töpfe", "Verwalten", ICON_TOEPFE },
   { "Wasserwaage", "Lage prüfen", ICON_LIBELLE },
-  { "Akku", "Verlauf und Restzeit", ICON_AKKU },
   { "Setup", "Einstellungen", ICON_SETUP },
 };
 
@@ -97,7 +96,6 @@ static const page_create_fn SYSTEM_PAGES[] = {
   page_protokoll_create,  // Protokoll
   page_toepfe_create,     // Töpfe
   page_level_create,      // Wasserwaage
-  page_akku_create,       // Akku
   page_setup_create,      // Setup
 };
 
@@ -1194,6 +1192,11 @@ void ui_switch_page(lv_obj_t *page) {
   lv_obj_add_event_cb(page, page_gesture_cb, LV_EVENT_GESTURE, NULL);
   // Schieben statt Überblenden (Überblenden lässt Texte kurz weiß aufblitzen)
   lv_scr_load_anim(page, LV_SCR_LOAD_ANIM_MOVE_LEFT, 200, 0, true);
+}
+
+// Ziel der Wisch-Geste für die gerade geöffnete Seite (z. B. zurück in die Einstellungen)
+void ui_set_back(page_create_fn fn) {
+  s_back = fn;
 }
 
 void ui_go_home() {

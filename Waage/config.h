@@ -26,6 +26,19 @@
 // Richtung läuft. Die kleine Schräge gleicht danach "Libelle kalibrieren" aus.
 #define DISPLAY_MOUNT 0
 
+// Achsen des Lagesensors (QMI8658) für die Libelle: Auf der Platine liegen
+// X und Y des Sensors quer zu X und Y des Displays, deshalb getauscht.
+// Läuft die Blase danach auf einer Achse noch falsch herum, die passende
+// Achse mit LEVEL_FLIP_X (links/rechts) bzw. LEVEL_FLIP_Y (vorne/hinten) umdrehen.
+// Danach einmal Setup -> Waage -> Libelle kalibrieren.
+#define LEVEL_SWAP_XY 1
+#define LEVEL_FLIP_X  0
+#define LEVEL_FLIP_Y  0
+
+// Rezepte mit Eiern: Gramm je Ei ohne Schale (Größe M). Daraus ergibt sich die
+// Anzahl Eier im Grundrezept, z. B. „Eier;110“ = 2 Eier. Gewogen wird danach echt.
+#define EGG_G 55.0f
+
 // Tiefentladeschutz: Ab dieser Spannung warnt die Waage, darunter schaltet
 // sie ab. LiPo-Zellen nehmen unter etwa 3,2 V Schaden.
 #define BAT_WARN_V 3.45f

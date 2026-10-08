@@ -118,7 +118,7 @@ static lv_obj_t *page_color_pick_create();
 static lv_obj_t *page_sound_create();
 
 static const char *const CAT_TITLE[4] = { "Wiegen", "Zeit & Funk", "Ton", "Waage" };
-static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, BT", "Töne, Sprache", "Kalibr., Firmware" };
+static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, Akku", "Töne, Sprache", "Kalibr., Firmware" };
 static const char *const CAT_ICON[4] = { ICON_WIEGEN, ICON_ZEIT, ICON_TON, ICON_WAAGE };
 
 lv_obj_t *page_setup_back() {
@@ -206,6 +206,12 @@ static void row_value(int cat, int row, char *b, int len) {
       break;
     case 13: snprintf(b, len, "%s ›", web_running() ? T("läuft") : T("starten")); break;
     case 14: snprintf(b, len, T("Kopplung ›")); break;
+    case 15: {  // Akku: Ladestand
+      int pct = hal_battery_percent();
+      if (hal_battery_state() == BAT_NONE || pct < 0) snprintf(b, len, "%s ›", T("kein Akku"));
+      else snprintf(b, len, "%d %% ›", pct);
+      break;
+    }
     case 20:
       if (g_set.volume > 0) snprintf(b, len, "%d %% ›", g_set.volume);
       else snprintf(b, len, T("aus ›"));
@@ -296,6 +302,10 @@ static void row_cb(lv_event_t *e) {
     case 12: ui_switch_page(page_wlan_create()); return;
     case 13: wb_from_system = false; ui_switch_page(page_web_create()); return;
     case 14: ui_switch_page(page_bluetooth_setup_create()); return;
+    case 15:  // Akku: Wischen nach rechts führt zurück zu Zeit & Funk
+      ui_switch_page(page_akku_create());
+      ui_set_back(page_setup_back);
+      return;
     case 20: ui_switch_page(page_sound_create()); return;
     case 21:
       g_set.scheme = (g_set.scheme + 1) % SCHEME_COUNT;
@@ -361,7 +371,7 @@ static void cat_timer_cb(lv_timer_t *t) {
 static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][8] = {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
-    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
+    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL },  // Weboberfläche: Systemliste
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
     { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
   };
@@ -369,7 +379,7 @@ static lv_obj_t *page_cat_create(int cat) {
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
   static const int8_t IDS[4][8] = {
     { 0, 1, 2, 3, 4, 5, 6, 7 },
-    { 10, 11, 12, 14, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste
+    { 10, 11, 12, 14, 15, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
     { 20, 21, 22, 23, 24, 25, 26, -1 },
     { 30, 31, 32, 33, 34, 37, 35, 36 },
   };

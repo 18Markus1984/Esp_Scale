@@ -10,6 +10,11 @@
 //    portionen=2
 //    Mehl;250
 //    Milch;500
+//
+//  Rezepte mit Eiern (Zutat „Ei“/„Eier“) skalieren nicht nach Portionen,
+//  sondern nach ganzen Eiern: Die Anzahl im Grundrezept ist Eigewicht / EGG_G.
+//  Die Eier werden zuerst abgewogen, danach richten sich alle anderen
+//  Zutaten nach dem tatsächlichen Eigewicht (Größe S, M oder L egal).
 // ============================================================
 #include "ui_pages.h"
 #include "ui.h"
@@ -22,7 +27,9 @@
 #include "sound.h"
 #include "settings.h"
 #include "ui_text.h"
+#include "config.h"
 #include <stdio.h>
+#include <strings.h>
 #include <string.h>
 #include <math.h>
 
@@ -45,8 +52,54 @@ static recipe_t s_draft;  // neues Rezept, bis "Speichern"
 static lv_obj_t *page_step_create();
 static lv_obj_t *page_done_create();
 
+// ---- Eier ----
+static int s_egg = -1;        // Index der Zutat „Eier“, -1 = keine
+static int s_egg_base = 1;    // Eier im Grundrezept
+static int s_eggs = 1;        // gewählte Anzahl
+static float s_factor = 1.0f; // Faktor für alle Zutaten (nach dem Abwiegen: echtes Eigewicht)
+static bool s_factor_real = false;  // Faktor kommt aus dem gewogenen Eigewicht
+static int s_order[RECIPE_MAX_ING]; // Reihenfolge beim Abwiegen: Eier zuerst
+
+static bool is_egg(const char *name) {
+  char n[16];
+  int k = 0;
+  while (*name == ' ') name++;
+  while (*name && k < (int)sizeof(n) - 1) n[k++] = *name++;
+  while (k > 0 && n[k - 1] == ' ') k--;
+  n[k] = 0;
+  return !strcasecmp(n, "Ei") || !strcasecmp(n, "Eier") || !strcasecmp(n, "Egg") || !strcasecmp(n, "Eggs");
+}
+
+// Eier im Rezept suchen und die Abwiege-Reihenfolge festlegen
+static void egg_setup() {
+  s_egg = -1;
+  for (int i = 0; i < s_rec.count && s_egg < 0; i++)
+    if (is_egg(s_rec.ing[i].name) && s_rec.ing[i].grams > 0) s_egg = i;
+  int k = 0;
+  if (s_egg >= 0) s_order[k++] = s_egg;
+  for (int i = 0; i < s_rec.count; i++)
+    if (i != s_egg) s_order[k++] = i;
+  if (s_egg >= 0) {
+    s_egg_base = (int)lroundf(s_rec.ing[s_egg].grams / EGG_G);
+    if (s_egg_base < 1) s_egg_base = 1;
+    s_eggs = s_egg_base;
+  }
+  s_factor = 1.0f;
+  s_factor_real = false;
+}
+
+// geplanter Faktor aus der gewählten Anzahl Eier bzw. Portionen
+static float plan_factor() {
+  if (s_egg >= 0) return (float)s_eggs / s_egg_base;
+  return (float)s_portions / s_rec.portions;
+}
+
 static float target(int i) {
-  return s_rec.ing[i].grams * s_portions / s_rec.portions;
+  return s_rec.ing[i].grams * s_factor;
+}
+
+static int step_ing() {  // Zutat des aktuellen Schritts
+  return s_order[s_step];
 }
 
 // ------------------------------------------------------------
@@ -61,6 +114,7 @@ static void pick_cb(int index) {
   }
   if (!recipe_load(l_files[index - 1], &s_rec)) return;
   s_portions = s_rec.portions;
+  egg_setup();
   ui_switch_page(page_preview_create());
 }
 
@@ -103,22 +157,32 @@ static lv_obj_t *pv_rows[3][2], *pv_more, *pv_port;
 
 static void pv_refresh() {
   char b[32];
-  for (int i = 0; i < 3; i++) {
-    if (i >= s_rec.count) continue;
-    snprintf(b, sizeof(b), "%d g", (int)lroundf(target(i)));
-    lv_label_set_text(pv_rows[i][1], b);
+  s_factor = plan_factor();
+  s_factor_real = false;
+  for (int r = 0; r < 3; r++) {
+    if (r >= s_rec.count) continue;
+    int i = s_order[r];
+    // Eier: ungefähres Gewicht, die echten Eier wiegen mehr oder weniger
+    snprintf(b, sizeof(b), i == s_egg ? T("ca. %d g") : "%d g", (int)lroundf(target(i)));
+    lv_label_set_text(pv_rows[r][1], b);
   }
-  snprintf(b, sizeof(b), T("%d Port."), s_portions);
+  if (s_egg >= 0) {
+    if (s_eggs == 1) snprintf(b, sizeof(b), "%s", T("1 Ei"));
+    else snprintf(b, sizeof(b), T("%d Eier"), s_eggs);
+  } else snprintf(b, sizeof(b), T("%d Port."), s_portions);
   lv_label_set_text(pv_port, b);
 }
 
+// Minus/Plus: ganze Eier oder Portionen
 static void pv_minus_cb(lv_event_t *e) {
-  if (s_portions > 1) s_portions--;
+  int *n = s_egg >= 0 ? &s_eggs : &s_portions;
+  if (*n > 1) (*n)--;
   pv_refresh();
 }
 
 static void pv_plus_cb(lv_event_t *e) {
-  if (s_portions < 20) s_portions++;
+  int *n = s_egg >= 0 ? &s_eggs : &s_portions;
+  if (*n < 20) (*n)++;
   pv_refresh();
 }
 
@@ -141,6 +205,8 @@ static void pv_start_cb(lv_event_t *e) {
   s_step = 0;
   s_start_ms = hal_millis();
   memset(s_done_g, 0, sizeof(s_done_g));
+  s_factor = plan_factor();
+  s_factor_real = false;
   scale_tare();
   ui_switch_page(page_step_create());
 }
@@ -163,7 +229,7 @@ static lv_obj_t *page_preview_create() {
     lv_obj_set_style_border_side(row, LV_BORDER_SIDE_BOTTOM, 0);
     lv_obj_set_style_border_width(row, 1, 0);
     lv_obj_set_style_border_color(row, C_TRACK, 0);
-    pv_rows[i][0] = ui_label(row, s_rec.ing[i].name, &font_sg_18, C_TEXT);
+    pv_rows[i][0] = ui_label(row, s_rec.ing[s_order[i]].name, &font_sg_18, C_TEXT);
     lv_obj_align(pv_rows[i][0], LV_ALIGN_LEFT_MID, 0, 0);
     pv_rows[i][1] = ui_label(row, "", &font_sg_18, C_MUTED);
     lv_obj_align(pv_rows[i][1], LV_ALIGN_RIGHT_MID, 0, 0);
@@ -207,6 +273,12 @@ static void st_next_cb(lv_event_t *e);
 
 static void st_next_cb(lv_event_t *e) {
   s_done_g[s_step] = scale_net();
+  // Eier gewogen: alle weiteren Zutaten nach dem echten Eigewicht ausrichten
+  // (unter 10 g wurde wohl nichts aufgelegt, dann bleibt es beim Plan)
+  if (step_ing() == s_egg && s_done_g[s_step] > 10.0f) {
+    s_factor = s_done_g[s_step] / s_rec.ing[s_egg].grams;
+    s_factor_real = true;
+  }
   if (s_step + 1 >= s_rec.count) {
     ui_switch_page(page_done_create());
     return;
@@ -217,6 +289,10 @@ static void st_next_cb(lv_event_t *e) {
 }
 
 static void st_back_cb(lv_event_t *e) {
+  if (s_step == 0 || (s_step == 1 && s_egg >= 0)) {  // zurück zu den Eiern: wieder nach Plan
+    s_factor = plan_factor();
+    s_factor_real = false;
+  }
   if (s_step == 0) {
     ui_switch_page(page_preview_create());
     return;
@@ -252,7 +328,8 @@ static void st_tara_cb(lv_event_t *e) {
 
 static void st_timer_cb(lv_timer_t *t) {
   float g = scale_net();
-  float goal = target(s_step);
+  float goal = target(step_ing());
+  bool egg = step_ing() == s_egg;
   int v = (int)(g / goal * 1000.0f);
   if (v < 0) v = 0;
   if (v > 1000) v = 1000;
@@ -265,14 +342,20 @@ static void st_timer_cb(lv_timer_t *t) {
   // Toleranz: max. 2 g, bei kleinen Mengen 5 % (mind. 0,5 g)
   float tol = fmaxf(0.5f, fminf(TOL_G, goal * 0.05f));
   int state = g > goal + tol ? 2 : ((g >= goal - tol && g > 0.3f) ? 1 : 0);
-  sound_parking(g, goal, tol);  // Parkpiepser
+  if (egg) {
+    // Eier sind nie „zu viel“: Der Rest des Rezepts passt sich an.
+    // Kein Parkpiepser, kein Auto-Weiter (zwischen zwei Eiern liegt es ja auch ruhig).
+    state = g >= goal * 0.8f ? 1 : 0;
+  } else {
+    sound_parking(g, goal, tol);  // Parkpiepser
+  }
   if (state != st_prev) {
     st_prev = state;
     lv_color_t c = state == 2 ? C_DANGER : C_ACCENT;
     lv_obj_set_style_arc_color(st_ring, c, LV_PART_INDICATOR);
     lv_obj_set_style_text_color(st_weight, state == 2 ? C_DANGER : (state == 1 ? C_ACCENT : C_TEXT), 0);
   }
-  st_auto(state);
+  st_auto(egg ? 0 : state);
 }
 
 static lv_obj_t *page_step_create() {
@@ -284,15 +367,25 @@ static lv_obj_t *page_step_create() {
   lv_obj_t *l = ui_label(s, b, &font_sg_18, C_MUTED);
   lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 50);
 
-  lv_obj_t *name = ui_label(s, s_rec.ing[s_step].name, &font_sg_24, C_TEXT);
+  int ing = step_ing();
+  lv_obj_t *name = ui_label(s, s_rec.ing[ing].name, &font_sg_24, C_TEXT);
   lv_obj_align(name, LV_ALIGN_CENTER, 0, -104);
 
   st_weight = ui_label(s, "0", &font_sg_80, C_TEXT);
   lv_obj_align(st_weight, LV_ALIGN_CENTER, 0, -30);
 
-  snprintf(b, sizeof(b), T("von %d g"), (int)lroundf(target(s_step)));
+  if (ing == s_egg) {
+    if (s_eggs == 1) snprintf(b, sizeof(b), "%s", T("1 Ei aufschlagen"));
+    else snprintf(b, sizeof(b), T("%d Eier aufschlagen"), s_eggs);
+  } else snprintf(b, sizeof(b), T("von %d g"), (int)lroundf(target(ing)));
   st_goal = ui_label(s, b, &font_sg_18, C_MUTED);
   lv_obj_align(st_goal, LV_ALIGN_CENTER, 0, 30);
+  // Hinweis, dass sich die Menge nach den gewogenen Eiern richtet
+  if (s_factor_real && ing != s_egg) {
+    snprintf(b, sizeof(b), T("an %d g Eier angepasst"), (int)lroundf(s_factor * s_rec.ing[s_egg].grams));
+    lv_obj_t *h = ui_label(s, b, &font_sg_14, C_FAINT);
+    lv_obj_align(h, LV_ALIGN_CENTER, 0, 56);
+  }
 
   lv_obj_t *row = ui_box(s);
   lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
