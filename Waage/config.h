@@ -32,8 +32,8 @@
 // Achse mit LEVEL_FLIP_X (links/rechts) bzw. LEVEL_FLIP_Y (vorne/hinten) umdrehen.
 // Danach einmal Setup -> Waage -> Libelle kalibrieren.
 #define LEVEL_SWAP_XY 1
-#define LEVEL_FLIP_X  0
-#define LEVEL_FLIP_Y  0
+#define LEVEL_FLIP_X  1   // am Gerät geprüft (10/2026): beide Achsen umgedreht
+#define LEVEL_FLIP_Y  1
 
 // Rezepte mit Eiern: Gramm je Ei ohne Schale (Größe M). Daraus ergibt sich die
 // Anzahl Eier im Grundrezept, z. B. „Eier;110“ = 2 Eier. Gewogen wird danach echt.

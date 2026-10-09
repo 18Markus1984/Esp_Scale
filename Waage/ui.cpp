@@ -349,18 +349,28 @@ static void pot_detect() {
 #define NEG_TARE_MS 3000       // so lange ruhig im Minus
 static uint32_t s_neg_since = 0;
 
-static void neg_tare_check() {
-  float net = scale_net();
-  bool cand = net < -NEG_TARE_G && scale_gross() < EMPTY_G && scale_stable() &&
-              !scale_overload() && s_pot_mode == POT_NONE && !cd_active && !web_hide_weight();
-  if (!cand) {
-    s_neg_since = 0;
-    return;
+// Waage leer (brutto ~0) und ruhig im Minus, z. B. weil ein tarierter Topf
+// abgenommen wurde? Dann gilt der Wert als Tara-Rest.
+bool ui_neg_tare_pending() {
+  return scale_net() < -NEG_TARE_G && scale_gross() < EMPTY_G && !scale_overload() && !web_hide_weight();
+}
+
+// Liegt das schon NEG_TARE_MS ruhig an, true zurückgeben (dann tariert der Aufrufer).
+// since: eigener Zeitstempel je Seite; allowed: Seite erlaubt es gerade.
+bool ui_neg_tare_due(uint32_t *since, bool allowed) {
+  if (!allowed || !scale_stable() || !ui_neg_tare_pending()) {
+    *since = 0;
+    return false;
   }
   uint32_t now = hal_millis();
-  if (s_neg_since == 0) s_neg_since = now;
-  if (now - s_neg_since < NEG_TARE_MS) return;
-  s_neg_since = 0;
+  if (*since == 0) *since = now;
+  if (now - *since < NEG_TARE_MS) return false;
+  *since = 0;
+  return true;
+}
+
+static void neg_tare_check() {
+  if (!ui_neg_tare_due(&s_neg_since, s_pot_mode == POT_NONE && !cd_active)) return;
   scale_tare();
   sound_play(SND_TARA);
   show_toast("Tara gesetzt", C_ACCENT);
@@ -506,6 +516,12 @@ static void speak_check() {
     sp_stable_since = 0;
   }
   if (!g_set.speak || sp_done || cd_active || fabsf(net) < 2.0f) return;
+  // Minus bei leerer Waage (Topf abgenommen) ist nur ein Tara-Rest, der gleich
+  // automatisch auf 0 gesetzt wird – nicht vorlesen
+  if (ui_neg_tare_pending()) {
+    sp_stable_since = 0;
+    return;
+  }
   if (!scale_stable()) {
     sp_stable_since = 0;
     return;

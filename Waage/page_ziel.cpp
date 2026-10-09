@@ -118,7 +118,18 @@ static void za_new_cb(lv_event_t *e) {
 }
 
 
+static uint32_t za_neg_since = 0;
+
 static void za_timer_cb(lv_timer_t *t) {
+  // Topf abgenommen, Waage steht im Minus: nach 3 s wieder auf 0 (wie auf der Wiegeseite).
+  // Danach zählt es als neuer Durchgang, das nächste Ergebnis kommt wieder ins Protokoll.
+  if (ui_neg_tare_due(&za_neg_since, true)) {
+    scale_tare();
+    sound_play(SND_TARA);
+    sound_parking_reset();
+    ui_toast_show(za_toast, "Tara gesetzt", C_ACCENT);
+    za_logged = false;
+  }
   float g = scale_net();
   float rest = ziel_g - g;
 
@@ -210,6 +221,7 @@ static lv_obj_t *page_ziel_active_create() {
   za_prev_state = -1;
   za_prev_done = -1;
   za_logged = false;
+  za_neg_since = 0;
   za_timer = ui_page_timer(s, za_timer_cb, 100);
   za_timer_cb(NULL);
   return s;

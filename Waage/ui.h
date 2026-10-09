@@ -9,6 +9,10 @@ void ui_init();
 
 // Aus Unterseiten zurück zur Startseite (Wiegen/Modi/System)
 void ui_go_home();
+// Auto-Tara bei Minus: Waage leer, aber Netto im Minus (tarierter Topf abgenommen)
+bool ui_neg_tare_pending();
+// true, wenn das seit 3 s ruhig so ist (since: Zeitstempel der Seite, allowed: Seite erlaubt es)
+bool ui_neg_tare_due(uint32_t *since, bool allowed);
 // Wischen nach rechts führt auf der aktuellen Seite zu fn() statt zur Wiegeseite
 // (nach ui_switch_page() aufrufen; gilt für einmal Wischen)
 void ui_set_back(lv_obj_t *(*fn)());

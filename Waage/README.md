@@ -152,6 +152,10 @@ Topf abnehmen -> Tara springt automatisch zurück. Einstellbar unter
 System -> Setup -> Auto-Tara. In der Topfliste: Antippen zieht das gespeicherte
 Gewicht ab (gefüllter Topf), gedrückt halten öffnet „Bearbeiten“.
 
+Steht die leere Waage nach dem Abnehmen einer tarierten Schüssel im Minus, setzt sie
+nach 3 s ruhig selbst wieder auf 0 („Tara gesetzt“) – auf der Wiegeseite und im Ziel-Modus.
+Dieser Minuswert wird nicht angesagt.
+
 ## WLAN und Uhrzeit
 
 System -> Setup -> WLAN -> Netzwerke -> + Neues Netzwerk: Netz aus der Liste wählen,

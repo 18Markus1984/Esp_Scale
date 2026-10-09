@@ -399,6 +399,17 @@ Grundrezept, unter 10 g bleibt der Plan); folgende Schritte zeigen „an 178 g E
 den Eiern setzt den Faktor wieder auf den Plan. Rezepte ohne Eier unverändert. Eigelb/Eiweiß zählen
 bewusst nicht als Eier.
 
+**Minus nach Abnehmen (08.10.2026):** Ansage: Ein Minuswert bei leerer Waage (brutto < `EMPTY_G`,
+also nur Tara-Rest) wird nicht mehr vorgelesen (`ui_neg_tare_pending()` in `speak_check()`); Minus mit
+Ware auf der Waage (etwas aus der tarierten Schüssel entnommen) wird weiter angesagt. Auto-Tara bei
+Minus jetzt als `ui_neg_tare_due(&since, allowed)` in ui.cpp, genutzt von der Wiegeseite und neu vom
+Ziel-Modus (page_ziel.cpp: Tara + Ton + Toast, `za_logged` zurück, damit der nächste Durchgang wieder
+ins Protokoll kommt). Im Simulator dauert es Beruhigung (~2,5 s) + 3 s; `SPKDBG=1` testet Schüssel und Ziel.
+
+**Libelle Richtung (08.10.2026):** Markus' Test: Achsen stimmen, aber beide liefen falsch herum ->
+`LEVEL_FLIP_X 1`, `LEVEL_FLIP_Y 1` in config.h. Nullpunkt jetzt unter `lvl_x3`/`lvl_y3`; ein Nullpunkt aus
+`lvl_x2`/`lvl_y2` (bzw. dem Original `lvl_x`/`lvl_y`) wird beim Laden mit umgedrehtem Vorzeichen übernommen.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner
