@@ -47,6 +47,7 @@ LV_FONT_DECLARE(font_sg_34);
 #define ICON_SPRUECHE  "\xEE\xA4\x9F"  // record_voice_over (U+E91F)
 
 LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
+LV_FONT_DECLARE(font_icons_80);  // Icons der Rezept-Anweisungen (Material Symbols)
 LV_FONT_DECLARE(font_sg_80);  // Ziffern, % und , . - : ? (Gewicht, Uhr)
 LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 

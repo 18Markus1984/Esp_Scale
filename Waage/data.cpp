@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <ctype.h>
 #include <math.h>
 
 pot_t g_pots[POT_MAX];
@@ -264,9 +266,56 @@ int log_read(const char *day, log_entry_t *out, int max, int *total) {
 //    name=Pfannkuchen
 //    portionen=2
 //    Mehl;250
+//    >ruehren;Glatt rühren;2
 // ------------------------------------------------------------
+static const char *const SI_KEYS[SI_COUNT] = {
+  "ruehren", "mixen", "kneten", "braten", "kochen", "backen", "grillen", "schneiden",
+  "kuehlen", "ruhen", "mikrowelle", "giessen", "erhitzen", "servieren", "hinweis",
+};
+static const char *const SI_LABELS[SI_COUNT] = {
+  "Rühren", "Mixen", "Kneten", "Braten", "Kochen", "Backen", "Grillen", "Schneiden",
+  "Kühlen", "Ruhen", "Mikrowelle", "Gießen", "Erhitzen", "Servieren", "Hinweis",
+};
+const char *step_icon_key(int icon) { return SI_KEYS[(icon < 0 || icon >= SI_COUNT) ? SI_HINWEIS : icon]; }
+const char *step_icon_label(int icon) { return SI_LABELS[(icon < 0 || icon >= SI_COUNT) ? SI_HINWEIS : icon]; }
+int step_icon_find(const char *key) {
+  while (*key == ' ') key++;
+  for (int i = 0; i < SI_COUNT; i++)
+    if (!strncasecmp(key, SI_KEYS[i], strlen(SI_KEYS[i])) && !isalpha((unsigned char)key[strlen(SI_KEYS[i])])) return i;
+  return SI_HINWEIS;
+}
+
+// Text kopieren, ohne ein UTF-8-Zeichen in der Mitte abzuschneiden
+static void copy_utf8(char *out, const char *in, int len) {
+  int i = 0;
+  while (in[i] && i < len - 1) i++;
+  if (in[i]) {  // gekürzt: auf Zeichenanfang zurückgehen
+    while (i > 0 && ((unsigned char)in[i] & 0xC0) == 0x80) i--;
+  }
+  memcpy(out, in, i);
+  out[i] = 0;
+}
+
+static bool s_load_notes = true;  // Cocktails: nur Zutaten
+
 static void recipe_line(char *line, void *ctx) {
   recipe_t *r = (recipe_t *)ctx;
+  if (line[0] == '>') {  // Anweisung: >Icon;Text;Minuten
+    if (!s_load_notes || r->count >= RECIPE_MAX_ING) return;
+    ingredient_t *i = &r->ing[r->count];
+    char k[16], t[STEP_TEXT_LEN * 2], m[16];
+    field(line + 1, 0, k, sizeof(k));
+    field(line + 1, 1, t, sizeof(t));
+    field(line + 1, 2, m, sizeof(m));
+    memset(i, 0, sizeof(*i));
+    i->kind = STEP_NOTE;
+    i->icon = (uint8_t)step_icon_find(k);
+    copy_utf8(i->text, t, sizeof(i->text));
+    float min = parse_num(m);
+    if (min > 0) i->secs = (uint16_t)(min * 60.0f + 0.5f > 65000 ? 65000 : min * 60.0f + 0.5f);
+    r->count++;
+    return;
+  }
   if (!strncmp(line, "name=", 5)) {
     strncpy(r->name, line + 5, sizeof(r->name) - 1);
     return;
@@ -279,10 +328,15 @@ static void recipe_line(char *line, void *ctx) {
   if (r->count >= RECIPE_MAX_ING || !strchr(line, ';')) return;
   ingredient_t *i = &r->ing[r->count];
   char f[24];
+  memset(i, 0, sizeof(*i));
   field(line, 0, i->name, sizeof(i->name));
   field(line, 1, f, sizeof(f));
   i->grams = parse_num(f);
-  if (i->name[0] && i->grams > 0) r->count++;
+  i->kind = STEP_WEIGH;
+  if (i->name[0] && i->grams > 0) {
+    r->count++;
+    r->weigh++;
+  }
 }
 
 bool recipe_load_dir(const char *dir, const char *file, recipe_t *r) {
@@ -293,13 +347,14 @@ bool recipe_load_dir(const char *dir, const char *file, recipe_t *r) {
   snprintf(path, sizeof(path), "%s/%s", dir, file);
   char *b = buf();
   if (!b || storage_read(path, b, BUF_LEN) < 0) return false;
+  s_load_notes = strcmp(dir, DIR_COCKTAILS) != 0;  // Cocktails kennen keine Anweisungen
   each_line(b, recipe_line, r);
   if (!r->name[0]) {  // kein name= -> Dateiname ohne .txt
     strncpy(r->name, file, sizeof(r->name) - 1);
     char *dot = strrchr(r->name, '.');
     if (dot) *dot = 0;
   }
-  return r->count > 0;
+  return r->weigh > 0;
 }
 
 int recipes_list_dir(const char *dir, char files[][48], char names[][40], int counts[], int max) {
@@ -314,7 +369,7 @@ int recipes_list_dir(const char *dir, char files[][48], char names[][40], int co
     files[k][47] = 0;
     strncpy(names[k], r.name, 39);
     names[k][39] = 0;
-    counts[k] = r.count;
+    counts[k] = r.weigh;
     k++;
   }
   return k;
@@ -324,14 +379,19 @@ void recipes_create_example() {
   static char list[4][STORAGE_NAME_LEN];
   if (!storage_ok() || storage_list(DIR_RECIPES, list, 4) > 0) return;
   storage_write(DIR_RECIPES "/pfannkuchen.txt",
-                "# Beispielrezept - Zeilen: Zutat;Gramm\n"
+                "# Beispielrezept - Zeilen: Zutat;Gramm oder >Icon;Anweisung;Minuten\n"
                 "name=Pfannkuchen\n"
                 "portionen=2\n"
                 "Mehl;250\n"
-                "Milch;500\n"
-                "Eier;110\n"
                 "Zucker;20\n"
-                "Salz;2\n");
+                "Salz;2\n"
+                "Milch;500\n"
+                ">ruehren;Mit dem Schneebesen klumpenfrei verrühren\n"
+                "Eier;110\n"
+                ">ruehren;Eier unterrühren, bis der Teig glatt ist\n"
+                ">ruhen;Teig quellen lassen;10\n"
+                ">braten;Etwas Butter erhitzen, Teig dünn ausbacken\n"
+                ">servieren;Mit Zucker und Zimt oder Apfelmus servieren\n");
 }
 
 // ------------------------------------------------------------
@@ -428,10 +488,26 @@ bool recipe_save_dir(const char *dir, const recipe_t *r, char *file_out, int len
   char *b = buf();
   if (!b) return false;
   int n = snprintf(b, BUF_LEN, "name=%s\nportionen=%d\n", r->name, r->portions);
-  for (int i = 0; i < r->count && n < BUF_LEN - 64; i++) {
+  for (int i = 0; i < r->count && n < BUF_LEN - 128; i++) {
+    const ingredient_t *z = &r->ing[i];
+    if (z->kind == STEP_NOTE) {  // >Icon;Text;Minuten
+      char t[STEP_TEXT_LEN];
+      int k = 0;
+      for (const char *c = z->text; *c && k < (int)sizeof(t) - 1; c++) t[k++] = (*c == ';' || *c == '\n') ? ',' : *c;
+      t[k] = 0;
+      n += snprintf(b + n, BUF_LEN - n, ">%s;%s", step_icon_key(z->icon), t);
+      if (z->secs) {
+        char m[16];
+        float min = z->secs / 60.0f;
+        fmt_num(m, sizeof(m), min, z->secs % 60 ? 1 : 0);
+        n += snprintf(b + n, BUF_LEN - n, ";%s", m);
+      }
+      n += snprintf(b + n, BUF_LEN - n, "\n");
+      continue;
+    }
     char g[16];
-    fmt_num(g, sizeof(g), r->ing[i].grams, r->ing[i].grams == (int)r->ing[i].grams ? 0 : 1);
-    n += snprintf(b + n, BUF_LEN - n, "%s;%s\n", r->ing[i].name, g);
+    fmt_num(g, sizeof(g), z->grams, z->grams == (int)z->grams ? 0 : 1);
+    n += snprintf(b + n, BUF_LEN - n, "%s;%s\n", z->name, g);
   }
   if (!storage_write(path, b)) return false;
   if (file_out) snprintf(file_out, len, "%s", file);

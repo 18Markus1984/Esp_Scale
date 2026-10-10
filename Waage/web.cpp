@@ -268,7 +268,11 @@ static void h_recipe() {
   String s = "{\"file\":\"" + esc(r.file) + "\",\"name\":\"" + esc(r.name) + "\",\"portions\":" + r.portions + ",\"ing\":[";
   for (int i = 0; i < r.count; i++) {
     if (i) s += ",";
-    s += "{\"name\":\"" + esc(r.ing[i].name) + "\",\"grams\":" + String(r.ing[i].grams, 1) + "}";
+    const ingredient_t &z = r.ing[i];
+    if (z.kind == STEP_NOTE)  // Anweisung: Icon, Text, Dauer in s
+      s += "{\"k\":1,\"icon\":\"" + String(step_icon_key(z.icon)) + "\",\"text\":\"" + esc(z.text) + "\",\"sec\":" + (int)z.secs + "}";
+    else
+      s += "{\"name\":\"" + esc(z.name) + "\",\"grams\":" + String(z.grams, 1) + "}";
   }
   send_json(s + "]}");
 }
@@ -284,11 +288,30 @@ static void h_recipe_save() {
   String item;
   int pos = 0;
   while (r.count < RECIPE_MAX_ING && (pos = jnext(body, "ing", pos, item)) >= 0) {
-    strncpy(r.ing[r.count].name, jval(item, "name").c_str(), sizeof(r.ing[0].name) - 1);
-    r.ing[r.count].grams = jval(item, "grams").toFloat();
-    if (r.ing[r.count].name[0] && r.ing[r.count].grams > 0) r.count++;
+    ingredient_t &z = r.ing[r.count];
+    memset(&z, 0, sizeof(z));
+    if (jval(item, "k").toInt() == STEP_NOTE) {  // Anweisung
+      z.kind = STEP_NOTE;
+      z.icon = (uint8_t)step_icon_find(jval(item, "icon").c_str());
+      String t = junesc(jval(item, "text"));  // Web entfernt { } [ ] ; vorher (siehe page.html)
+      t.trim();
+      // auf ganze UTF-8-Zeichen kürzen
+      int n = t.length() < STEP_TEXT_LEN - 1 ? t.length() : STEP_TEXT_LEN - 1;
+      while (n > 0 && n < (int)t.length() && ((uint8_t)t[n] & 0xC0) == 0x80) n--;
+      memcpy(z.text, t.c_str(), n);
+      long sec = jval(item, "sec").toInt();
+      z.secs = (uint16_t)(sec < 0 ? 0 : (sec > 65000 ? 65000 : sec));
+      r.count++;
+      continue;
+    }
+    strncpy(z.name, jval(item, "name").c_str(), sizeof(z.name) - 1);
+    z.grams = jval(item, "grams").toFloat();
+    if (z.name[0] && z.grams > 0) {
+      r.count++;
+      r.weigh++;
+    }
   }
-  if (!r.count || !r.name[0]) {
+  if (!r.weigh || !r.name[0]) {
     ok(false, "Name und Zutaten fehlen");
     return;
   }

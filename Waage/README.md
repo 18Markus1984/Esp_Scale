@@ -134,6 +134,16 @@ Rezept (z. B. `pfannkuchen.txt`, ohne Umlaute im Dateinamen):
     portionen=2
     Mehl;250
     Milch;500
+    >ruehren;Mit dem Schneebesen klumpenfrei verrühren
+    >ruhen;Teig quellen lassen;10
+
+Zeilen mit `>` sind **Anweisungen**: `>Icon;Text;Minuten`. Statt der Gewichtsanzeige
+zeigt die Waage ein großes Icon und den Text; mit Minuten (auch `0,5`) gibt es einen
+Knopf „Timer“, der einen Küchentimer startet (klingelt auch, wenn du schon weiter bist).
+Icons: `ruehren`, `mixen`, `kneten`, `braten`, `kochen`, `backen`, `grillen`, `schneiden`,
+`kuehlen`, `ruhen`, `mikrowelle`, `giessen`, `erhitzen`, `servieren`, `hinweis`.
+Text höchstens 55 Zeichen (Umlaute zählen doppelt), ohne `;`. Am bequemsten legst du
+Anweisungen im Browser an (Rezepte -> Bearbeiten -> „+ Anweisung“, mit ▲▼ verschieben).
 
 Ist der Rezeptordner leer, legt die Waage dieses Beispiel selbst an.
 
@@ -333,7 +343,8 @@ Aufbau wie im Design-Sheet: Übersicht mit Live-Gewicht, Auslastungsbalken, Tara
 und Speichern, darunter Kacheln für alle Modi und die Verwaltung.
 
 - **Ziel:** Zielgewicht, Balken bis zum Ziel, die Waage piept als Parkpiepser mit.
-- **Rezept:** Rezept wählen, Portionen (bei Eiern: Anzahl Eier), Schritt für Schritt mit Auto-Tara.
+- **Rezept:** Rezept wählen, Portionen (bei Eiern: Anzahl Eier), Schritt für Schritt mit Auto-Tara,
+  Anweisungen mit Icon und Timer.
 - **Spule:** Material, Leerspule, Durchmesser, Restmeter live; neue Leerspule anlegen.
 - **Zählen:** Referenz übernehmen, Stückzahl live, Zählliste mit Bezeichnungen
   (als CSV herunterladbar), Senden per Bluetooth.

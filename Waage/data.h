@@ -61,22 +61,45 @@ int log_read(const char *day, log_entry_t *out, int max, int *total);
 void log_today(char day[11]);  // "2026-09-18" oder "" wenn Uhr nicht gestellt
 
 // ---------------- Rezepte ----------------
-#define RECIPE_MAX_ING 20
+// Ein Rezept ist eine Folge von Schritten: Zutaten abwiegen und Anweisungen
+// (Icon + Text, optional mit Dauer für einen Küchentimer). Dateiformat:
+//    Mehl;250                         Zutat;Gramm
+//    >ruehren;Glatt rühren;2          >Icon;Text;Minuten (Minuten optional, auch 0,5)
+#define RECIPE_MAX_ING 24
+#define STEP_TEXT_LEN 56
+
+#define STEP_WEIGH 0   // Zutat abwiegen
+#define STEP_NOTE  1   // Anweisung
+
+// Icons der Anweisungen (Reihenfolge = Schlüssel in step_icon_key)
+enum {
+  SI_RUEHREN, SI_MIXEN, SI_KNETEN, SI_BRATEN, SI_KOCHEN, SI_BACKEN, SI_GRILLEN, SI_SCHNEIDEN,
+  SI_KUEHLEN, SI_RUHEN, SI_MIKROWELLE, SI_GIESSEN, SI_ERHITZEN, SI_SERVIEREN, SI_HINWEIS,
+  SI_COUNT
+};
+const char *step_icon_key(int icon);     // "ruehren" (Dateiformat, Web)
+const char *step_icon_label(int icon);   // "Rühren" (Anzeige, über T())
+int step_icon_find(const char *key);     // unbekannt -> SI_HINWEIS
 
 typedef struct {
-  char name[32];
+  char name[32];     // Zutat (bei Anweisungen leer)
   float grams;
+  uint8_t kind;      // STEP_WEIGH / STEP_NOTE
+  uint8_t icon;      // SI_*
+  uint16_t secs;     // Dauer der Anweisung in s, 0 = keine
+  char text[STEP_TEXT_LEN];  // Anweisungstext
 } ingredient_t;
 
 typedef struct {
   char file[48];
   char name[40];
   int portions;
-  int count;
+  int count;    // alle Schritte
+  int weigh;    // davon Zutaten zum Abwiegen
   ingredient_t ing[RECIPE_MAX_ING];
 } recipe_t;
 
-int  recipes_list(char files[][48], char names[][40], int counts[], int max);
+int  recipes_list(char files[][48], char names[][40], int counts[], int max);  // counts = Zutaten
 bool recipe_load(const char *file, recipe_t *r);
 // dieselben Funktionen für einen anderen Ordner (Cocktails)
 int  recipes_list_dir(const char *dir, char files[][48], char names[][40], int counts[], int max);

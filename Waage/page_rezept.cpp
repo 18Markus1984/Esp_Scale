@@ -11,6 +11,9 @@
 //    Mehl;250
 //    Milch;500
 //
+//  Anweisungen („>ruehren;Glatt rühren;2“) zeigen statt der Gewichtsanzeige
+//  ein großes Icon und den Text; mit Dauer startet ein Knopf einen Küchentimer.
+//
 //  Rezepte mit Eiern (Zutat „Ei“/„Eier“) skalieren nicht nach Portionen,
 //  sondern nach ganzen Eiern: Die Anzahl im Grundrezept ist Eigewicht / EGG_G.
 //  Die Eier werden zuerst abgewogen, danach richten sich alle anderen
@@ -28,6 +31,7 @@
 #include "settings.h"
 #include "ui_text.h"
 #include "config.h"
+#include "tools.h"
 #include <stdio.h>
 #include <strings.h>
 #include <string.h>
@@ -74,7 +78,7 @@ static bool is_egg(const char *name) {
 static void egg_setup() {
   s_egg = -1;
   for (int i = 0; i < s_rec.count && s_egg < 0; i++)
-    if (is_egg(s_rec.ing[i].name) && s_rec.ing[i].grams > 0) s_egg = i;
+    if (s_rec.ing[i].kind == STEP_WEIGH && is_egg(s_rec.ing[i].name) && s_rec.ing[i].grams > 0) s_egg = i;
   int k = 0;
   if (s_egg >= 0) s_order[k++] = s_egg;
   for (int i = 0; i < s_rec.count; i++)
@@ -101,6 +105,31 @@ static float target(int i) {
 static int step_ing() {  // Zutat des aktuellen Schritts
   return s_order[s_step];
 }
+
+static bool step_is_note(int step) {
+  return step >= 0 && step < s_rec.count && s_rec.ing[s_order[step]].kind == STEP_NOTE;
+}
+
+// Icons der Anweisungen (Material Symbols in font_icons_80, Reihenfolge wie SI_* in data.h)
+static const char *const SI_GLYPH[SI_COUNT] = {
+  "\xEE\x9F\x93",  // soup_kitchen   Rühren
+  "\xEE\xBF\xA3",  // blender        Mixen
+  "\xEE\x9D\xA4",  // back_hand      Kneten
+  "\xEF\x95\x83",  // skillet        Braten
+  "\xEF\x95\x85",  // stockpot       Kochen
+  "\xEE\xA1\x83",  // oven_gen       Backen
+  "\xEE\xA9\x87",  // outdoor_grill  Grillen
+  "\xEE\x85\x8E",  // content_cut    Schneiden
+  "\xEE\xAC\xBB",  // ac_unit        Kühlen
+  "\xEE\xA9\x9B",  // hourglass_top  Ruhen
+  "\xEF\x88\x84",  // microwave      Mikrowelle
+  "\xEE\x9E\x98",  // water_drop     Gießen
+  "\xEE\xBD\x95",  // local_fire_department  Erhitzen
+  "\xEE\x95\xAC",  // restaurant     Servieren
+  "\xEE\xA2\x8E",  // info           Hinweis
+};
+
+static int s_step_timer[RECIPE_MAX_ING];  // Küchentimer je Schritt, -1 = keiner
 
 // ------------------------------------------------------------
 //  Auswahl
@@ -154,14 +183,15 @@ lv_obj_t *page_rezept_create() {
 //  Vorschau
 // ------------------------------------------------------------
 static lv_obj_t *pv_rows[3][2], *pv_more, *pv_port;
+static int pv_ing[3];  // Zutat je Vorschauzeile (nur Zutaten, keine Anweisungen)
+static int pv_n;
 
 static void pv_refresh() {
   char b[32];
   s_factor = plan_factor();
   s_factor_real = false;
-  for (int r = 0; r < 3; r++) {
-    if (r >= s_rec.count) continue;
-    int i = s_order[r];
+  for (int r = 0; r < pv_n; r++) {
+    int i = pv_ing[r];
     // Eier: ungefähres Gewicht, die echten Eier wiegen mehr oder weniger
     snprintf(b, sizeof(b), i == s_egg ? T("ca. %d g") : "%d g", (int)lroundf(target(i)));
     lv_label_set_text(pv_rows[r][1], b);
@@ -205,6 +235,7 @@ static void pv_start_cb(lv_event_t *e) {
   s_step = 0;
   s_start_ms = hal_millis();
   memset(s_done_g, 0, sizeof(s_done_g));
+  for (int i = 0; i < RECIPE_MAX_ING; i++) s_step_timer[i] = -1;
   s_factor = plan_factor();
   s_factor_real = false;
   scale_tare();
@@ -215,7 +246,7 @@ static lv_obj_t *page_preview_create() {
   lv_obj_t *s = ui_screen_create();
   char b[64];
 
-  snprintf(b, sizeof(b), T("%s · %d Zutaten"), s_rec.name, s_rec.count);
+  snprintf(b, sizeof(b), T("%s · %d Zutaten"), s_rec.name, s_rec.weigh);
   lv_obj_t *t = ui_label(s, b, &font_sg_18, C_MUTED);
   lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 56);
 
@@ -223,19 +254,31 @@ static lv_obj_t *page_preview_create() {
   lv_obj_set_size(list, 270, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
   lv_obj_align(list, LV_ALIGN_CENTER, 0, -52);
-  for (int i = 0; i < 3 && i < s_rec.count; i++) {
+  pv_n = 0;
+  for (int k = 0; k < s_rec.count && pv_n < 3; k++)
+    if (s_rec.ing[s_order[k]].kind == STEP_WEIGH) pv_ing[pv_n++] = s_order[k];
+  for (int i = 0; i < pv_n; i++) {
     lv_obj_t *row = ui_box(list);
     lv_obj_set_size(row, 270, 34);
     lv_obj_set_style_border_side(row, LV_BORDER_SIDE_BOTTOM, 0);
     lv_obj_set_style_border_width(row, 1, 0);
     lv_obj_set_style_border_color(row, C_TRACK, 0);
-    pv_rows[i][0] = ui_label(row, s_rec.ing[s_order[i]].name, &font_sg_18, C_TEXT);
+    pv_rows[i][0] = ui_label(row, s_rec.ing[pv_ing[i]].name, &font_sg_18, C_TEXT);
     lv_obj_align(pv_rows[i][0], LV_ALIGN_LEFT_MID, 0, 0);
     pv_rows[i][1] = ui_label(row, "", &font_sg_18, C_MUTED);
     lv_obj_align(pv_rows[i][1], LV_ALIGN_RIGHT_MID, 0, 0);
   }
-  if (s_rec.count > 3) {
-    snprintf(b, sizeof(b), T("+ %d weitere"), s_rec.count - 3);
+  int notes = s_rec.count - s_rec.weigh;
+  if (s_rec.weigh > 3 || notes > 0) {
+    b[0] = 0;
+    if (s_rec.weigh > 3) snprintf(b, sizeof(b), T("+ %d weitere"), s_rec.weigh - 3);
+    if (notes > 0) {
+      char n[32];
+      if (notes == 1) snprintf(n, sizeof(n), "%s", T("1 Anweisung"));
+      else snprintf(n, sizeof(n), T("%d Anweisungen"), notes);
+      if (b[0]) strncat(b, " · ", sizeof(b) - strlen(b) - 1);
+      strncat(b, n, sizeof(b) - strlen(b) - 1);
+    }
     pv_more = ui_label(list, b, &font_sg_14, C_MUTED);
   }
 
@@ -272,7 +315,7 @@ static int st_prev;
 static void st_next_cb(lv_event_t *e);
 
 static void st_next_cb(lv_event_t *e) {
-  s_done_g[s_step] = scale_net();
+  s_done_g[s_step] = step_is_note(s_step) ? 0 : scale_net();
   // Eier gewogen: alle weiteren Zutaten nach dem echten Eigewicht ausrichten
   // (unter 10 g wurde wohl nichts aufgelegt, dann bleibt es beim Plan)
   if (step_ing() == s_egg && s_done_g[s_step] > 10.0f) {
@@ -284,7 +327,7 @@ static void st_next_cb(lv_event_t *e) {
     return;
   }
   s_step++;
-  scale_tare();  // Auto-Tara vor der nächsten Zutat
+  if (!step_is_note(s_step)) scale_tare();  // Auto-Tara vor der nächsten Zutat
   ui_switch_page(page_step_create());
 }
 
@@ -298,7 +341,7 @@ static void st_back_cb(lv_event_t *e) {
     return;
   }
   s_step--;
-  scale_tare();
+  if (!step_is_note(s_step)) scale_tare();
   ui_switch_page(page_step_create());
 }
 
@@ -358,7 +401,105 @@ static void st_timer_cb(lv_timer_t *t) {
   st_auto(egg ? 0 : state);
 }
 
+// ------------------------------------------------------------
+//  Anweisung: Icon und Text statt Gewicht, optional Küchentimer
+// ------------------------------------------------------------
+static lv_obj_t *nt_ring, *nt_btn, *nt_hint;
+
+static void nt_timer_cb(lv_timer_t *t) {
+  int ti = s_step_timer[s_step];
+  ingredient_t *z = &s_rec.ing[step_ing()];
+  if (!nt_btn || !z->secs) return;
+  char b[24];
+  if (ti >= 0 && timer_running(ti)) {
+    int left = timer_left(ti);
+    timer_fmt(b, sizeof(b), left < 0 ? 0 : left);
+    uint32_t dur = timer_duration(ti);
+    int v = dur ? (int)(1000L * (dur - (left < 0 ? 0 : left)) / dur) : 0;
+    if (lv_arc_get_value(nt_ring) != v) lv_arc_set_value(nt_ring, v);
+  } else {
+    char t[16];
+    timer_fmt(t, sizeof(t), z->secs);
+    snprintf(b, sizeof(b), T("Timer %s"), t);
+    if (ti >= 0) {  // abgelaufen
+      s_step_timer[s_step] = -1;
+      lv_arc_set_value(nt_ring, 1000);
+    }
+  }
+  ui_label_update(lv_obj_get_child(nt_btn, 0), b);
+}
+
+static void nt_timer_start_cb(lv_event_t *e) {
+  ingredient_t *z = &s_rec.ing[step_ing()];
+  int ti = s_step_timer[s_step];
+  if (ti >= 0 && timer_running(ti)) return;  // läuft schon
+  ti = timer_free();
+  if (ti < 0) {
+    ui_label_update(nt_hint, T("Kein Timer frei"));
+    sound_play(SND_WARN);
+    return;
+  }
+  timer_start(ti, z->secs, T(step_icon_label(z->icon)));
+  s_step_timer[s_step] = ti;
+  sound_play(SND_CLICK);
+  lv_arc_set_value(nt_ring, 0);
+  nt_timer_cb(NULL);
+}
+
+static lv_obj_t *page_note_create() {
+  lv_obj_t *s = ui_screen_create();
+  ingredient_t *z = &s_rec.ing[step_ing()];
+  char b[48];
+  nt_ring = ui_ring(s, 396);
+  lv_arc_set_value(nt_ring, 0);
+
+  snprintf(b, sizeof(b), T("Schritt %d / %d"), s_step + 1, s_rec.count);
+  lv_obj_t *l = ui_label(s, b, &font_sg_18, C_MUTED);
+  lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 50);
+
+  // Icon statt Gewicht, in der Akzentfarbe des Farbschemas
+  lv_obj_t *ic = ui_label(s, SI_GLYPH[z->icon < SI_COUNT ? z->icon : SI_HINWEIS], &font_icons_80, C_ACCENT);
+  lv_obj_align(ic, LV_ALIGN_CENTER, 0, -62);
+
+  // Text: kurze Anweisungen groß, längere kleiner und umgebrochen
+  const char *txt = z->text[0] ? z->text : T(step_icon_label(z->icon));
+  bool big = strlen(txt) <= 30;
+  lv_obj_t *t = ui_label(s, txt, big ? &font_sg_24 : &font_sg_18, C_TEXT);
+  lv_obj_set_width(t, 300);
+  lv_label_set_long_mode(t, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(t, LV_ALIGN_CENTER, 0, 30);
+
+  nt_hint = ui_label(s, "", &font_sg_14, C_WARN);
+  lv_obj_align(nt_hint, LV_ALIGN_CENTER, 0, 150);
+
+  lv_obj_t *row = ui_box(s);
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(row, 12, 0);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, 108);
+  lv_obj_t *back = ui_btn(row, "Zurück", BTN_NORMAL);
+  lv_obj_set_style_pad_hor(back, 14, 0);
+  lv_obj_add_event_cb(back, st_back_cb, LV_EVENT_CLICKED, NULL);
+  nt_btn = NULL;
+  if (z->secs) {
+    nt_btn = ui_btn(row, "", BTN_NORMAL);
+    lv_obj_set_style_pad_hor(nt_btn, 14, 0);
+    lv_obj_add_event_cb(nt_btn, nt_timer_start_cb, LV_EVENT_CLICKED, NULL);
+  }
+  lv_obj_t *next = ui_btn(row, s_step + 1 >= s_rec.count ? "Fertig" : "Weiter", BTN_PRIMARY);
+  lv_obj_add_event_cb(next, st_next_cb, LV_EVENT_CLICKED, NULL);
+
+  sound_parking_reset();
+  if (nt_btn) {
+    ui_page_timer(s, nt_timer_cb, 250);
+    nt_timer_cb(NULL);
+  }
+  return s;
+}
+
 static lv_obj_t *page_step_create() {
+  if (step_is_note(s_step)) return page_note_create();
   lv_obj_t *s = ui_screen_create();
   char b[48];
   st_ring = ui_ring(s, 396);
@@ -439,7 +580,7 @@ static lv_obj_t *page_done_create() {
 
   char b[48];
   int min = (int)((hal_millis() - s_start_ms) / 60000);
-  snprintf(b, sizeof(b), T("%d von %d Zutaten · %d min"), s_rec.count, s_rec.count, min);
+  snprintf(b, sizeof(b), T("%d von %d Zutaten · %d min"), s_rec.weigh, s_rec.weigh, min);
   lv_obj_t *i = ui_label(s, b, &font_sg_14, C_MUTED);
   lv_obj_align(i, LV_ALIGN_CENTER, 0, 6);
 
@@ -523,6 +664,7 @@ static void ed_remove_cb(lv_event_t *e) {  // gedrückt halten = Zutat entfernen
   int i = (int)(intptr_t)lv_event_get_user_data(e);
   for (int k = i; k < s_draft.count - 1; k++) s_draft.ing[k] = s_draft.ing[k + 1];
   s_draft.count--;
+  s_draft.weigh--;
   ui_switch_page(page_edit_create());
 }
 
@@ -649,6 +791,9 @@ static void am_weigh_cb(lv_event_t *e) {  // aufgelegte Menge übernehmen
 
 static void am_ok_cb(lv_event_t *e) {
   ingredient_t *i = &s_draft.ing[s_draft.count++];
+  memset(i, 0, sizeof(*i));
+  i->kind = STEP_WEIGH;
+  s_draft.weigh++;
   strncpy(i->name, a_name, sizeof(i->name) - 1);
   i->name[sizeof(i->name) - 1] = 0;
   i->grams = (float)a_grams;

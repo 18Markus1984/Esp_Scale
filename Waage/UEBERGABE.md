@@ -406,9 +406,23 @@ Minus jetzt als `ui_neg_tare_due(&since, allowed)` in ui.cpp, genutzt von der Wi
 Ziel-Modus (page_ziel.cpp: Tara + Ton + Toast, `za_logged` zurück, damit der nächste Durchgang wieder
 ins Protokoll kommt). Im Simulator dauert es Beruhigung (~2,5 s) + 3 s; `SPKDBG=1` testet Schüssel und Ziel.
 
-**Libelle Richtung (08.10.2026):** Markus' Test: Achsen stimmen, aber beide liefen falsch herum ->
-`LEVEL_FLIP_X 1`, `LEVEL_FLIP_Y 1` in config.h. Nullpunkt jetzt unter `lvl_x3`/`lvl_y3`; ein Nullpunkt aus
-`lvl_x2`/`lvl_y2` (bzw. dem Original `lvl_x`/`lvl_y`) wird beim Laden mit umgedrehtem Vorzeichen übernommen.
+**Libelle Richtung (09.10.2026):** Kurz beide Achsen umgedreht (`LEVEL_FLIP_X/Y 1`), nach Markus' Test
+wieder zurück: Richtung war schon richtig, `LEVEL_FLIP_X/Y` = 0. Nullpunkt jetzt unter `lvl_x4`/`lvl_y4`;
+Fallback-Kette in settings.cpp: `-lvl_x3` (aus der umgedrehten Version) -> `lvl_x2` -> altes `lvl_y`.
+
+**Rezepte mit Anweisungen (10.10.2026, mit Markus abgestimmt):** Rezept = Folge von Schritten,
+`ingredient_t` hat jetzt `kind` (STEP_WEIGH/STEP_NOTE), `icon` (SI_*), `secs`, `text[56]`;
+`recipe_t.weigh` = Anzahl Zutaten (Listen zeigen „N Zutaten“). `RECIPE_MAX_ING` 24. Datei:
+`>icon;Text;Minuten` (Schlüssel in data.cpp `SI_KEYS`, unbekannt -> hinweis; Cocktails ignorieren
+`>`-Zeilen). Gerät: page_rezept.cpp `page_note_create()` – Icon in `font_icons_80` (neu, 15
+Material-Symbols-Zeichen, `SI_GLYPH` in gleicher Reihenfolge) in `C_ACCENT`, Text 24 bzw. 18 px,
+Knopf „Timer m:ss“ startet `timer_start(timer_free(), …)`, Ring = Fortschritt; Tara nur vor
+Zutaten-Schritten, kein Parkpiepser. Eier weiterhin zuerst, Rest in Dateireihenfolge. Am Gerät
+legt „Neues Rezept“ weiter nur Zutaten an; Anweisungen im Web-Editor (Typ, Icon-Auswahl,
+Minuten, ▲▼ verschieben; `{ } [ ] ;` werden ersetzt, Text auf 55 Byte gekürzt). Web-Icons sind
+SVG-Pfade derselben Glyphen (`SI` in page.html), Farbe `var(--acc)`. API: Anweisung als
+`{"k":1,"icon":"ruehren","text":"…","sec":120}`. Beispielrezepte auf der SD-Karte und das
+eingebaute Pfannkuchen-Beispiel haben jetzt Anweisungen. Simulator: `NOTETEST=1`, `SAVETEST=1`.
 
 ## 6. Offene Punkte
 
