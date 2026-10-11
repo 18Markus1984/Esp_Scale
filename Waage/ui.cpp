@@ -32,10 +32,12 @@
 //  Startseite: Tileview mit Wiegen | Modi | System
 // ============================================================
 static lv_obj_t *scr_home, *h_tv, *h_tile0;
+static int h_tiles = 3;  // Anzahl der Seiten auf der Startseite (je nach Profil 1–3)
 static lv_obj_t *h_wifi, *h_bat;
 static lv_obj_t *h_ring, *h_status, *h_pot, *h_weight, *h_unit, *h_state, *h_potinfo, *h_liquid;
 static void weight_show(const char *num, const char *unit);  // große Gewichtsanzeige (unten)
 static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast, *h_spk;
+static lv_obj_t *h_simple_spk;  // Profil Einfach: Lautsprecher über der Ansage-Fläche
 static bool h_boot_prev = false;
 static int h_prev_state = -1;  // zuletzt gezeigter Zustand (misst/stabil/Überlast)
 
@@ -100,6 +102,48 @@ static const page_create_fn SYSTEM_PAGES[] = {
 };
 
 // ============================================================
+//  Profile: welche Gruppen, Modi und Systemeinträge sichtbar sind
+//  (Einstellungen profile / cats / modes_off, siehe settings.h)
+// ============================================================
+#define N_GROUPS 3
+#define N_SYSTEM ((int)(sizeof(SYSTEM_ITEMS) / sizeof(SYSTEM_ITEMS[0])))
+static const int GROUP_BASE[N_GROUPS] = { 0, 6, 12 };  // Bitnummer des ersten Modus in modes_off
+
+static ui_list_item_t s_modi_items[N_GROUPS];
+static int s_modi_map[N_GROUPS], s_modi_n = 0;
+static ui_list_item_t s_mode_items[6];
+static int s_mode_map[6], s_mode_n = 0;
+static ui_list_item_t s_sys_items[8];
+static int s_sys_map[8], s_sys_n = 0;
+
+bool ui_simple() { return g_set.profile == PROFILE_EINFACH; }
+
+static bool mode_visible(int g, int i) { return !(g_set.modes_off & (1u << (GROUP_BASE[g] + i))); }
+
+// Sichtbare Einträge neu zusammenstellen (vor jedem Aufbau der Startseite)
+static void profile_lists() {
+  s_modi_n = 0;
+  s_sys_n = 0;
+  if (ui_simple()) return;  // Einfach: nur die Wiegeseite
+  for (int g = 0; g < N_GROUPS; g++) {
+    if (!(g_set.cats & (1 << g))) continue;
+    int n = 0;
+    for (int i = 0; i < GROUP_COUNT[g]; i++)
+      if (mode_visible(g, i)) n++;
+    if (!n) continue;
+    s_modi_items[s_modi_n] = MODI_GROUPS[g];
+    s_modi_map[s_modi_n++] = g;
+  }
+  for (int i = 0; i < N_SYSTEM; i++) {
+    // Küche braucht keine Wasserwaage, die Werkstatt keine Töpfe
+    if (g_set.profile == PROFILE_KUECHE && SYSTEM_PAGES[i] == page_level_create) continue;
+    if (g_set.profile == PROFILE_WERKSTATT && SYSTEM_PAGES[i] == page_toepfe_create) continue;
+    s_sys_items[s_sys_n] = SYSTEM_ITEMS[i];
+    s_sys_map[s_sys_n++] = i;
+  }
+}
+
+// ============================================================
 //  Topf-Zustand auf der Wiegeseite
 // ============================================================
 #define POT_NONE 0
@@ -129,7 +173,7 @@ static void set_pot_mode(int mode, int idx) {
   if (mode == POT_NONE) {
     lv_obj_add_flag(h_pot, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(h_potinfo, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(h_btns, LV_OBJ_FLAG_HIDDEN);
+    if (!ui_simple()) lv_obj_clear_flag(h_btns, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(h_btn_remove, LV_OBJ_FLAG_HIDDEN);
     return;
   }
@@ -382,14 +426,23 @@ static lv_obj_t *group_page_create();
 static page_create_fn s_back = NULL;  // Ziel der Zurück-Geste (NULL = Wiegeseite)
 
 static void group_pick_cb(int index) {
+  if (index < 0 || index >= s_mode_n) return;
   s_back = group_page_create;  // Wischen nach rechts führt zurück in die Gruppe
-  page_create_fn fn = GROUP_PAGES[s_group][index];
-  ui_switch_page(fn ? fn() : page_placeholder_create(GROUP_ITEMS[s_group][index].title));
+  int m = s_mode_map[index];
+  page_create_fn fn = GROUP_PAGES[s_group][m];
+  ui_switch_page(fn ? fn() : page_placeholder_create(GROUP_ITEMS[s_group][m].title));
 }
 
 static lv_obj_t *group_page_create() {
   lv_obj_t *s = ui_screen_create();
-  ui_curved_list(s, GROUP_ITEMS[s_group], GROUP_COUNT[s_group], group_pick_cb);
+  // nur die Modi, die im Profil nicht ausgeblendet sind
+  s_mode_n = 0;
+  for (int i = 0; i < GROUP_COUNT[s_group]; i++) {
+    if (!mode_visible(s_group, i)) continue;
+    s_mode_items[s_mode_n] = GROUP_ITEMS[s_group][i];
+    s_mode_map[s_mode_n++] = i;
+  }
+  ui_curved_list(s, s_mode_items, s_mode_n, group_pick_cb);
   lv_obj_t *t = ui_label(s, MODI_GROUPS[s_group].title, &font_sg_14, C_MUTED);
   lv_obj_set_style_bg_color(t, C_BG, 0);
   lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
@@ -401,12 +454,15 @@ static lv_obj_t *group_page_create() {
 }
 
 static void modi_cb(int index) {
-  s_group = index;
+  if (index < 0 || index >= s_modi_n) return;
+  s_group = s_modi_map[index];
   s_back = NULL;
   ui_open_page(group_page_create());
 }
 
 static void system_cb(int index) {
+  if (index < 0 || index >= s_sys_n) return;
+  index = s_sys_map[index];
   page_create_fn fn = SYSTEM_PAGES[index];
   ui_open_page(fn ? fn() : page_placeholder_create(SYSTEM_ITEMS[index].title));
 }
@@ -448,7 +504,7 @@ static void autosave_check() {
 // Einmal pro Auflegen, sobald der Wert ruhig liegt.
 // Symbol und Farbe des Lautsprecher-Knopfs nachführen (alle 100 ms)
 static void speaker_update() {
-  if (!h_spk) return;
+  if (!h_spk || ui_simple()) return;  // Einfach: eigene Ansage-Fläche statt Knopf
   static int8_t shown = -2;  // -1 = versteckt
   static bool was_talking = false;
   bool avail = sound_voice_available() && g_set.volume > 0;
@@ -717,9 +773,9 @@ static void home_update_cb(lv_timer_t *t) {
 
   lv_obj_t *act = lv_tileview_get_tile_act(h_tv);
   if (act == NULL || act == h_tile0) {
-    pot_detect();
+    if (!ui_simple()) pot_detect();  // Einfach: keine Topferkennung, kein Countdown
     neg_tare_check();
-    autosave_check();
+    if (!ui_simple()) autosave_check();
     speak_check();
   }
   if (cd_active) cd_update();
@@ -738,7 +794,14 @@ static void home_update_cb(lv_timer_t *t) {
   unit_fmt(buf, sizeof(buf), unit_from_g(over ? gross : scale_net(), u), u);
   // Präzisionsmodus (nur in Gramm): Mittelwert über die ruhige Zeit, zwei Nachkommastellen
   float p_net = 0, p_u = 0;
-  bool precise = g_set.precise && u == 0 && !over && scale_precise(&p_net, &p_u, NULL);
+  bool simple = ui_simple();
+  bool precise = !simple && g_set.precise && u == 0 && !over && scale_precise(&p_net, &p_u, NULL);
+  if (simple) {
+    // Einfach: immer ganze Gramm, große Ziffern ohne Komma
+    u = 0;
+    long gr = lroundf(over ? gross : scale_net());
+    snprintf(buf, sizeof(buf), "%ld", gr);
+  }
   if (precise) {
     snprintf(buf, sizeof(buf), "%.2f", (p_net > -0.005f && p_net < 0.005f) ? 0.0f : p_net);
     for (char *c = buf; *c; c++)
@@ -747,7 +810,7 @@ static void home_update_cb(lv_timer_t *t) {
   if (web_hide_weight()) snprintf(buf, sizeof(buf), "? ? ?");  // Schätzspiel im Browser
   weight_show(buf, unit_name(u));
   // Einheit ml: gewählte Flüssigkeit anzeigen (nicht, wenn die Topfzeile dort steht)
-  if (u == UNIT_ML && s_pot_mode == POT_NONE) {
+  if (u == UNIT_ML && s_pot_mode == POT_NONE && !simple) {
     char lb[40], d[12];
     fmt_num(d, sizeof(d), liquid_density(g_set.liquid), 2);
     snprintf(lb, sizeof(lb), "%s · %s g/ml", T(liquid_name(g_set.liquid)), d);
@@ -799,6 +862,12 @@ static void home_update_cb(lv_timer_t *t) {
     if (over) lv_obj_add_state(h_btn_save, LV_STATE_DISABLED);
     else lv_obj_clear_state(h_btn_save, LV_STATE_DISABLED);
     lv_obj_set_style_text_color(save_lbl, over ? C_FAINT : C_TEXT, 0);
+  }
+
+  // Einfach: Lautsprecher leuchtet, solange angesagt wird; keine Statuszeile
+  if (simple) {
+    if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, sound_speaking() ? C_ACCENT : C_MUTED, 0);
+    return;
   }
 
   // Statuszeile
@@ -893,6 +962,85 @@ static void build_countdown(lv_obj_t *tile) {
   lv_obj_add_flag(cd_box, LV_OBJ_FLAG_HIDDEN);
 }
 
+// ---------- Profil Einfach (Variante A) ----------
+// Zwei klar getrennte Flächen: oben antippen = Gewicht ansagen,
+// unten die gelb hinterlegte Fläche = Tara. Keine Statuszeile, keine Knöpfe,
+// kein Wischen zu Modi und System (zurück nur über die Weboberfläche).
+#define SIMPLE_TARA_Y 268  // Oberkante der Tara-Fläche
+
+// Wischen über eine Fläche zählt nicht als Antippen (sonst sagt die Waage
+// beim versehentlichen Wischen an oder tariert)
+static lv_point_t simple_press_pt;
+static void simple_press_cb(lv_event_t *e) {
+  lv_indev_t *in = lv_indev_get_act();
+  if (in) lv_indev_get_point(in, &simple_press_pt);
+}
+static bool simple_was_swipe() {
+  lv_indev_t *in = lv_indev_get_act();
+  if (!in) return false;
+  lv_point_t p;
+  lv_indev_get_point(in, &p);
+  return LV_ABS(p.x - simple_press_pt.x) > 30 || LV_ABS(p.y - simple_press_pt.y) > 30;
+}
+
+static void simple_tara_cb(lv_event_t *e) {
+  if (!simple_was_swipe()) tara_cb(e);
+}
+
+static void simple_speak_cb(lv_event_t *e) {
+  if (simple_was_swipe()) return;
+  if (!sound_voice_available() || g_set.volume <= 0) {
+    sound_play(SND_WARN);
+    show_toast(g_set.volume <= 0 ? "Ton ist aus" : "Keine Stimme auf der SD-Karte", C_WARN);
+    return;
+  }
+  float net = scale_overload() ? scale_gross() : scale_net();
+  sound_speak_weight_now(roundf(net), 0);
+}
+
+static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
+  // alles Zusätzliche ausblenden
+  lv_obj_t *const hide[] = { h_ring, h_status, h_bat, h_wifi, h_pot, h_state, h_potinfo,
+                             h_liquid, h_btns, h_btn_remove, h_spk };
+  for (lv_obj_t *o : hide) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(wrow, LV_OBJ_FLAG_CLICKABLE);  // kein langes Drücken für Präzision
+  lv_obj_align(wrow, LV_ALIGN_CENTER, 0, -14);
+
+  // Lautsprecher und Hinweis oben
+  h_simple_spk = ui_label(tile, ICON_TON, &font_icons_26, C_MUTED);
+  lv_obj_align(h_simple_spk, LV_ALIGN_TOP_MID, 0, 62);
+  lv_obj_t *hint = ui_label(tile, "Antippen: Gewicht ansagen", &font_sg_18, C_MUTED);
+  lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 98);
+
+  // obere Fläche: Gewicht ansagen (unsichtbar, über der Anzeige)
+  lv_obj_t *top = ui_box(tile);
+  lv_obj_set_size(top, SCREEN_SIZE, SIMPLE_TARA_Y);
+  lv_obj_align(top, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_add_flag(top, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(top, simple_press_cb, LV_EVENT_PRESSED, NULL);
+  lv_obj_add_event_cb(top, simple_speak_cb, LV_EVENT_CLICKED, NULL);
+
+  // untere Fläche: Tara, in der Akzentfarbe hinterlegt
+  lv_obj_t *bot = ui_box(tile);
+  lv_obj_set_size(bot, SCREEN_SIZE, SCREEN_SIZE - SIMPLE_TARA_Y);
+  lv_obj_align(bot, LV_ALIGN_TOP_MID, 0, SIMPLE_TARA_Y);
+  lv_obj_set_style_bg_opa(bot, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(bot, lv_color_mix(C_ACCENT, C_BG, 58), 0);
+  lv_obj_set_style_bg_color(bot, lv_color_mix(C_ACCENT, C_BG, 110), LV_STATE_PRESSED);
+  lv_obj_set_style_border_side(bot, LV_BORDER_SIDE_TOP, 0);
+  lv_obj_set_style_border_width(bot, 2, 0);
+  lv_obj_set_style_border_color(bot, C_ACCENT, 0);
+  lv_obj_add_flag(bot, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(bot, simple_press_cb, LV_EVENT_PRESSED, NULL);
+  lv_obj_add_event_cb(bot, simple_tara_cb, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *tl = ui_label(bot, "TARA", &font_sg_34, C_ACCENT);
+  lv_obj_align(tl, LV_ALIGN_TOP_MID, 0, 32);
+
+  // Meldungen oben statt unten (unten liegt die Tara-Fläche)
+  lv_obj_move_foreground(h_toast);
+  lv_obj_align(h_toast, LV_ALIGN_TOP_MID, 0, 56);
+}
+
 static void build_weigh_tile(lv_obj_t *tile) {
   h_ring = ui_ring(tile, 396);
 
@@ -930,6 +1078,7 @@ static void build_weigh_tile(lv_obj_t *tile) {
   lv_obj_add_flag(wrow, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_ext_click_area(wrow, 20);
   lv_obj_add_event_cb(wrow, [](lv_event_t *e) {
+    if (ui_simple()) return;
     g_set.precise = !g_set.precise;
     settings_save();
     sound_play(SND_CLICK);
@@ -994,8 +1143,13 @@ static void build_weigh_tile(lv_obj_t *tile) {
   h_toast = ui_toast_create(tile);
   lv_obj_align(h_toast, LV_ALIGN_CENTER, 0, 152);
 
-  lv_obj_t *dots = ui_page_dots(tile, 3, 0);
-  lv_obj_align(dots, LV_ALIGN_BOTTOM_MID, 0, -16);
+  h_simple_spk = NULL;
+  if (ui_simple()) {
+    build_simple_layout(tile, wrow);
+  } else if (h_tiles > 1) {
+    lv_obj_t *dots = ui_page_dots(tile, h_tiles, 0);
+    lv_obj_align(dots, LV_ALIGN_BOTTOM_MID, 0, -16);
+  }
 
   build_countdown(tile);  // zuletzt, damit es über allem liegt
 }
@@ -1011,7 +1165,7 @@ static void build_list_tile(lv_obj_t *tile, const char *title, const ui_list_ite
   lv_obj_set_style_pad_top(t, 26, 0);
   lv_obj_set_style_pad_bottom(t, 10, 0);
   lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
-  lv_obj_t *dots = ui_page_dots(tile, 3, page);
+  lv_obj_t *dots = ui_page_dots(tile, h_tiles, page);
   lv_obj_align(dots, LV_ALIGN_BOTTOM_MID, 0, -16);
 }
 
@@ -1023,13 +1177,23 @@ static void build_home_screen() {
   lv_obj_set_style_bg_opa(h_tv, LV_OPA_TRANSP, 0);
   lv_obj_set_scrollbar_mode(h_tv, LV_SCROLLBAR_MODE_OFF);
 
-  h_tile0 = lv_tileview_add_tile(h_tv, 0, 0, LV_DIR_RIGHT);
-  lv_obj_t *t1 = lv_tileview_add_tile(h_tv, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-  lv_obj_t *t2 = lv_tileview_add_tile(h_tv, 2, 0, LV_DIR_LEFT);
-
+  // Seiten je nach Profil: Wiegen | Modi (falls Gruppen sichtbar) | System
+  profile_lists();
+  bool has_modi = s_modi_n > 0, has_sys = s_sys_n > 0;
+  h_tiles = 1 + has_modi + has_sys;
+  int x = 0;
+  h_tile0 = lv_tileview_add_tile(h_tv, x++, 0, h_tiles > 1 ? LV_DIR_RIGHT : LV_DIR_NONE);
   build_weigh_tile(h_tile0);
-  build_list_tile(t1, "Modi", MODI_GROUPS, sizeof(MODI_GROUPS) / sizeof(MODI_GROUPS[0]), modi_cb, 1);
-  build_list_tile(t2, "System", SYSTEM_ITEMS, sizeof(SYSTEM_ITEMS) / sizeof(SYSTEM_ITEMS[0]), system_cb, 2);
+  if (has_modi) {
+    lv_obj_t *t = lv_tileview_add_tile(h_tv, x, 0, x + 1 < h_tiles ? LV_DIR_LEFT | LV_DIR_RIGHT : LV_DIR_LEFT);
+    build_list_tile(t, "Modi", s_modi_items, s_modi_n, modi_cb, x);
+    x++;
+  }
+  if (has_sys) {
+    lv_obj_t *t = lv_tileview_add_tile(h_tv, x, 0, LV_DIR_LEFT);
+    build_list_tile(t, "System", s_sys_items, s_sys_n, system_cb, x);
+    x++;
+  }
   h_prev_state = -1;
 }
 
@@ -1046,6 +1210,19 @@ void ui_lang_changed() {
   rebuild_home();
   ui_power_lang_changed();
   sound_lang_changed();  // Stimmpaket der neuen Sprache wählen
+  settings_save();
+}
+
+// Profil oder sichtbare Modi geändert: Farben und Startseite neu aufbauen.
+// Im Profil Einfach gibt es keine Unterseiten, eine offene wird geschlossen.
+void ui_profile_changed() {
+  ui_theme_set(g_set.theme);
+  if (ui_simple()) {  // Einfach kennt keine Töpfe: Topf und Countdown beenden
+    if (cd_active) cd_hide();
+    if (s_pot_mode != POT_NONE) pot_clear();
+  }
+  rebuild_home();
+  if (ui_simple() && s_start_done && lv_scr_act() != scr_home) ui_go_home();
   settings_save();
 }
 
@@ -1076,6 +1253,7 @@ static void rebuild_home() {
     cd_start = start;
   }
   if (active) {
+    if (tile_x >= h_tiles) tile_x = h_tiles - 1;
     lv_obj_set_tile_id(h_tv, tile_x, 0, LV_ANIM_OFF);
     lv_scr_load(scr_home);
   }

@@ -45,7 +45,7 @@ Angefasst wurde davon nichts; alles Eigene liegt in den unten genannten Dateien.
 | `scale.*` | HX711, Glättung, Mehrpunkt-Kalibrierung (bis 3 Stützstellen) |
 | `storage.*` | SD-Karte mit Sperre (`storage_lock/unlock`), Ausfallerkennung, Selbstheilung |
 | `data.*` | Rezepte, Cocktails, Dichten, Töpfe, Spulen, Spieler, **Bestenliste** |
-| `settings.*` | Einstellungen im Flash |
+| `settings.*`, `settings_profile.cpp` | Einstellungen im Flash, Profil-Voreinstellungen |
 | `net.*`, `web.*`, `web_page.h`, `web/page.html`, `web/build.py` | WLAN und Weboberfläche |
 | `sound.*`, `voice.*`, `mic.*` | Töne, Sprachausgabe, Mikrofon |
 | `batt.*` | Ladezustand, Restzeit, Entladetest |
@@ -423,6 +423,29 @@ Minuten, ▲▼ verschieben; `{ } [ ] ;` werden ersetzt, Text auf 55 Byte gekür
 SVG-Pfade derselben Glyphen (`SI` in page.html), Farbe `var(--acc)`. API: Anweisung als
 `{"k":1,"icon":"ruehren","text":"…","sec":120}`. Beispielrezepte auf der SD-Karte und das
 eingebaute Pfannkuchen-Beispiel haben jetzt Anweisungen. Simulator: `NOTETEST=1`, `SAVETEST=1`.
+
+**Profile, Etappe 1 (11.10.2026, Konzept „Waage für Oma“ im Claude-Doc):** Neue Einstellungen
+`profile` (0 Standard, 1 Küche, 2 Werkstatt, 3 Einfach), `cats` (Bit 0 Küche, 1 Werkstatt, 2 Spiele)
+und `modes_off` (Bit = Modus über alle Gruppen: Küche 0–5, Werkstatt 6–11, Spiele 12–15), im Flash
+als `profile`/`cats`/`modes_off`. `settings_profile_apply()` steht in der eigenen Datei
+`settings_profile.cpp` (ohne Flash, damit der Simulator sie mitnutzt) und setzt nur beim Profilwechsel
+die Voreinstellungen (Einfach: Farbe 6 Gelb, Ansage + Sprüche an, Lautstärke ≥ 80, g, Auto-Tara/
+Präzision/Auto-Speichern aus, Auto-Aus ≥ 60 min). ui.cpp: `profile_lists()` baut vor jedem Aufbau
+die sichtbaren Gruppen/Systemeinträge (Küche ohne Wasserwaage, Werkstatt ohne Töpfe) mit Index-
+Abbildung (`s_modi_map`, `s_mode_map`, `s_sys_map`); `h_tiles` = 1–3 Seiten, Punkte passend.
+`ui_profile_changed()` = Farben + Startseite neu + speichern, bei Einfach offene Seite schließen und
+Topf/Countdown beenden. **Einfach (Variante A):** `build_simple_layout()` blendet Ring, Statuszeile,
+Chips, Knöpfe, Lautsprecher aus (Wieder-Einblenden in `set_pot_mode`, `speaker_update`,
+`home_update_cb` abgefangen), ganze Gramm, keine Topferkennung, kein Auto-Speichern; obere Fläche
+(0–268 px) sagt mit `sound_speak_weight_now()` an (neu in sound.cpp: Art 2 = immer, ohne 2-s-Sperre,
+bricht laufende Ansage ab), untere Fläche = Tara (Akzent gemischt mit Hintergrund, Rand oben),
+Meldungen oben; Wischen > 30 px löst nichts aus. PWR unverändert. Setup -> Waage -> Profil (Kennung
+38, erste Zeile; `ROWS/IDS[4][9]`, `row_val[10]`) mit Liste und Rückfrage für Einfach. Web: `/api/profile?p=`,
+POST `/api/modes {cats, modes_off}`, Karte „Profil“ oben in den Einstellungen (Chips, Schalter je
+Gruppe, Modi als Chips; Namen in page.html `GROUPS`, Reihenfolge wie `GROUP_*` in ui.cpp halten).
+Simulator: `PROFTEST=1`. Nächste Etappen laut Konzept: Einrichtung beim ersten Start, Updates
+(automatisch nach dem Start, Schalter „Auto-Update“), Sprachsteuerung mit Weckwort „Hallo Waage“
+(eigenes deutsches KWS-Netz), Zielwiegen mit Parkpiepser per Stimme im Profil Einfach.
 
 ## 6. Offene Punkte
 

@@ -40,6 +40,8 @@ void ui_input_lock();
 // Nach dem Umstellen der Sprache aufrufen: baut die Startseite neu auf
 void ui_lang_changed();
 void ui_theme_changed();  // Farbschema umgestellt: Startseite neu aufbauen
+void ui_profile_changed();  // Profil/sichtbare Modi geändert: Farben und Startseite neu
+bool ui_simple();           // Profil Einfach aktiv (nur Wiegen, große Flächen)
 
 // Name des aktiven Topfs ("" = keiner), z. B. für die Weboberfläche
 const char *ui_active_pot();

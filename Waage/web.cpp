@@ -706,7 +706,8 @@ static void h_settings() {
              ",\"voice_on\":" + (g_set.voice_on ? "true" : "false") + ",\"voice_ok\":" + (voice_available() ? "true" : "false") +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
-             ",\"liquid\":" + g_set.liquid;
+             ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
+             ",\"modes_off\":" + g_set.modes_off;
   {  // Prüfgewicht
     char last[16], next[16];
     refchk_date(g_set.ref_last, last, sizeof(last));
@@ -898,6 +899,24 @@ static void h_ota() {
   send_json(s);
 }
 
+// Profil wählen: übernimmt die Voreinstellungen des Profils (Farbe, Ansage …)
+// und baut die Startseite der Waage neu auf. Einfach lässt sich nur hier verlassen.
+static void h_profile() {
+  int p = constrain((int)s_server.arg("p").toInt(), 0, PROFILE_COUNT - 1);
+  settings_profile_apply(p);
+  ui_profile_changed();  // speichert auch
+  ok();
+}
+
+// Sichtbare Gruppen und Modi: {"cats":7,"modes_off":0}
+static void h_modes() {
+  String b = s_server.arg("plain");
+  if (jval(b, "cats").length()) g_set.cats = (uint8_t)(jval(b, "cats").toInt() & CAT_ALL);
+  if (jval(b, "modes_off").length()) g_set.modes_off = (uint16_t)jval(b, "modes_off").toInt();
+  ui_profile_changed();
+  ok();
+}
+
 // Sprache umstellen (0 Deutsch, 1 English): gilt für Anzeige, Weboberfläche und Ansage
 static void h_lang() {
   int l = constrain((int)s_server.arg("l").toInt(), 0, 1);
@@ -1084,6 +1103,8 @@ static void routes() {
   s_server.on("/api/level_reset", h_level_reset);
   s_server.on("/api/speak_test", h_speak_test);
   s_server.on("/api/lang", h_lang);
+  s_server.on("/api/profile", h_profile);
+  s_server.on("/api/modes", HTTP_POST, h_modes);
   s_server.on("/api/tools", h_tools);
   s_server.on("/api/timer", h_timer);
   s_server.on("/api/lt", h_lt);

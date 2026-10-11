@@ -112,13 +112,15 @@ static lv_obj_t *stepper_col(lv_obj_t *s, lv_coord_t x, lv_event_cb_t cb, int id
 // ============================================================
 static int s_cat = 0;  // zuletzt geöffnete Gruppe
 static lv_obj_t *page_cat_create(int cat);
+static lv_obj_t *page_profile_pick_create();
+static const char *const PROFILE_NAMES[PROFILE_COUNT] = { "Standard", "Küche", "Werkstatt", "Einfach" };
 static lv_obj_t *page_update_create();
 static lv_obj_t *page_voice_pick_create();
 static lv_obj_t *page_color_pick_create();
 static lv_obj_t *page_sound_create();
 
 static const char *const CAT_TITLE[4] = { "Wiegen", "Zeit & Funk", "Ton", "Waage" };
-static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, Akku", "Töne, Sprache", "Kalibr., Firmware" };
+static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, Akku", "Töne, Sprache", "Profil, Firmware" };
 static const char *const CAT_ICON[4] = { ICON_WIEGEN, ICON_ZEIT, ICON_TON, ICON_WAAGE };
 
 lv_obj_t *page_setup_back() {
@@ -163,7 +165,7 @@ lv_obj_t *page_setup_create() {
 //  Gruppenseiten: Zeilen mit Wert rechts; "›" öffnet eine Unterseite,
 //  sonst schaltet Antippen direkt um
 // ============================================================
-static lv_obj_t *row_val[8];
+static lv_obj_t *row_val[10];  // Index = Nummer der Zeile (Kennung % 10)
 
 static void row_value(int cat, int row, char *b, int len) {
   int y, mo, d, h, mi, sec;
@@ -253,6 +255,7 @@ static void row_value(int cat, int row, char *b, int len) {
     case 33: snprintf(b, len, T("Nullpunkt ›")); break;
     case 26: snprintf(b, len, T("Pegel ›")); break;
     case 37: snprintf(b, len, "%s ›", T(ui_theme_name(g_set.theme))); break;
+    case 38: snprintf(b, len, "%s ›", T(PROFILE_NAMES[g_set.profile])); break;
     case 34:
       if (g_set.disp_rot == 0) snprintf(b, len, T("gerade ›"));
       else {
@@ -338,6 +341,7 @@ static void row_cb(lv_event_t *e) {
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
     case 34: ui_switch_page(page_display_create()); return;
     case 37: ui_switch_page(page_color_pick_create()); return;  // Farbschema wählen
+    case 38: ui_switch_page(page_profile_pick_create()); return;  // Profil wählen
     case 35: wb_from_system = false; ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -349,7 +353,7 @@ static void row_cb(lv_event_t *e) {
   }
   settings_save();  // direkt umgeschaltet
   char b[32];
-  if (row >= 8 || !row_val[row]) return;
+  if (row >= 10 || !row_val[row]) return;
   row_value(id / 10, row, b, sizeof(b));
   lv_label_set_text(row_val[row], b);
   sound_play(SND_CLICK);
@@ -369,19 +373,19 @@ static void cat_timer_cb(lv_timer_t *t) {
 }
 
 static lv_obj_t *page_cat_create(int cat) {
-  static const char *const ROWS[4][8] = {
-    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null" },
-    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL },  // Weboberfläche: Systemliste
-    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL },
-    { "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
+  static const char *const ROWS[4][9] = {
+    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null", NULL },
+    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
+    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL, NULL },
+    { "Profil", "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
   };
   // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
-  static const int8_t IDS[4][8] = {
-    { 0, 1, 2, 3, 4, 5, 6, 7 },
-    { 10, 11, 12, 14, 15, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
-    { 20, 21, 22, 23, 24, 25, 26, -1 },
-    { 30, 31, 32, 33, 34, 37, 35, 36 },
+  static const int8_t IDS[4][9] = {
+    { 0, 1, 2, 3, 4, 5, 6, 7, -1 },
+    { 10, 11, 12, 14, 15, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
+    { 20, 21, 22, 23, 24, 25, 26, -1, -1 },
+    { 38, 30, 31, 32, 33, 34, 37, 35, 36 },  // 38 Profil
   };
   memset(row_val, 0, sizeof(row_val));
   lv_obj_t *s = ui_screen_create();
@@ -396,7 +400,7 @@ static lv_obj_t *page_cat_create(int cat) {
   lv_obj_set_scrollbar_mode(col, LV_SCROLLBAR_MODE_OFF);
   lv_obj_align(col, LV_ALIGN_CENTER, 0, -4);
 
-  for (int r = 0; r < 8 && ROWS[cat][r]; r++) {
+  for (int r = 0; r < 9 && ROWS[cat][r]; r++) {
     lv_obj_t *row = ui_box(col);
     lv_obj_set_size(row, 280, 46);
     lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
@@ -502,6 +506,78 @@ static lv_obj_t *page_color_pick_create() {
   lv_obj_set_style_pad_top(t, 26, 0);
   lv_obj_set_style_pad_bottom(t, 10, 0);
   lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Profil: welche Modi die Startseite zeigt (Standard, Küche,
+//  Werkstatt) oder nur eine große Wiegeseite (Einfach)
+// ------------------------------------------------------------
+static void profile_set(int p) {
+  settings_profile_apply(p);
+  ui_profile_changed();  // Farben, Startseite, speichern; bei Einfach zur Wiegeseite
+  sound_play(SND_CLICK);
+  if (p != PROFILE_EINFACH) ui_switch_page(page_cat_create(3));
+}
+
+static lv_obj_t *page_profile_simple_create();
+
+static void profile_pick_cb(int index) {
+  if (index == PROFILE_EINFACH && g_set.profile != PROFILE_EINFACH) {
+    ui_switch_page(page_profile_simple_create());  // erst bestätigen
+    return;
+  }
+  profile_set(index);
+}
+
+static lv_obj_t *page_profile_pick_create() {
+  static const char *const SUB[PROFILE_COUNT] = { "alle Modi", "Rezept, Timer, Töpfe", "Zählen, Spule, Präzision",
+                                                  "nur Wiegen, groß, mit Ansage" };
+  static const char *const ICONS[PROFILE_COUNT] = { ICON_WAAGE, ICON_KUECHE, ICON_WERKSTATT, ICON_WIEGEN };
+  static ui_list_item_t items[PROFILE_COUNT];
+  for (int i = 0; i < PROFILE_COUNT; i++) {
+    items[i].title = T(PROFILE_NAMES[i]);
+    items[i].sub = i == g_set.profile ? T("aktiv") : T(SUB[i]);
+    items[i].icon = ICONS[i];
+  }
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *list = ui_curved_list(s, items, PROFILE_COUNT, profile_pick_cb);
+  lv_obj_scroll_to_view(lv_obj_get_child(list, g_set.profile), LV_ANIM_OFF);
+  lv_obj_t *t = ui_label(s, "Profil", &font_sg_14, C_MUTED);
+  lv_obj_set_style_bg_color(t, C_BG, 0);
+  lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(t, 60, 0);
+  lv_obj_set_style_pad_top(t, 26, 0);
+  lv_obj_set_style_pad_bottom(t, 10, 0);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
+  return s;
+}
+
+// Einfach bestätigen: am Gerät gibt es danach kein Setup mehr
+static lv_obj_t *page_profile_simple_create() {
+  lv_obj_t *s = ui_screen_create();
+  title(s, "Profil Einfach");
+  lv_obj_t *l = ui_label(s, "Nur Wiegen und Tara, große Anzeige, das Gewicht wird angesagt.",
+                         &font_sg_18, C_TEXT);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(l, 290);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(l, LV_ALIGN_CENTER, 0, -42);
+  lv_obj_t *w = ui_label(s, "Zurück nur über die Weboberfläche", &font_sg_14, C_WARN);
+  lv_label_set_long_mode(w, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(w, 280);
+  lv_obj_set_style_text_align(w, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(w, LV_ALIGN_CENTER, 0, 30);
+
+  lv_obj_t *row = ui_box(s);
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(row, 12, 0);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, 104);
+  lv_obj_t *no = ui_btn(row, "Abbrechen", BTN_NORMAL);
+  lv_obj_add_event_cb(no, [](lv_event_t *e) { ui_switch_page(page_profile_pick_create()); }, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *yes = ui_btn(row, "Einfach", BTN_PRIMARY);
+  lv_obj_add_event_cb(yes, [](lv_event_t *e) { profile_set(PROFILE_EINFACH); }, LV_EVENT_CLICKED, NULL);
   return s;
 }
 

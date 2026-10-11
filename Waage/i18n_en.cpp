@@ -785,6 +785,22 @@ const i18n_pair_t I18N_EN[] = {
   { "Repository nicht gefunden", "Repository not found" },
   // ---- Systemliste Web ----
   { "Bedienen mit dem Handy", "Use it from your phone" },
+  // ---- Profile ----
+  { "Profil", "Profile" },
+  { "Standard", "Standard" },
+  { "Einfach", "Simple" },
+  { "Profil, Firmware", "Profile, firmware" },
+  { "alle Modi", "all modes" },
+  { "Rezept, Timer, Töpfe", "Recipe, timer, pots" },
+  { "Zählen, Spule, Präzision", "Count, spool, precision" },
+  { "nur Wiegen, groß, mit Ansage", "weighing only, large, spoken" },
+  { "Profil Einfach", "Simple profile" },
+  { "Nur Wiegen und Tara, große Anzeige, das Gewicht wird angesagt.", "Weighing and tare only, large display, the weight is spoken." },
+  { "Zurück nur über die Weboberfläche", "Return only via the web interface" },
+  { "Antippen: Gewicht ansagen", "Tap: speak the weight" },
+  { "TARA", "TARE" },
+  { "Ton ist aus", "Sound is off" },
+  { "Keine Stimme auf der SD-Karte", "No voice on the SD card" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

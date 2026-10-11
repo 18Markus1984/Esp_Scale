@@ -431,6 +431,27 @@ Jeder Eintrag hat ein Symbol (Material Symbols, als `font_icons_26.c` eingebette
 Zeichen siehe `ICON_...` in `ui_theme.h`). Wischen nach rechts führt aus einem Modus
 zurück in seine Gruppe und von dort auf die Wiegeseite.
 
+## Profile (Setup -> Waage -> Profil)
+
+Ein Profil legt fest, was die Startseite zeigt, und setzt passende Voreinstellungen:
+
+| Profil | Startseite | Voreinstellungen |
+|---|---|---|
+| Standard | Wiegen, Modi (alle Gruppen), System | – |
+| Küche | nur Gruppe Küche, System ohne Wasserwaage | Auto-Tara an |
+| Werkstatt | nur Gruppe Werkstatt, System ohne Töpfe | Präzision an |
+| Einfach | nur die Wiegeseite, kein Wischen | Farbe Gelb, Ansage an, Lautstärke mind. 80 %, Gramm, Auto-Tara/Präzision/Auto-Speichern aus, Auto-Aus mind. 60 min |
+
+Zusätzlich lassen sich in der Weboberfläche (Einstellungen -> Profil) ganze Gruppen und
+einzelne Modi ausblenden. Gruppen ohne sichtbare Modi verschwinden, gibt es keine Gruppe,
+fehlt die Modi-Seite, und die Punkte unten zeigen nur die vorhandenen Seiten.
+
+**Einfach** ist für schlechte Augen gedacht (Bildschirm-Variante A aus dem Konzept): ganze
+Gramm in großen Ziffern, keine Statuszeile und keine Knöpfe. Oben antippen sagt das Gewicht
+an (auch wenn die automatische Ansage aus ist), die gelb hinterlegte Fläche unten ist Tara.
+Wischen über die Flächen löst nichts aus. Die PWR-Taste verhält sich wie immer. Es gibt am
+Gerät keinen Weg zurück ins Setup: Einfach wird nur in der Weboberfläche verlassen.
+
 ## Spieler und Bestenliste
 
 Spielernamen werden **einmal** gepflegt: an der Waage unter Spiel -> „Spieler“, im
@@ -477,7 +498,7 @@ Vier Gruppen als Kacheln:
 - **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth, Akku (Ladestand, Verlauf, Restzeit; Wischen nach rechts führt
   zurück). Die Weboberfläche steht jetzt ganz oben in der Systemliste.
 - **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprachbefehle.
-- **Waage:** Kalibrierung, Libelle, Portoklassen.
+- **Waage:** Profil, Kalibrierung, Prüfgewicht, Messmittelprüfung, Libelle, Display, Farbe, Dateien, Firmware.
 
 Einfache Werte werden direkt durch Antippen umgeschaltet, Zeilen mit „›“ öffnen
 eine Unterseite. Als Bedienung für „Zur Wiegeseite“ zählt Berühren und auch eine

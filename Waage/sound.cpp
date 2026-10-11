@@ -513,12 +513,14 @@ void sound_play_tone(sound_t s) {
 // kind: 0 = Zahlen (Gewicht, Stückzahl), 1 = Sprüche des Stimmpakets
 static void speak(msg_t *m, int kind) {
   if (!s_speechq || g_set.volume <= 0 || !sound_voice_available()) return;
-  if (kind == 0 ? !g_set.speak : !g_set.speak_ev) return;
-  // Dieselbe Ansage kurz hintereinander nur einmal
+  // kind 0 = Gewicht automatisch, 1 = Spruch, 2 = auf Wunsch (immer)
+  if (kind == 0 && !g_set.speak) return;
+  if (kind == 1 && !g_set.speak_ev) return;
+  // Dieselbe Ansage kurz hintereinander nur einmal (außer auf Wunsch)
   static msg_t last;
   static uint32_t last_ms = 0;
   uint32_t now = millis();
-  if (now - last_ms < 2000 && last.count == m->count &&
+  if (kind != 2 && now - last_ms < 2000 && last.count == m->count &&
       memcmp(last.words, m->words, sizeof(m->words[0]) * m->count) == 0) return;
   memcpy(&last, m, sizeof(msg_t));
   last_ms = now;
@@ -544,6 +546,15 @@ void sound_speak_weight(float grams, int unit) {
   m.count = 0;
   build_weight(&m, grams, unit);
   speak(&m, 0);
+}
+
+void sound_speak_weight_now(float grams, int unit) {
+  static msg_t m;
+  sound_speak_stop();
+  m.type = 1;
+  m.count = 0;
+  build_weight(&m, grams, unit);
+  speak(&m, 2);
 }
 
 static const char *word_file(const char *file);
@@ -649,6 +660,7 @@ static bool pack_ok_host(const char *pack) {
 }
 bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }
 void sound_speak_weight(float grams, int unit) { (void)unit; if (getenv("SPKDBG")) printf("ANSAGE %.1f g\n", grams); }  // Testumgebung
+void sound_speak_weight_now(float grams, int unit) { (void)unit; if (getenv("SPKDBG")) printf("ANSAGE (angetippt) %.1f g\n", grams); }
 void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }

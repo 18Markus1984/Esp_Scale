@@ -36,7 +36,23 @@ typedef struct {
   int   ref_last;     // Tag der letzten Prüfung (Tage seit 1.1.2000), 0 = noch nie
   float ref_meas;     // zuletzt gemessen
   bool  ref_ok;       // letzte Prüfung in Ordnung?
+  // Profile und Kategorien (welche Modi auf dem Startbildschirm erscheinen)
+  int      profile;   // PROFILE_STANDARD … PROFILE_EINFACH
+  uint8_t  cats;      // sichtbare Gruppen: Bit 0 Küche, Bit 1 Werkstatt, Bit 2 Spiele
+  uint16_t modes_off; // ausgeblendete Modi, Bit = Index über alle Gruppen
+                      // (Küche 0–5, Werkstatt 6–11, Spiele 12–15)
 } settings_t;
+
+#define PROFILE_STANDARD  0
+#define PROFILE_KUECHE    1
+#define PROFILE_WERKSTATT 2
+#define PROFILE_EINFACH   3
+#define PROFILE_COUNT     4
+
+#define CAT_KUECHE    1
+#define CAT_WERKSTATT 2
+#define CAT_SPIELE    4
+#define CAT_ALL       7
 
 #define LANG_DE 0
 #define LANG_EN 1
@@ -45,6 +61,11 @@ extern settings_t g_set;
 
 void settings_load();
 void settings_save();
+
+// Profil wählen und seine Voreinstellungen übernehmen (ohne zu speichern).
+// Standard: alle Gruppen · Küche: nur Küche, Auto-Tara an · Werkstatt: nur
+// Werkstatt, Präzision an · Einfach: nur Wiegen, Gelb auf Schwarz, Ansage an
+void settings_profile_apply(int profile);
 
 // Uhrzeit sichern und zurückholen (falls die RTC beim Ausschalten stromlos ist)
 void settings_store_time(int y, int mo, int d, int h, int mi);

@@ -46,6 +46,10 @@ void settings_load() {
   g_set.ref_last = p.getInt("ref_last", 0);
   g_set.ref_meas = p.getFloat("ref_meas", 0.0f);
   g_set.ref_ok = p.getBool("ref_ok", false);
+  g_set.profile = p.getInt("profile", PROFILE_STANDARD);
+  if (g_set.profile < 0 || g_set.profile >= PROFILE_COUNT) g_set.profile = PROFILE_STANDARD;
+  g_set.cats = (uint8_t)p.getInt("cats", CAT_ALL) & CAT_ALL;
+  g_set.modes_off = (uint16_t)p.getInt("modes_off", 0);
   p.end();
 }
 
@@ -82,6 +86,9 @@ void settings_save() {
   p.putBool("ref_ok", g_set.ref_ok);
   p.putInt("liquid", g_set.liquid);
   p.putInt("lang", g_set.lang);
+  p.putInt("profile", g_set.profile);
+  p.putInt("cats", g_set.cats);
+  p.putInt("modes_off", g_set.modes_off);
   p.end();
 }
 
