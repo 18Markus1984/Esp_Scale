@@ -21,6 +21,7 @@
 #define DIR_VOICE     "/Waage/Stimme"
 #define DIR_COCKTAILS "/Waage/Cocktails"
 #define DIR_BATT      "/Waage/Akku"
+#define DIR_SPEECH    "/Waage/Sprache"   // Sprachmodell kws_de.bin, Aufnahmen/<Wort>/*.wav
 #define DIR_MSA       "/Waage/Pruefung"
 #define FILE_POTS     "/Waage/Toepfe/toepfe.txt"
 
@@ -41,6 +42,10 @@ void storage_unlock();
 int  storage_read(const char *path, char *buf, int maxlen);
 bool storage_write(const char *path, const char *data);    // überschreibt
 bool storage_append(const char *path, const char *line);   // hängt Zeile + \n an
+// Binärdateien (Sprachmodell, Aufnahmen): Größe (-1 = fehlt), ab Anfang lesen, ganz schreiben
+long storage_size(const char *path);
+int  storage_read_bin(const char *path, void *buf, int len);
+bool storage_write_bin(const char *path, const void *data, int len);
 bool storage_remove(const char *path);
 bool storage_exists(const char *path);
 bool storage_mkdir(const char *path);

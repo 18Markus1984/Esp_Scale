@@ -538,6 +538,29 @@ Standard-Profil öffnet den Modus Ziel). Mock: `/api/target`, `tgt`.
 Übersetzungen: `/home/claude/i18n/insert_web.py page.html` setzt den Sprachblock ein (vorher lag
 `setLang` durch das Einsetzen achtmal in page.html, bereinigt).
 
+**Zielwiegen Einfach, Variante A (11.10.2026, Markus: Start übers Handy war schlecht, Ansicht auch;
+vier Varianten gezeigt, A gewählt mit der Auflage, dass nichts über den Rand ragt):** Die untere Fläche
+der Wiegeseite ist geteilt: links TARA, rechts ZIEL (je Symbol über der Schrift). Beide Hälften liegen in
+einem Kreis `SIMPLE_ZONE_D` 368 px mit `clip_corner`, also innerhalb des Rings (Ring 396 px, innen
+188 px Radius); Beschriftung `SIMPLE_LAB_DX` 66 px neben der Mitte, weil der Kreis am Rand zu schmal ist.
+ZIEL öffnet `page_ziel_simple_create()` (page_ziel.cpp): „Wie viel?“ mit vier Kacheln 100/200/250/500 g,
+zuletzt benutztes Ziel hervorgehoben, Antippen startet sofort (`ui_target_start`). Beim Zielwiegen:
+Akku/Lautsprecher/Hinweis weg, oben „Ziel 250 g“, Zahl höher (`CENTER -54`), darunter das Feld
+`h_simple_pill` (gedämpft „noch 70 g“, gefüllt mit Haken „Ziel erreicht“, rot „25 g zu viel“, nach dem
+Abnehmen „Fertig“), Ring am Rand, Flächen ab `SIMPLE_ZONE_Y_TGT` 286: TARA (nächste Portion, ohne
+Meldung) und ENDE (grau, beendet). Neue Symbole: `ICON_TARA` (adjust, font_icons_26), `ICON36_HAKEN`
+(neue Schrift `font_icons_36`, nur der Haken). Einrichtungs-Übung Einfach zeigt jetzt TARA | ZIEL.
+Simulator: `TGTTEST=1` startet über die Fläche ZIEL und prüft mit `edge_check()` (main.cpp), dass keine
+Beschriftung über den Display-Rand bzw. den beschnittenen Kreis ragt (6 px Luft); `EDGEALL=1` prüft
+das bei jedem Bildschirmfoto (meldet auch kleine Seitentitel ganz oben, die sichtbar noch passen).
+Der Web-Knopf „An der Waage anzeigen“ und `/api/target` bleiben als zusätzlicher Weg.
+**Etappe 5 (Sprachsteuerung) begonnen, noch nicht eingebaut:** storage.h hat `storage_size`,
+`storage_read_bin`, `storage_write_bin` und den Ordner `DIR_SPEECH` (/Waage/Sprache) für Modell und
+Aufnahmen. Plan: eigene KWS-Engine ohne Bibliothek (Log-Mel 40×75, kleines DS-CNN, Modell
+`kws_de.bin` von der SD-Karte, also ohne Firmware-Update tauschbar), Training in Python mit
+Piper-Stimmen (GitHub-Release v0.0.2) und Aufnahmen vom Gerät, Klassen wie `hallo_waage`, `tara`,
+`wie_viel`, `ziel_250` (Ziel aus dem Klassennamen).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

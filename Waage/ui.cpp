@@ -39,7 +39,11 @@ static void weight_show(const char *num, const char *unit);  // große Gewichtsa
 static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast, *h_spk;
 static lv_obj_t *h_simple_spk;  // Profil Einfach: Lautsprecher über der Ansage-Fläche
 static lv_obj_t *h_simple_bat;  // Profil Einfach: Akkustand ganz oben
-static lv_obj_t *h_simple_hint, *h_simple_rest, *h_simple_wrow;  // Einfach: Hinweis oben, Restmenge, Gewichtszeile
+static lv_obj_t *h_simple_hint, *h_simple_wrow;  // Einfach: Hinweis oben, Gewichtszeile
+// Einfach, Zielwiegen (Variante A): Ziel oben, Restmenge als Feld, untere Flächen
+static lv_obj_t *h_simple_goal, *h_simple_pill, *h_simple_pill_ic, *h_simple_pill_tx;
+static lv_obj_t *h_simple_top, *h_simple_zl, *h_simple_zr, *h_simple_zl_ic, *h_simple_zl_tx,
+                *h_simple_zr_ic, *h_simple_zr_tx;
 // Zielwiegen im Profil Einfach (siehe ui_target_start)
 static int s_tgt = 0;  // Zielgewicht in g, 0 = aus
 static int tgt_state(float net);
@@ -917,7 +921,7 @@ static void home_update_cb(lv_timer_t *t) {
   if (simple) {
     tgt_show(scale_net(), restyled);
     if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, sound_speaking() ? C_ACCENT : C_MUTED, 0);
-    if (h_simple_bat) {
+    if (h_simple_bat && s_tgt <= 0) {  // beim Zielwiegen steht oben das Ziel
       bat_state_t bst = hal_battery_state();
       int bat = hal_battery_percent();
       if (bst == BAT_NONE || bat < 0) {
@@ -1030,7 +1034,13 @@ static void build_countdown(lv_obj_t *tile) {
 // Zwei klar getrennte Flächen: oben antippen = Gewicht ansagen,
 // unten die gelb hinterlegte Fläche = Tara. Keine Statuszeile, keine Knöpfe,
 // kein Wischen zu Modi und System (zurück nur über die Weboberfläche).
-#define SIMPLE_TARA_Y 268  // Oberkante der Tara-Fläche
+// Die unteren Flächen liegen in einem Kreis (SIMPLE_ZONE_D), der innerhalb des
+// Rings bleibt (Ring 396 px, 10 px breit -> innen 188 px Radius), damit der Ring
+// beim Zielwiegen frei am Rand läuft. Links Tara, rechts Ziel bzw. Fertig.
+#define SIMPLE_ZONE_D 368
+#define SIMPLE_ZONE_Y 266      // Oberkante der Flächen auf der Wiegeseite
+#define SIMPLE_ZONE_Y_TGT 286  // beim Zielwiegen (Platz für die Restmenge)
+#define SIMPLE_LAB_DX 66       // Abstand der Beschriftung von der Mitte
 
 // Wischen über eine Fläche zählt nicht als Antippen (sonst sagt die Waage
 // beim versehentlichen Wischen an oder tariert)
@@ -1055,8 +1065,21 @@ static bool simple_was_swipe() {
 static void tgt_new_round();
 static void simple_tara_cb(lv_event_t *e) {
   if (simple_was_swipe()) return;
+  if (s_tgt > 0) {  // Zielwiegen: nächste Portion mit demselben Ziel (das Feld zeigt es, keine Meldung)
+    scale_tare();
+    sound_play(SND_TARA);
+    tgt_new_round();
+    return;
+  }
   tara_cb(e);
-  if (s_tgt > 0) tgt_new_round();  // Zielwiegen: nächste Portion mit demselben Ziel
+}
+
+// rechte Fläche: Ziel wählen bzw. Zielwiegen beenden
+static void simple_right_cb(lv_event_t *e) {
+  if (simple_was_swipe()) return;
+  sound_play(SND_CLICK);
+  if (s_tgt > 0) ui_target_stop();
+  else ui_open_page(page_ziel_simple_create());
 }
 
 // Obere Fläche 5 s gedrückt halten: Weboberfläche starten (QR-Code und Adresse).
@@ -1092,11 +1115,11 @@ static void simple_speak_cb(lv_event_t *e) {
 // Ziel und Restmenge stehen groß auf der Wiegeseite, der Ring füllt sich bis
 // zum Ziel, darüber wird alles rot und ein Warnton kommt. Je näher am Ziel,
 // desto schneller piept die Waage (sound_parking wie im Modus Ziel).
-// Gestartet wird über die Weboberfläche (/api/target), später per Sprache.
+// Gestartet wird an der Waage über die rechte Fläche "Ziel" (vier Kacheln,
+// page_ziel_simple_create), außerdem über /api/target und später per Sprache.
 // Fertig: nach dem Erreichen abgenommen (3 s fast leer) -> "fertig".
 // Tara = nächste Portion mit demselben Ziel. Ohne Gewichtsänderung endet es nach 15 min.
 #define TGT_TOL_G 2.0f
-#define TGT_REST_Y 226       // Oberkante der Restmenge (über der Tara-Fläche)
 #define TGT_END_MS 3000UL
 #define TGT_IDLE_MS 900000UL
 static bool s_tgt_reached = false, s_tgt_logged = false;
@@ -1194,53 +1217,112 @@ static void tgt_check() {
   if (now - s_tgt_change_ms > TGT_IDLE_MS) ui_target_stop();
 }
 
+// Untere Flächen und obere Tippfläche an die Höhe anpassen; rechts "Ziel" oder "Fertig"
+static void simple_zone_set(bool tgt) {
+  int y = tgt ? SIMPLE_ZONE_Y_TGT : SIMPLE_ZONE_Y;
+  int off = (SCREEN_SIZE - SIMPLE_ZONE_D) / 2;  // Kreis beginnt hier
+  lv_obj_t *const zones[] = { h_simple_zl, h_simple_zr };
+  for (lv_obj_t *z : zones) {
+    lv_obj_set_y(z, y - off);
+    lv_obj_set_height(z, SIMPLE_ZONE_D - (y - off));
+  }
+  lv_obj_set_height(h_simple_top, y);
+  // Meldungen unter dem Akku; beim Zielwiegen verdecken sie kurz die Zeile "Ziel 250 g"
+  // (ganz oben würden sie in den Ring ragen)
+  lv_obj_align(h_toast, LV_ALIGN_TOP_MID, 0, tgt ? 58 : 56);
+  if (tgt) lv_obj_add_flag(h_simple_zl_ic, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_clear_flag(h_simple_zl_ic, LV_OBJ_FLAG_HIDDEN);
+  if (tgt) lv_obj_add_flag(h_simple_zr_ic, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_clear_flag(h_simple_zr_ic, LV_OBJ_FLAG_HIDDEN);
+  lv_label_set_text(h_simple_zr_tx, tgt ? "ENDE" : "ZIEL");
+  // Fertig neutral (grau), Ziel wie Tara in der Akzentfarbe
+  lv_obj_set_style_bg_color(h_simple_zr, tgt ? C_SURFACE : lv_color_mix(C_ACCENT, C_BG, 58), 0);
+  lv_obj_set_style_bg_color(h_simple_zr, tgt ? C_BORDER : lv_color_mix(C_ACCENT, C_BG, 110), LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(h_simple_zr_tx, tgt ? C_TEXT : C_ACCENT, 0);
+}
+
 // Anzeige: Ring, Restmenge, Farben. restyle = Farben wurden gerade allgemein gesetzt
 static void tgt_show(float net, bool restyle) {
-  if (!h_simple_rest) return;
+  if (!h_simple_pill) return;
   bool on = s_tgt > 0;
-  int st = on ? tgt_state(net) : 9;
+  bool removed = on && s_tgt_reached && net < s_tgt * 0.1f;  // nach dem Ziel abgenommen
+  int st = on ? (removed ? 3 : tgt_state(net)) : 9;
   if (on) {
     int v = (int)(net / s_tgt * 1000.0f);
     if (v < 0) v = 0;
     if (v > 1000) v = 1000;
     if (lv_arc_get_value(h_ring) != v) lv_arc_set_value(h_ring, v);
     char b[32];
-    if (s_tgt_reached && net < s_tgt * 0.1f) snprintf(b, sizeof(b), "%s", T("Fertig"));  // abgenommen
+    if (st == 3) snprintf(b, sizeof(b), "%s", T("Fertig"));
     else if (st == 0) snprintf(b, sizeof(b), T("noch %d g"), (int)lroundf(s_tgt - net));
     else if (st == 1) snprintf(b, sizeof(b), "%s", T("Ziel erreicht"));
     else snprintf(b, sizeof(b), T("%d g zu viel"), (int)lroundf(net - s_tgt));
-    ui_label_update(h_simple_rest, b);
+    ui_label_update(h_simple_pill_tx, b);
   }
   if (st == s_tgt_shown && !restyle) return;
   bool layout = (s_tgt_shown == 9) != !on || s_tgt_shown < 0;
   s_tgt_shown = st;
   if (layout) {
+    // Zielwiegen: Akku, Lautsprecher und Hinweis weg, oben "Ziel 250 g"
+    lv_obj_t *const plain[] = { h_simple_bat, h_simple_spk, h_simple_hint };
+    for (lv_obj_t *o : plain) {
+      if (on) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+      else if (o != h_simple_bat) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);  // Akku blendet home_update_cb ein
+    }
     if (on) {
       char b[32];
       snprintf(b, sizeof(b), T("Ziel %d g"), s_tgt);
-      lv_label_set_text(h_simple_hint, b);
-      lv_obj_set_style_text_font(h_simple_hint, &font_sg_24, 0);
-      lv_obj_align(h_simple_hint, LV_ALIGN_TOP_MID, 0, 92);
-      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -34);
-      lv_obj_clear_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
+      lv_label_set_text(h_simple_goal, b);
+      lv_obj_clear_flag(h_simple_goal, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(h_simple_pill, LV_OBJ_FLAG_HIDDEN);
       lv_obj_clear_flag(h_ring, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -54);
     } else {
-      lv_label_set_text(h_simple_hint, T("Antippen: Gewicht ansagen"));
-      lv_obj_set_style_text_font(h_simple_hint, &font_sg_18, 0);
-      lv_obj_align(h_simple_hint, LV_ALIGN_TOP_MID, 0, 96);
-      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -14);
-      lv_obj_add_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(h_simple_goal, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(h_simple_pill, LV_OBJ_FLAG_HIDDEN);
       lv_obj_add_flag(h_ring, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -14);
       lv_obj_set_style_text_color(h_weight, scale_overload() ? C_DANGER : C_TEXT, 0);
-      lv_obj_set_style_text_color(h_simple_hint, C_MUTED, 0);
     }
+    simple_zone_set(on);
   }
   if (!on) return;
+  // 0 unterwegs: Feld gedämpft, 1/3 erreicht: Feld gefüllt mit Haken, 2 zu viel: rot
+  bool hit = st == 1 || st == 3;
   lv_color_t c = st == 2 ? C_DANGER : C_ACCENT;
   lv_obj_set_style_arc_color(h_ring, c, LV_PART_INDICATOR);
-  lv_obj_set_style_text_color(h_simple_rest, c, 0);
-  lv_obj_set_style_text_color(h_weight, st == 2 ? C_DANGER : C_TEXT, 0);
-  lv_obj_set_style_text_color(h_simple_hint, st == 1 ? C_ACCENT : C_MUTED, 0);
+  lv_obj_set_style_text_color(h_weight, st == 2 ? C_DANGER : (st == 1 ? C_ACCENT : C_TEXT), 0);
+  lv_obj_set_style_bg_color(h_simple_pill, hit ? C_ACCENT : lv_color_mix(c, C_BG, 58), 0);
+  lv_obj_set_style_text_color(h_simple_pill_tx, hit ? C_ON_PRIMARY : c, 0);
+  lv_obj_set_style_text_color(h_simple_pill_ic, C_ON_PRIMARY, 0);
+  if (hit) lv_obj_clear_flag(h_simple_pill_ic, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(h_simple_pill_ic, LV_OBJ_FLAG_HIDDEN);
+}
+
+// Untere Fläche (Hälfte) mit Symbol über der Beschriftung; dx = Versatz zur Mitte hin
+static lv_obj_t *simple_half(lv_obj_t *zone, bool left, const char *icon, const char *txt,
+                             lv_obj_t **ic, lv_obj_t **tx) {
+  int w = (SIMPLE_ZONE_D - 4) / 2;  // 4 px Fuge in der Mitte
+  lv_obj_t *z = ui_box(zone);
+  lv_obj_set_size(z, w, 100);
+  lv_obj_set_x(z, left ? 0 : SIMPLE_ZONE_D - w);
+  lv_obj_set_style_bg_opa(z, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(z, lv_color_mix(C_ACCENT, C_BG, 58), 0);
+  lv_obj_set_style_bg_color(z, lv_color_mix(C_ACCENT, C_BG, 110), LV_STATE_PRESSED);
+  lv_obj_add_flag(z, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(z, LV_OBJ_FLAG_SCROLLABLE);
+  // Beschriftung zur Mitte gerückt: am Rand ist der Kreis zu schmal
+  lv_obj_t *col = ui_box(z);
+  lv_obj_set_size(col, 130, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_row(col, 2, 0);
+  lv_obj_clear_flag(col, LV_OBJ_FLAG_CLICKABLE);
+  int cx = left ? w + 2 - SIMPLE_LAB_DX : SIMPLE_LAB_DX - 2;  // Mitte der Beschriftung in der Fläche
+  lv_obj_align(col, LV_ALIGN_TOP_MID, cx - w / 2, 10);
+  *ic = ui_label(col, icon, &font_icons_26, C_ACCENT);
+  *tx = ui_label(col, txt, &font_sg_34, C_ACCENT);
+  return z;
 }
 
 static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
@@ -1261,38 +1343,50 @@ static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
   lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 96);
   h_simple_hint = hint;
   h_simple_wrow = wrow;
-  // Zielwiegen: Restmenge groß unter dem Gewicht (sonst ausgeblendet)
-  h_simple_rest = ui_label(tile, "", &font_sg_34, C_ACCENT);
-  lv_obj_align(h_simple_rest, LV_ALIGN_TOP_MID, 0, TGT_REST_Y);
-  lv_obj_add_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
+  // Zielwiegen: "Ziel 250 g" oben, Restmenge als Feld unter der Zahl (sonst ausgeblendet)
+  h_simple_goal = ui_label(tile, "", &font_sg_24, C_MUTED);
+  lv_obj_align(h_simple_goal, LV_ALIGN_TOP_MID, 0, 62);
+  lv_obj_add_flag(h_simple_goal, LV_OBJ_FLAG_HIDDEN);
+  h_simple_pill = ui_box(tile);
+  lv_obj_set_size(h_simple_pill, LV_SIZE_CONTENT, 52);
+  lv_obj_set_style_radius(h_simple_pill, 26, 0);
+  lv_obj_set_style_bg_opa(h_simple_pill, LV_OPA_COVER, 0);
+  lv_obj_set_style_pad_hor(h_simple_pill, 16, 0);
+  lv_obj_set_flex_flow(h_simple_pill, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(h_simple_pill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(h_simple_pill, 8, 0);
+  lv_obj_align(h_simple_pill, LV_ALIGN_TOP_MID, 0, 210);
+  h_simple_pill_ic = ui_label(h_simple_pill, ICON36_HAKEN, &font_icons_36, C_ON_PRIMARY);
+  h_simple_pill_tx = ui_label(h_simple_pill, "", &font_sg_34, C_ACCENT);
+  lv_obj_add_flag(h_simple_pill, LV_OBJ_FLAG_HIDDEN);
 
   // obere Fläche: Gewicht ansagen (unsichtbar, über der Anzeige)
   lv_obj_t *top = ui_box(tile);
-  lv_obj_set_size(top, SCREEN_SIZE, SIMPLE_TARA_Y);
+  lv_obj_set_size(top, SCREEN_SIZE, SIMPLE_ZONE_Y);
   lv_obj_align(top, LV_ALIGN_TOP_MID, 0, 0);
+  h_simple_top = top;
   lv_obj_add_flag(top, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(top, simple_press_cb, LV_EVENT_PRESSED, NULL);
   lv_obj_add_event_cb(top, simple_speak_cb, LV_EVENT_CLICKED, NULL);
   lv_obj_add_event_cb(top, simple_hold_cb, LV_EVENT_PRESSING, NULL);
 
-  // untere Fläche: Tara, in der Akzentfarbe hinterlegt
-  lv_obj_t *bot = ui_box(tile);
-  lv_obj_set_size(bot, SCREEN_SIZE, SCREEN_SIZE - SIMPLE_TARA_Y);
-  lv_obj_align(bot, LV_ALIGN_TOP_MID, 0, SIMPLE_TARA_Y);
-  lv_obj_set_style_bg_opa(bot, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(bot, lv_color_mix(C_ACCENT, C_BG, 58), 0);
-  lv_obj_set_style_bg_color(bot, lv_color_mix(C_ACCENT, C_BG, 110), LV_STATE_PRESSED);
-  lv_obj_set_style_border_side(bot, LV_BORDER_SIDE_TOP, 0);
-  lv_obj_set_style_border_width(bot, 2, 0);
-  lv_obj_set_style_border_color(bot, C_ACCENT, 0);
-  lv_obj_add_flag(bot, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(bot, simple_press_cb, LV_EVENT_PRESSED, NULL);
-  lv_obj_add_event_cb(bot, simple_tara_cb, LV_EVENT_CLICKED, NULL);
-  lv_obj_t *tl = ui_label(bot, "TARA", &font_sg_34, C_ACCENT);
-  lv_obj_align(tl, LV_ALIGN_TOP_MID, 0, 32);
+  // untere Flächen: Tara links, Ziel rechts, in einem Kreis innerhalb des Rings
+  lv_obj_t *zone = ui_box(tile);
+  lv_obj_set_size(zone, SIMPLE_ZONE_D, SIMPLE_ZONE_D);
+  lv_obj_center(zone);
+  lv_obj_set_style_radius(zone, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_clip_corner(zone, true, 0);
+  lv_obj_clear_flag(zone, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(zone, LV_OBJ_FLAG_SCROLLABLE);
+  h_simple_zl = simple_half(zone, true, ICON_TARA, "TARA", &h_simple_zl_ic, &h_simple_zl_tx);
+  lv_obj_add_event_cb(h_simple_zl, simple_press_cb, LV_EVENT_PRESSED, NULL);
+  lv_obj_add_event_cb(h_simple_zl, simple_tara_cb, LV_EVENT_CLICKED, NULL);
+  h_simple_zr = simple_half(zone, false, ICON_ZIEL, "ZIEL", &h_simple_zr_ic, &h_simple_zr_tx);
+  lv_obj_add_event_cb(h_simple_zr, simple_press_cb, LV_EVENT_PRESSED, NULL);
+  lv_obj_add_event_cb(h_simple_zr, simple_right_cb, LV_EVENT_CLICKED, NULL);
+  simple_zone_set(false);
 
-  // Ring fürs Zielwiegen über der Tara-Fläche (nicht anklickbar, Tippen geht durch)
-  lv_obj_move_foreground(h_ring);
+  // Ring fürs Zielwiegen: liegt außerhalb der Flächen (nicht anklickbar)
   s_tgt_shown = -1;  // neu aufgebaut: Zielanzeige beim nächsten Durchlauf herstellen
 
   // Meldungen oben statt unten (unten liegt die Tara-Fläche)
@@ -1404,7 +1498,8 @@ static void build_weigh_tile(lv_obj_t *tile) {
 
   h_simple_spk = NULL;
   h_simple_bat = NULL;
-  h_simple_hint = h_simple_rest = h_simple_wrow = NULL;
+  h_simple_hint = h_simple_wrow = NULL;
+  h_simple_goal = h_simple_pill = h_simple_pill_ic = h_simple_pill_tx = NULL;
   if (ui_simple()) {
     build_simple_layout(tile, wrow);
   } else if (h_tiles > 1) {

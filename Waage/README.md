@@ -475,14 +475,16 @@ sich wie immer. Es gibt am Gerät keinen Weg zurück ins Setup: Einfach wird nur
 Weboberfläche verlassen. Zum Starten der Weboberfläche die obere Fläche **5 Sekunden gedrückt
 halten**, dann erscheinen Adresse und QR-Code.
 
-**Zielwiegen im Profil Einfach:** In der Weboberfläche unter Ziel „An der Waage anzeigen“
-antippen. Die Waage tariert, oben steht „Ziel 250 g“, unter dem Gewicht groß die Restmenge
-(„noch 120 g“, „Ziel erreicht“, „25 g zu viel“ in Rot), der Ring füllt sich bis zum Ziel und der
-Parkpiepser piept schneller, je näher das Ziel kommt. Oben antippen sagt „noch 120 Gramm“ an.
-Tara startet die nächste Portion mit demselben Ziel; wird nach dem Erreichen abgenommen, sagt die
-Waage „fertig“ und steht wieder auf 0. In den anderen Profilen öffnet derselbe Knopf den Modus Ziel.
-Für die Ansage braucht das Stimmpaket `noch.wav` und `zu_viel.wav` (englisch `to_go.wav`,
-`too_much.wav`), nachzurüsten mit `stimme_schneiden.py aufnahme.mp3 <Paket> --nachtrag`.
+**Zielwiegen im Profil Einfach:** Unten ist die Fläche geteilt: links TARA, rechts ZIEL. ZIEL zeigt
+„Wie viel?“ mit vier großen Kacheln (100, 200, 250, 500 g); Antippen tariert und startet. Oben steht
+„Ziel 250 g“, unter dem Gewicht die Restmenge („noch 70 g“, „Ziel erreicht“ mit Haken, „25 g zu viel“
+in Rot), der Ring am Rand füllt sich und der Parkpiepser piept schneller, je näher das Ziel kommt.
+Oben antippen sagt „noch 70 Gramm“ an. Unten links TARA startet die nächste Portion mit demselben
+Ziel, rechts ENDE beendet. Wird nach dem Erreichen abgenommen, sagt die Waage „fertig“ und steht
+wieder auf 0. Auch aus der Weboberfläche startbar (Ziel → „An der Waage anzeigen“); in den anderen
+Profilen öffnet das den Modus Ziel. Für die Ansage braucht das Stimmpaket `noch.wav` und
+`zu_viel.wav` (englisch `to_go.wav`, `too_much.wav`), nachzurüsten mit
+`stimme_schneiden.py aufnahme.mp3 <Paket> --nachtrag`.
 
 Ist nur eine Gruppe sichtbar (z. B. Profil Küche), zeigt die Modi-Seite gleich deren Modi.
 

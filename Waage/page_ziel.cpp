@@ -246,3 +246,50 @@ static lv_obj_t *page_ziel_active_create() {
   za_timer_cb(NULL);
   return s;
 }
+
+// ------------------------------------------------------------
+//  Profil Einfach: Ziel wählen (vier große Kacheln)
+//  Antippen startet sofort: tariert und zeigt Ziel und Restmenge
+//  auf der Wiegeseite (ui_target_start). Das zuletzt benutzte Ziel
+//  ist hervorgehoben.
+// ------------------------------------------------------------
+static const int SIMPLE_GOALS[4] = { 100, 200, 250, 500 };
+static int s_simple_last = 250;
+
+static void zs_pick_cb(lv_event_t *e) {
+  int g = (int)(intptr_t)lv_event_get_user_data(e);
+  s_simple_last = g;
+  sound_play(SND_CLICK);
+  ui_target_start(g);
+}
+
+lv_obj_t *page_ziel_simple_create() {
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *t = ui_label(s, "Wie viel?", &font_sg_34, C_TEXT);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 52);
+  for (int i = 0; i < 4; i++) {
+    int g = SIMPLE_GOALS[i];
+    bool on = g == s_simple_last;
+    lv_obj_t *k = ui_box(s);
+    lv_obj_set_size(k, 150, 84);
+    lv_obj_set_pos(k, i % 2 ? 212 : 50, i < 2 ? 110 : 204);
+    lv_obj_set_style_radius(k, 24, 0);
+    lv_obj_set_style_bg_opa(k, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(k, on ? lv_color_mix(C_ACCENT, C_BG, 58) : C_SURFACE, 0);
+    lv_obj_set_style_bg_color(k, lv_color_mix(C_ACCENT, C_BG, 110), LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(k, 2, 0);
+    lv_obj_set_style_border_color(k, on ? C_ACCENT : C_BORDER, 0);
+    lv_obj_add_flag(k, LV_OBJ_FLAG_CLICKABLE);
+    char b[12];
+    snprintf(b, sizeof(b), "%d g", g);
+    lv_obj_t *l = ui_label(k, b, &font_sg_34, on ? C_ACCENT : C_TEXT);
+    lv_obj_center(l);
+    lv_obj_add_event_cb(k, zs_pick_cb, LV_EVENT_CLICKED, (void *)(intptr_t)g);
+  }
+  lv_obj_t *back = ui_btn(s, "Zurück", BTN_NORMAL);
+  lv_obj_set_size(back, 160, 60);
+  lv_obj_set_style_text_font(lv_obj_get_child(back, 0), &font_sg_24, 0);
+  lv_obj_align(back, LV_ALIGN_TOP_MID, 0, 310);
+  lv_obj_add_event_cb(back, [](lv_event_t *e) { ui_go_home(); }, LV_EVENT_CLICKED, NULL);
+  return s;
+}

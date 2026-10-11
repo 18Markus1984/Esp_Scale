@@ -48,12 +48,15 @@ LV_FONT_DECLARE(font_sg_34);
 #define ICON_ZURUECK   "\xEE\x97\x84"  // arrow_back (U+E5C4)
 #define ICON_WEITER    "\xEE\x97\x88"  // arrow_forward (U+E5C8)
 #define ICON_HAKEN     "\xEE\x99\xA8"  // check (U+E668)
+#define ICON_TARA      "\xEE\x8E\x9E"  // adjust (U+E39E)
 // in font_icons_80 (Bedien-Erklärung)
 #define ICON80_HAND    "\xEE\xAE\xB9"  // pan_tool_alt (U+EBB9)
 #define ICON80_TIPPEN  "\xEE\xA4\x93"  // touch_app (U+E913)
 
 LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
 LV_FONT_DECLARE(font_icons_80);  // Icons der Rezept-Anweisungen (Material Symbols)
+LV_FONT_DECLARE(font_icons_36);  // nur der Haken (Zielwiegen: "Ziel erreicht")
+#define ICON36_HAKEN   "\xEE\x97\x8A"  // check (U+E5CA)
 LV_FONT_DECLARE(font_sg_80);  // Ziffern, % und , . - : ? (Gewicht, Uhr)
 LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite
 

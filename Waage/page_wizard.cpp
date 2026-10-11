@@ -758,9 +758,9 @@ static lv_obj_t *page_tut_hold() {
   return s;
 }
 
-// Profil Einfach: obere Fläche = ansagen, untere = Tara (verkleinerte Vorschau)
+// Profil Einfach: obere Fläche = ansagen, unten links Tara, rechts Ziel (verkleinerte Vorschau)
 static lv_obj_t *page_tut_simple(bool bottom) {
-  lv_obj_t *s = tut_page(bottom ? "Tippe unten auf TARA" : "Tippe oben",
+  lv_obj_t *s = tut_page(bottom ? "Tippe auf TARA" : "Tippe oben",
                          bottom ? "Die Waage stellt auf null" : "Die Waage sagt das Gewicht an");
   lv_obj_t *top = ui_box(s);
   lv_obj_set_size(top, 210, 84);
@@ -768,14 +768,18 @@ static lv_obj_t *page_tut_simple(bool bottom) {
   lv_obj_align(top, LV_ALIGN_CENTER, 0, -18);
   lv_obj_t *w = ui_label(top, "250 g", &font_sg_34, C_TEXT);
   lv_obj_center(w);
-  lv_obj_t *bot = ui_box(s);
-  lv_obj_set_size(bot, 210, 54);
-  lv_obj_set_style_radius(bot, 22, 0);
-  lv_obj_set_style_bg_opa(bot, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(bot, lv_color_mix(C_ACCENT, C_BG, 58), 0);
-  lv_obj_align(bot, LV_ALIGN_CENTER, 0, 52);
-  lv_obj_t *t = ui_label(bot, "TARA", &font_sg_24, C_ACCENT);
-  lv_obj_center(t);
+  lv_obj_t *bot = NULL;
+  for (int i = 0; i < 2; i++) {  // wie auf der Wiegeseite: links Tara, rechts Ziel
+    lv_obj_t *z = ui_box(s);
+    lv_obj_set_size(z, 103, 54);
+    lv_obj_set_style_radius(z, 22, 0);
+    lv_obj_set_style_bg_opa(z, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(z, lv_color_mix(C_ACCENT, C_BG, 58), 0);
+    lv_obj_align(z, LV_ALIGN_CENTER, i ? 53 : -53, 52);
+    lv_obj_t *t = ui_label(z, i ? "ZIEL" : "TARA", &font_sg_24, C_ACCENT);
+    lv_obj_center(t);
+    if (!i) bot = z;
+  }
   lv_obj_t *target = bottom ? bot : top;
   lv_obj_add_flag(target, LV_OBJ_FLAG_CLICKABLE);
   pulse(target);
@@ -787,7 +791,7 @@ static lv_obj_t *page_tut_simple(bool bottom) {
       sound_speak_weight_now(250.0f, 0);
       tut_done("Richtig. Oben tippen sagt das Gewicht an.");
     } else {
-      tut_done("Richtig. Unten tippen stellt auf null.");
+      tut_done("Richtig. Links stellt auf null, rechts startet das Zielwiegen.");
     }
   }, LV_EVENT_CLICKED, NULL);
   lv_obj_add_event_cb(s, tut_gesture_cb, LV_EVENT_GESTURE, NULL);

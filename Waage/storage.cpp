@@ -71,7 +71,7 @@ bool storage_begin() {
   s_ok = true;
   s_ever_ok = true;
   s_last_check = millis();
-  const char *dirs[] = { DIR_ROOT, DIR_LOG, DIR_POTS, DIR_RECIPES, DIR_PORTO, DIR_SOUNDS, DIR_SPOOLS, DIR_GAME, DIR_VOICE, DIR_COCKTAILS, DIR_BATT, DIR_MSA };
+  const char *dirs[] = { DIR_ROOT, DIR_LOG, DIR_POTS, DIR_RECIPES, DIR_PORTO, DIR_SOUNDS, DIR_SPOOLS, DIR_GAME, DIR_VOICE, DIR_COCKTAILS, DIR_BATT, DIR_MSA, DIR_SPEECH };
   for (const char *d : dirs) storage_mkdir(d);
   printf("SD: bereit (%d kHz)\r\n", SD_FREQ_KHZ);
   return true;
@@ -161,6 +161,46 @@ bool storage_append(const char *path, const char *line) {
   n += f.print("\n");
   f.close();
   if (n != strlen(line) + 1) {
+    check_card();
+    return false;
+  }
+  return true;
+}
+
+long storage_size(const char *path) {
+  if (!s_ok) return -1;
+  Lock l;
+  File f = SD_MMC.open(path, FILE_READ);
+  if (!f) return -1;
+  long n = (long)f.size();
+  f.close();
+  return n;
+}
+
+int storage_read_bin(const char *path, void *buf, int len) {
+  if (!s_ok) return -1;
+  Lock l;
+  File f = SD_MMC.open(path, FILE_READ);
+  if (!f) {
+    check_card();
+    return -1;
+  }
+  int n = f.read((uint8_t *)buf, len);
+  f.close();
+  return n < 0 ? -1 : n;
+}
+
+bool storage_write_bin(const char *path, const void *data, int len) {
+  if (!s_ok) return false;
+  Lock l;
+  File f = SD_MMC.open(path, FILE_WRITE);
+  if (!f) {
+    check_card();
+    return false;
+  }
+  size_t n = f.write((const uint8_t *)data, len);
+  f.close();
+  if (n != (size_t)len) {
     check_card();
     return false;
   }

@@ -802,6 +802,9 @@ const i18n_pair_t I18N_EN[] = {
   { "Akku %d %%", "Battery %d %%" },
   { "Antippen: Gewicht ansagen", "Tap: speak the weight" },
   { "TARA", "TARE" },
+  { "ZIEL", "GOAL" },
+  { "ENDE", "END" },
+  { "Wie viel?", "How much?" },
   { "Ton ist aus", "Sound is off" },
   { "Keine Stimme auf der SD-Karte", "No voice on the SD card" },
   // ---- Einrichtung ----
@@ -835,11 +838,11 @@ const i18n_pair_t I18N_EN[] = {
   { "Lange drücken schaltet die Präzision um", "A long press toggles precision" },
   { "Geschafft. So schaltest du die Präzision ein und aus.", "Done. That is how you switch precision on and off." },
   { "Tippe oben", "Tap the top" },
-  { "Tippe unten auf TARA", "Tap TARE at the bottom" },
+  { "Tippe auf TARA", "Tap TARE" },
   { "Die Waage sagt das Gewicht an", "The scale speaks the weight" },
   { "Die Waage stellt auf null", "The scale goes back to zero" },
   { "Richtig. Oben tippen sagt das Gewicht an.", "Right. Tapping the top speaks the weight." },
-  { "Richtig. Unten tippen stellt auf null.", "Right. Tapping the bottom sets zero." },
+  { "Richtig. Links stellt auf null, rechts startet das Zielwiegen.", "Right. Left sets zero, right starts target weighing." },
   // ---- Auto-Update ----
   { "Aktualisiert auf Version %s", "Updated to version %s" },
   { "Update fehlgeschlagen, alte Version aktiv", "Update failed, previous version active" },
