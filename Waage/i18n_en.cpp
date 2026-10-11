@@ -840,6 +840,18 @@ const i18n_pair_t I18N_EN[] = {
   { "Die Waage stellt auf null", "The scale goes back to zero" },
   { "Richtig. Oben tippen sagt das Gewicht an.", "Right. Tapping the top speaks the weight." },
   { "Richtig. Unten tippen stellt auf null.", "Right. Tapping the bottom sets zero." },
+  // ---- Auto-Update ----
+  { "Aktualisiert auf Version %s", "Updated to version %s" },
+  { "Update fehlgeschlagen, alte Version aktiv", "Update failed, previous version active" },
+  { "Auto-Update", "Auto update" },
+  { "Update", "Update" },
+  { "Updates", "Updates" },
+  { "Jetzt", "Now" },
+  { "Neue Firmware verfügbar. Jetzt aktualisieren?", "New firmware available. Update now?" },
+  { "Dauert etwa eine Minute, die Waage startet danach neu", "Takes about a minute, then the scale restarts" },
+  { "Neue Versionen kurz nach dem Einschalten", "New versions shortly after switching on" },
+  { "Automatisch", "Automatic" },
+  { "Nur nachfragen", "Ask first" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

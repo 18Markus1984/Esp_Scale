@@ -759,6 +759,11 @@ static void tune_touch() {
   }
 }
 
+// Update nach dem Einschalten (Abschnitt weiter unten)
+#define MARK_VALID_MS 15000UL  // so lange muss eine neue Firmware sauber laufen, dann bleibt sie
+static uint32_t s_boot_ms = 0;
+static void boot_update_tick();
+
 static void home_update_cb(lv_timer_t *t) {
   scale_update();
   net_loop();
@@ -792,6 +797,8 @@ static void home_update_cb(lv_timer_t *t) {
   h_boot_prev = boot;
 
   idle_check();
+  boot_update_tick();
+  if (hal_millis() - s_boot_ms > MARK_VALID_MS) upd_mark_valid();  // neue Firmware läuft: behalten
   if (lv_scr_act() != scr_home) return;
 
   lv_obj_t *act = lv_tileview_get_tile_act(h_tv);
@@ -1342,6 +1349,53 @@ static void rebuild_home() {
 }
 
 // ============================================================
+//  Update nach dem Einschalten
+//  Sucht still, während der Lagecheck läuft. Gibt es eine neue Version,
+//  wird sie auf der Wiegeseite angeboten; bei Auto-Update gleich installiert,
+//  aber nur, wenn es sicher ist: Waage leer, Akku über 40 % oder am Kabel,
+//  noch in der ersten Minute nach dem Einschalten. Lokal gebaute Firmware
+//  (Arduino-IDE) sucht nicht, sonst würde sie gleich überschrieben.
+// ============================================================
+#define BOOT_UPD_AUTO_MS 60000UL   // so lange nach dem Einschalten darf automatisch installiert werden
+#define BOOT_UPD_GIVEUP_MS 180000UL
+static uint8_t s_bu = 0;           // 0 noch nicht, 1 sucht, 2 erledigt
+
+static void boot_update_start() {
+  if (s_bu) return;
+  s_bu = 2;
+  if (fw_is_local() || !net_has_credentials()) return;
+  upd_check_quiet();
+  s_bu = 1;
+}
+
+static bool boot_update_safe() {
+  if (hal_millis() - s_boot_ms > BOOT_UPD_AUTO_MS) return false;
+  if (fabsf(scale_gross()) > EMPTY_G) return false;  // es liegt etwas auf der Waage
+  bat_state_t b = hal_battery_state();
+  int pct = hal_battery_percent();
+  if (b == BAT_DISCHARGE && pct >= 0 && pct < 40) return false;
+  return true;
+}
+
+static void boot_update_tick() {
+  if (s_bu != 1) return;
+  upd_state_t st = upd_state();
+  if (st == UPD_CONNECT || st == UPD_CHECK) {
+    if (hal_millis() - s_boot_ms > BOOT_UPD_GIVEUP_MS) s_bu = 2;
+    return;
+  }
+  if (st != UPD_AVAILABLE) {  // aktuell, kein WLAN, GitHub nicht erreichbar: still weiter
+    s_bu = 2;
+    return;
+  }
+  // erst auf der Startseite anbieten, nie mitten in einem Modus oder Countdown
+  if (!s_start_done || lv_scr_act() != scr_home || cd_active || wizard_active()) return;
+  s_bu = 2;
+  if (g_set.upd_auto && boot_update_safe()) ui_open_page(page_update_auto_create());
+  else ui_open_page(page_update_offer_create());
+}
+
+// ============================================================
 //  Lagecheck beim Einschalten
 // ============================================================
 static lv_obj_t *st_bubble, *st_angle, *st_info, *st_btn;
@@ -1358,6 +1412,10 @@ static void start_finish() {
   }
   // Keine Überblendung: halbtransparentes Zeichnen erzeugt helle Kästen
   lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_LEFT, 250, 0, true);
+  // Ergebnis eines Online-Updates vor dem Neustart melden
+  bool upd_ok = true;
+  const char *n = upd_boot_notice(&upd_ok);
+  if (n) show_toast(n, upd_ok ? C_ACCENT : C_WARN);
   // Prüfgewicht fällig? Nach dem Wechsel zur Wiegeseite einmal erinnern
   if (refchk_due()) {
     lv_timer_t *t = lv_timer_create([](lv_timer_t *tm) {
@@ -1417,6 +1475,7 @@ static void start_timer_cb(lv_timer_t *t) {
 }
 
 static lv_obj_t *build_start() {
+  boot_update_start();  // parallel zum Lagecheck nach neuer Firmware suchen
   lv_obj_t *s = ui_screen_create();
 
   lv_obj_t *title = ui_label(s, "Lagecheck", &font_sg_18, C_MUTED);
@@ -1499,6 +1558,7 @@ static void web_timer_cb(lv_timer_t *t) {
 }
 
 void ui_init() {
+  s_boot_ms = hal_millis();
   ui_theme_set(THEME_GREEN);  // bis die Einstellungen geladen sind
   tune_touch();
   lv_timer_create(web_timer_cb, 5, NULL);

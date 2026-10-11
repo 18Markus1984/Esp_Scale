@@ -42,6 +42,7 @@ typedef struct {
   uint16_t modes_off; // ausgeblendete Modi, Bit = Index über alle Gruppen
                       // (Küche 0–5, Werkstatt 6–11, Spiele 12–15)
   bool     setup_done; // Einrichtungs-Assistent erledigt (sonst startet er nach dem Startbild)
+  bool     upd_auto;   // neue Firmware nach dem Einschalten automatisch installieren (sonst nachfragen)
 } settings_t;
 
 #define PROFILE_STANDARD  0

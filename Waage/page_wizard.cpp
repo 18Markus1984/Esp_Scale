@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { WZ_LANG, WZ_PROFILE, WZ_CATS, WZ_COLOR, WZ_SOUND, WZ_WLAN,
+enum { WZ_LANG, WZ_PROFILE, WZ_CATS, WZ_COLOR, WZ_SOUND, WZ_WLAN, WZ_UPDATES,
        WZ_TUT1, WZ_TUT2, WZ_TUT3,  // Bedienung ausprobieren (Einfach: nur 1 und 2)
        WZ_COUNT };
 #define WZ_SETUP_STEPS WZ_TUT1  // Einrichtungsschritte vor der Erklärung
@@ -52,6 +52,7 @@ static bool is_tut(int st) { return st >= WZ_TUT1; }
 // Kategorien und der dritte Übungsschritt entfallen im Profil Einfach
 static bool step_used(int st) {
   if (g_set.profile == PROFILE_EINFACH && (st == WZ_CATS || st == WZ_TUT3)) return false;
+  if (st == WZ_UPDATES && !net_has_credentials()) return false;  // Updates nur mit WLAN
   return true;
 }
 
@@ -527,6 +528,26 @@ static lv_obj_t *page_wlan() {
   return s;
 }
 
+// ---------- 7. Updates (nur mit WLAN) ----------
+static void upd_cb(lv_event_t *e) {
+  g_set.upd_auto = (bool)(intptr_t)lv_event_get_user_data(e);
+  sound_play(SND_CLICK);
+  wz_next();
+}
+
+static lv_obj_t *page_updates() {
+  lv_obj_t *s = ui_screen_create();
+  frame(s, "Updates", false);
+  lv_obj_t *h = ui_label(s, "Neue Versionen kurz nach dem Einschalten", &font_sg_14, C_MUTED);
+  lv_obj_align(h, LV_ALIGN_TOP_MID, 0, 94);
+  lv_obj_t *a = big_btn(s, "Automatisch", g_set.upd_auto, -30);
+  lv_obj_add_event_cb(a, upd_cb, LV_EVENT_CLICKED, (void *)(intptr_t)1);
+  lv_obj_t *m = big_btn(s, "Nur nachfragen", !g_set.upd_auto, 44);
+  lv_obj_add_event_cb(m, upd_cb, LV_EVENT_CLICKED, (void *)(intptr_t)0);
+  nav(s, false, NULL);
+  return s;
+}
+
 // ============================================================
 //  Probier es aus: Bedienung zum Mitmachen
 //  Der rechte Pfeil ist gedämpft, bis die Übung geklappt hat
@@ -781,6 +802,7 @@ static lv_obj_t *wz_page(int step) {
     case WZ_COLOR: return page_color();
     case WZ_SOUND: return page_sound();
     case WZ_WLAN: return page_wlan();
+    case WZ_UPDATES: return page_updates();
     case WZ_TUT1: return g_set.profile == PROFILE_EINFACH ? page_tut_simple(false) : page_tut_left();
     case WZ_TUT2: return g_set.profile == PROFILE_EINFACH ? page_tut_simple(true) : page_tut_right();
     case WZ_TUT3: return page_tut_hold();

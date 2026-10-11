@@ -10,6 +10,9 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Update.h>
+#include <Preferences.h>
+#include <esp_ota_ops.h>
+#include "i18n.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +32,7 @@ static bool s_task = false;     // Task läuft
 static uint32_t s_done_ms = 0;
 static upd_state_t s_seen = UPD_IDLE;
 static bool s_was_task = false;
+static bool s_quiet = false;  // Suche nach dem Start: ohne Töne
 
 const char *fw_version() {
   return FW_VERSION;
@@ -277,10 +281,17 @@ static void start(bool install) {
 }
 
 void upd_check() {
+  s_quiet = false;
+  start(false);
+}
+
+void upd_check_quiet() {
+  s_quiet = true;
   start(false);
 }
 
 void upd_install() {
+  s_quiet = false;
   if (s_state == UPD_AVAILABLE && s_url[0]) start(true);
 }
 
@@ -289,11 +300,18 @@ void upd_loop() {
   if (st != s_seen) {
     s_seen = st;
 
-    if (st == UPD_AVAILABLE || st == UPD_LATEST) sound_play(SND_CLICK);
-    if (st == UPD_ERROR) sound_play(SND_WARN);
+    if (!s_quiet) {
+      if (st == UPD_AVAILABLE || st == UPD_LATEST) sound_play(SND_CLICK);
+      if (st == UPD_ERROR) sound_play(SND_WARN);
+    }
     if (st == UPD_DONE) {
       sound_play(SND_DONE);
       s_done_ms = millis();
+      // Für den nächsten Start merken, welche Version kommen soll (siehe upd_boot_notice)
+      Preferences p;
+      p.begin("waage", false);
+      p.putString("upd_to", s_latest);
+      p.end();
     }
   }
   // Display-Drehung nach Suche oder Fehler wieder einschalten (bei Erfolg startet die Waage neu)
@@ -305,4 +323,46 @@ void upd_loop() {
   if (s_was_task && !s_task && st != UPD_DONE) net_wifi_release();
   s_was_task = s_task;
   if (st == UPD_DONE && millis() - s_done_ms > 3000) ESP.restart();
+}
+
+// ------------------------------------------------------------
+//  OTA-Rollback
+//  Das Boardpaket markiert eine neue Firmware sonst schon beim Start als
+//  gültig. Mit verifyRollbackLater() = true übernimmt das upd_mark_valid(),
+//  das die Oberfläche erst nach einigen Sekunden sauberem Lauf aufruft.
+//  Hängt oder startet die neue Firmware vorher neu, schaltet der Bootloader
+//  beim nächsten Start auf die vorige Version zurück.
+// ------------------------------------------------------------
+extern "C" bool verifyRollbackLater() {
+  return true;
+}
+
+void upd_mark_valid() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  const esp_partition_t *run = esp_ota_get_running_partition();
+  esp_ota_img_states_t st;
+  if (run && esp_ota_get_state_partition(run, &st) == ESP_OK && st == ESP_OTA_IMG_PENDING_VERIFY) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    printf("Update: neue Firmware %s als gültig markiert\r\n", FW_VERSION);
+  }
+}
+
+const char *upd_boot_notice(bool *ok) {
+  static char b[96];
+  char to[24] = "";
+  Preferences p;
+  p.begin("waage", false);
+  p.getString("upd_to", to, sizeof(to));
+  if (to[0]) p.remove("upd_to");
+  p.end();
+  if (!to[0]) return NULL;
+  int x[3], y[3];
+  ver_parse(to, x);
+  ver_parse(FW_VERSION, y);
+  *ok = x[0] == y[0] && x[1] == y[1] && x[2] == y[2];
+  if (*ok) snprintf(b, sizeof(b), T("Aktualisiert auf Version %s"), FW_VERSION);
+  else snprintf(b, sizeof(b), "%s", T("Update fehlgeschlagen, alte Version aktiv"));
+  return b;
 }

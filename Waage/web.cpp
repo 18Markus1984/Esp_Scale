@@ -710,6 +710,7 @@ static void h_settings() {
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
              ",\"modes_off\":" + g_set.modes_off + ",\"setup_done\":" + (g_set.setup_done ? "true" : "false") +
+             ",\"upd_auto\":" + (g_set.upd_auto ? "true" : "false") + ",\"fw_local\":" + (fw_is_local() ? "true" : "false") +
              ",\"theme\":" + g_set.theme;
   {  // Prüfgewicht
     char last[16], next[16];
@@ -758,6 +759,7 @@ static void h_settings_save() {
     scale_set_autozero(g_set.azt);
   }
   if (jval(b, "autooff").length()) g_set.auto_off_min = constrain((int)jval(b, "autooff").toInt(), 0, 120);
+  if (jval(b, "upd_auto").length()) g_set.upd_auto = jval(b, "upd_auto") == "true";
   g_set.autotara = jval(b, "autotara") == "true";
   g_set.countdown_s = constrain((int)jval(b, "cd").toInt(), 1, 10);
   g_set.tol_g = constrain((int)jval(b, "tol").toInt(), 1, 50);
@@ -930,6 +932,7 @@ static void h_setup() {
   if (jval(b, "theme").length()) g_set.theme = constrain((int)jval(b, "theme").toInt(), 0, THEME_COUNT - 1);
   if (jval(b, "vol").length()) g_set.volume = constrain((int)jval(b, "vol").toInt(), 0, 100);
   if (jval(b, "speak").length()) g_set.speak = g_set.speak_ev = jval(b, "speak") == "true";
+  if (jval(b, "upd_auto").length()) g_set.upd_auto = jval(b, "upd_auto") == "true";
   g_set.setup_done = true;
   if (wizard_active()) wizard_finish_external();  // übernimmt Farben, Startseite, speichert
   else ui_profile_changed();

@@ -226,7 +226,15 @@ Startseite zeigt laufende Timer, eine laufende Messung und einen abgelaufenen Ti
 ## Online-Update von GitHub
 
 Setup -> Waage -> Firmware -> „Online suchen“ (oder im Browser unter Firmware-Update) sucht die
-neueste Version in den GitHub-Releases und installiert sie auf Wunsch. Einrichtung des
+neueste Version in den GitHub-Releases und installiert sie auf Wunsch.
+
+**Nach dem Einschalten** sucht die Waage selbst (nur mit WLAN und nicht bei Firmware aus der
+Arduino-IDE). Mit **Auto-Update** (Standard, Schalter auf der Firmware-Seite, im Assistenten und
+in der Weboberfläche) installiert sie die neue Version gleich, aber nur, wenn die Waage leer ist,
+genug Akku hat (≥ 40 % oder am Kabel) und das Einschalten weniger als eine Minute her ist. Sonst
+fragt sie auf der Startseite „Später“ oder „Jetzt“; nie mitten in einem Modus. Startet eine neue
+Firmware nicht sauber, kehrt die Waage beim nächsten Einschalten zur alten zurück (OTA-Rollback).
+Nach dem Neustart meldet sie „Aktualisiert auf Version …“. Einrichtung des
 Repositorys und der automatischen Builds: siehe `GITHUB.md`. Vorher in `config.h` bei
 `OTA_REPO` den eigenen Repository-Namen eintragen.
 

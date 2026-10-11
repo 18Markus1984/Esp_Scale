@@ -41,6 +41,8 @@ void wizard_start(void (*done)());                    // erster Start; done() da
 lv_obj_t *page_wizard_create();                       // Setup -> Waage -> Einrichtung wiederholen
 bool wizard_active();
 void wizard_finish_external();                        // Weboberfläche hat die Einrichtung abgeschlossen
+lv_obj_t *page_update_auto_create();                  // Update nach dem Start: installiert sofort, zeigt Fortschritt
+lv_obj_t *page_update_offer_create();                 // Update nach dem Start: „Später“ oder „Jetzt“
 lv_obj_t *page_display_create();                      // Display drehen (Feinausrichtung)
 lv_obj_t *page_kalib_create();                        // Kalibrierung in 3 Schritten
 lv_obj_t *page_refset_create();                       // Prüfgewicht: Einstellungen und letzte Prüfung

@@ -115,6 +115,7 @@ static lv_obj_t *page_cat_create(int cat);
 static lv_obj_t *page_profile_pick_create();
 static const char *const PROFILE_NAMES[PROFILE_COUNT] = { "Standard", "Küche", "Werkstatt", "Einfach" };
 static lv_obj_t *page_update_create();
+static bool fu_from_boot = false;  // Update-Seite nach dem Einschalten geöffnet: Zurück führt zur Wiegeseite
 static lv_obj_t *page_voice_pick_create();
 static lv_obj_t *page_color_pick_create();
 static lv_obj_t *page_sound_create();
@@ -355,7 +356,7 @@ static void row_cb(lv_event_t *e) {
     case 38: ui_switch_page(page_profile_pick_create()); return;  // Profil wählen
     case 39: ui_switch_page(page_wizard_create()); return;  // Einrichtungs-Assistent
     case 35: wb_from_system = false; ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
-    case 36: ui_switch_page(page_update_create()); return;
+    case 36: fu_from_boot = false; ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
       g_set.lang = g_set.lang == LANG_EN ? LANG_DE : LANG_EN;
       ui_lang_changed();  // Startseite neu aufbauen, Stimmpaket wählen, speichern
@@ -596,7 +597,7 @@ static lv_obj_t *page_profile_simple_create() {
 // ------------------------------------------------------------
 //  Firmware: Online-Update von GitHub (update_online.*)
 // ------------------------------------------------------------
-static lv_obj_t *fu_ring, *fu_state, *fu_sub, *fu_btn, *fu_back;
+static lv_obj_t *fu_ring, *fu_state, *fu_sub, *fu_btn, *fu_back, *fu_auto;
 static int fu_prev = -1;
 
 static void fu_timer_cb(lv_timer_t *t) {
@@ -621,8 +622,13 @@ static void fu_timer_cb(lv_timer_t *t) {
   bool busy = upd_busy() || st == UPD_DONE;
   if (busy) lv_obj_add_flag(fu_btn, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_clear_flag(fu_btn, LV_OBJ_FLAG_HIDDEN);
-  if (st == UPD_DOWNLOAD || st == UPD_DONE) lv_obj_add_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
-  else lv_obj_clear_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
+  if (st == UPD_DOWNLOAD || st == UPD_DONE) {
+    lv_obj_add_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(fu_auto, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_clear_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(fu_auto, LV_OBJ_FLAG_HIDDEN);
+  }
   bool inst = st == UPD_AVAILABLE;
   lv_label_set_text(lv_obj_get_child(fu_btn, 0), inst ? "Installieren" : "Online suchen");
   lv_obj_set_style_bg_color(fu_btn, inst ? C_PRIMARY : C_SURFACE, 0);
@@ -640,21 +646,41 @@ static lv_obj_t *page_update_create() {
   fu_ring = ui_ring(s, 396);
   lv_arc_set_value(fu_ring, 0);
   lv_obj_t *t = ui_label(s, "Firmware", &font_sg_18, C_MUTED);
-  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 58);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 50);
   char b[40];
   if (fw_is_local()) snprintf(b, sizeof(b), "%s", T("lokal gebaut"));
   else snprintf(b, sizeof(b), T("Version %s"), fw_version());
   lv_obj_t *v = ui_label(s, b, &font_sg_34, C_TEXT);
-  lv_obj_align(v, LV_ALIGN_CENTER, 0, -70);
+  lv_obj_align(v, LV_ALIGN_CENTER, 0, -88);
   fu_state = ui_label(s, "", &font_sg_18, C_TEXT2);
   lv_obj_set_width(fu_state, 300);
   lv_obj_set_style_text_align(fu_state, LV_TEXT_ALIGN_CENTER, 0);
   lv_label_set_long_mode(fu_state, LV_LABEL_LONG_WRAP);
-  lv_obj_align(fu_state, LV_ALIGN_CENTER, 0, -20);
+  lv_obj_align(fu_state, LV_ALIGN_CENTER, 0, -42);
   fu_sub = ui_label(s, "", &font_sg_14, C_FAINT);
-  lv_obj_align(fu_sub, LV_ALIGN_CENTER, 0, 18);
+  lv_obj_align(fu_sub, LV_ALIGN_CENTER, 0, -12);
   fu_btn = ui_btn(s, "Online suchen", BTN_NORMAL);
-  lv_obj_align(fu_btn, LV_ALIGN_CENTER, 0, 68);
+  lv_obj_align(fu_btn, LV_ALIGN_CENTER, 0, 34);
+  // Auto-Update: nach dem Einschalten selbst installieren oder nur nachfragen
+  fu_auto = ui_box(s);
+  lv_obj_set_size(fu_auto, 250, 44);
+  lv_obj_add_flag(fu_auto, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_border_side(fu_auto, LV_BORDER_SIDE_TOP | LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_width(fu_auto, 1, 0);
+  lv_obj_set_style_border_color(fu_auto, C_TRACK, 0);
+  lv_obj_set_style_bg_color(fu_auto, C_SURFACE, LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(fu_auto, LV_OPA_COVER, LV_STATE_PRESSED);
+  lv_obj_align(fu_auto, LV_ALIGN_CENTER, 0, 88);
+  lv_obj_t *al = ui_label(fu_auto, "Auto-Update", &font_sg_18, C_TEXT);
+  lv_obj_align(al, LV_ALIGN_LEFT_MID, 4, 0);
+  lv_obj_t *av = ui_label(fu_auto, g_set.upd_auto ? "an" : "aus", &font_sg_18, C_VALUE);
+  lv_obj_align(av, LV_ALIGN_RIGHT_MID, -4, 0);
+  lv_obj_add_event_cb(fu_auto, [](lv_event_t *e) {
+    g_set.upd_auto = !g_set.upd_auto;
+    settings_save();
+    sound_play(SND_CLICK);
+    lv_label_set_text(lv_obj_get_child(fu_auto, 1), g_set.upd_auto ? "an" : "aus");
+  }, LV_EVENT_CLICKED, NULL);
   lv_obj_add_event_cb(fu_btn, [](lv_event_t *e) {
     sound_play(SND_CLICK);
     if (upd_state() == UPD_AVAILABLE) upd_install();
@@ -662,11 +688,62 @@ static lv_obj_t *page_update_create() {
   }, LV_EVENT_CLICKED, NULL);
   fu_back = ui_btn(s, "Zurück", BTN_NORMAL);
   lv_obj_set_height(fu_back, 46);
-  lv_obj_align(fu_back, LV_ALIGN_CENTER, 0, 132);
-  lv_obj_add_event_cb(fu_back, [](lv_event_t *e) { ui_switch_page(page_cat_create(3)); }, LV_EVENT_CLICKED, NULL);
+  lv_obj_align(fu_back, LV_ALIGN_CENTER, 0, 146);
+  lv_obj_add_event_cb(fu_back, [](lv_event_t *e) {
+    if (fu_from_boot) ui_go_home();
+    else ui_switch_page(page_cat_create(3));
+  }, LV_EVENT_CLICKED, NULL);
   fu_prev = -1;
   ui_page_timer(s, fu_timer_cb, 200);
   fu_timer_cb(NULL);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Update nach dem Einschalten (ui.cpp entscheidet: automatisch oder fragen)
+// ------------------------------------------------------------
+// Automatisch: gleich die Fortschrittsseite, Installation läuft schon
+lv_obj_t *page_update_auto_create() {
+  fu_from_boot = true;
+  upd_install();
+  return page_update_create();
+}
+
+// Nachfragen: neue Version, „Später“ (beim nächsten Einschalten wieder) oder „Jetzt“
+lv_obj_t *page_update_offer_create() {
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *r = ui_ring(s, 396);
+  lv_arc_set_value(r, 0);
+  lv_obj_t *t = ui_label(s, "Update", &font_sg_18, C_MUTED);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 58);
+  char b[48];
+  snprintf(b, sizeof(b), T("Version %s"), upd_latest());
+  lv_obj_t *v = ui_label(s, b, &font_sg_34, C_ACCENT);
+  lv_obj_align(v, LV_ALIGN_CENTER, 0, -64);
+  lv_obj_t *q = ui_label(s, "Neue Firmware verfügbar. Jetzt aktualisieren?", &font_sg_18, C_TEXT);
+  lv_label_set_long_mode(q, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(q, 280);
+  lv_obj_set_style_text_align(q, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(q, LV_ALIGN_CENTER, 0, -8);
+  lv_obj_t *h = ui_label(s, "Dauert etwa eine Minute, die Waage startet danach neu", &font_sg_14, C_MUTED);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, 270);
+  lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(h, LV_ALIGN_CENTER, 0, 42);
+  lv_obj_t *row = ui_box(s);
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(row, 12, 0);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, 112);
+  lv_obj_t *later = ui_btn(row, "Später", BTN_NORMAL);
+  lv_obj_add_event_cb(later, [](lv_event_t *e) { ui_go_home(); }, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *now = ui_btn(row, "Jetzt", BTN_PRIMARY);
+  lv_obj_add_event_cb(now, [](lv_event_t *e) {
+    sound_play(SND_CLICK);
+    fu_from_boot = true;
+    upd_install();
+    ui_switch_page(page_update_create());
+  }, LV_EVENT_CLICKED, NULL);
   return s;
 }
 

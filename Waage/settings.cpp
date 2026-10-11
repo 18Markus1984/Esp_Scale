@@ -52,6 +52,7 @@ void settings_load() {
   g_set.modes_off = (uint16_t)p.getInt("modes_off", 0);
   // Bereits eingerichtete Waagen (Einstellungen schon gespeichert) überspringen den Assistenten
   g_set.setup_done = p.getBool("setup_done", p.isKey("unit"));
+  g_set.upd_auto = p.getBool("upd_auto", true);
   p.end();
 }
 
@@ -92,6 +93,7 @@ void settings_save() {
   p.putInt("cats", g_set.cats);
   p.putInt("modes_off", g_set.modes_off);
   p.putBool("setup_done", g_set.setup_done);
+  p.putBool("upd_auto", g_set.upd_auto);
   p.end();
 }
 

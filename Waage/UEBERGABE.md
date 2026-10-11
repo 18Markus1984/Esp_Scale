@@ -498,6 +498,24 @@ ausgeblendet (Tara steht allein; wird in `home_update_cb` nachgeführt). Topf im
 (`s_pot_rejected`): die Wägung wird jetzt trotzdem automatisch gespeichert, bis die Waage wieder leer
 ist. Simulator: `ASTEST=1`.
 
+**Etappe 3: Auto-Update (11.10.2026):** Neue Einstellung `upd_auto` (Flash `upd_auto`, Standard an).
+Beim Lagecheck sucht `boot_update_start()` (ui.cpp) still nach einer neuen Version
+(`upd_check_quiet()`, ohne Töne); nicht bei lokal gebauter Firmware (`FW_LOCAL`, sonst würde die
+IDE-Version sofort überschrieben) und nicht ohne gespeichertes WLAN. `boot_update_tick()` wartet,
+bis die Startseite offen ist (nie in einem Modus oder Countdown), dann: Auto-Update an und sicher
+(Waage leer, Akku ≥ 40 % oder am Kabel, höchstens 60 s nach dem Einschalten,
+`BOOT_UPD_AUTO_MS`) -> `page_update_auto_create()` installiert sofort; sonst
+`page_update_offer_create()` mit „Später“ (fragt beim nächsten Start wieder) und „Jetzt“. Nach 3 min
+ohne Ergebnis gibt sie auf. **OTA-Rollback:** `verifyRollbackLater()` liefert true (update_online.cpp),
+`upd_mark_valid()` markiert die laufende Firmware erst nach 15 s Betrieb (`MARK_VALID_MS`) als gültig;
+startet eine neue Firmware nicht sauber, nimmt der Bootloader beim nächsten Start die alte (gilt auch
+für Updates per Browser und Arduino-IDE übers Netz). Vor dem Neustart merkt sich die Waage die
+Zielversion (`upd_to`); nach dem Start meldet `upd_boot_notice()` „Aktualisiert auf Version …“ oder
+„Update fehlgeschlagen, alte Version aktiv“. Firmware-Seite (Setup -> Waage -> Firmware) hat jetzt
+die Zeile „Auto-Update an/aus“, die Weboberfläche einen Schalter unter Einstellungen -> Waage, der
+Assistent einen Schritt „Updates“ (nur mit WLAN, Gerät und Web). Simulator: `UPDTEST=1` bzw. `0`
+mit `SIM_UPD=1`.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner
