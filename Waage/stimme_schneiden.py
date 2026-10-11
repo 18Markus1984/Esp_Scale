@@ -10,8 +10,9 @@
 #    python3 stimme_schneiden.py aufnahme.mp4 Jarvis-EN --lang en   (englisches Paket)
 #    python3 stimme_schneiden.py teil1.mp3 teil2.mp3 Rick-EN --lang en  (mehrere Aufnahmen der Reihe nach)
 #    python3 stimme_schneiden.py --liste x x --lang en              (Wortliste zum Vorlesen)
+#    python3 stimme_schneiden.py nachtrag.mp3 Jarvis --nachtrag      (nur "noch", "zu viel" ergänzen)
 #
-#  Ergebnis: Ordner "Jarvis" mit 48 Dateien -> auf die SD-Karte nach
+#  Ergebnis: Ordner "Jarvis" mit 50 Dateien -> auf die SD-Karte nach
 #  /Waage/Stimme/Jarvis/
 #
 #  Voraussetzung: ffmpeg im Pfad.
@@ -29,6 +30,7 @@ ORDER = [
     "komma", "minus", "gramm", "kilogramm", "unze", "pfund", "stueck", "meter",
     "tara", "gespeichert", "ziel_erreicht", "ueberlast", "topf_erkannt", "fertig", "waage_leer",
     "milliliter",
+    "noch", "zu_viel",  # Zielwiegen: "noch 120 Gramm", "20 Gramm zu viel"
 ]
 
 # Vorlage zum Kopieren in ein Sprachprogramm (eine Zeile pro Wort):
@@ -40,8 +42,10 @@ TEXTS = [
     "komma", "minus", "Gramm", "Kilogramm", "Unzen", "Pfund", "Stück", "Meter",
     "Tara", "gespeichert", "Ziel erreicht", "Überlast", "Topf erkannt", "fertig", "Waage leer",
     "Milliliter",
+    "noch", "zu viel",
 ]
-assert len(ORDER) == len(TEXTS) == 48
+assert len(ORDER) == len(TEXTS) == 50
+NEU = 2  # zuletzt dazugekommene Wörter (ältere Aufnahmen haben sie noch nicht)
 
 # Englisches Paket (Einstellung Sprache = English). Die Dateinamen sind die
 # englischen Wörter; an grams.wav erkennt die Waage ein englisches Paket.
@@ -52,6 +56,7 @@ ORDER_EN = [
     "point", "minus", "grams", "kilograms", "ounces", "pounds", "pieces", "meters",
     "tare", "saved", "goal_reached", "overload", "pot_detected", "done", "scale_empty",
     "milliliters",
+    "to_go", "too_much",
 ]
 TEXTS_EN = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -60,8 +65,9 @@ TEXTS_EN = [
     "point", "minus", "grams", "kilograms", "ounces", "pounds", "pieces", "meters",
     "Tare", "saved", "target reached", "overload", "pot detected", "done", "scale empty",
     "milliliters",
+    "to go", "too much",
 ]
-assert len(ORDER_EN) == len(TEXTS_EN) == 46
+assert len(ORDER_EN) == len(TEXTS_EN) == 48
 
 
 def load(path):
@@ -115,7 +121,7 @@ def from_folder(folder, paket):
                                   for t in re.split(r"(\d+)", os.path.basename(f))])
     files = [f for f in files if f.lower().endswith((".wav", ".mp3", ".m4a", ".ogg", ".flac"))]
     print(f"{len(files)} Dateien gefunden, {len(ORDER)} erwartet")
-    if len(files) != len(ORDER):
+    if len(files) != len(ORDER) and len(files) != len(ORDER) - NEU:
         sys.exit(1)
     os.makedirs(paket, exist_ok=True)
     for name, f in zip(ORDER, files):
@@ -138,6 +144,8 @@ def main():
     p.add_argument("--schwelle", type=float, default=0.06, help="Anteil des Maximalpegels")
     p.add_argument("--liste", action="store_true", help="nur die Wortliste zum Vorlesen ausgeben")
     p.add_argument("--lang", choices=["de", "en"], default="de", help="Sprache des Pakets (Standard: de)")
+    p.add_argument("--nachtrag", action="store_true",
+                   help="nur die neuen Wörter (noch, zu viel) aufnehmen und zu einem bestehenden Paket hinzufügen")
     args = p.parse_args()
     if len(args.dateien) < 2:
         p.error("mindestens eine Aufnahme und der Paketname")
@@ -146,6 +154,8 @@ def main():
     global ORDER, TEXTS
     if args.lang == "en":
         ORDER, TEXTS = ORDER_EN, TEXTS_EN
+    if args.nachtrag:  # bestehendes Paket ergänzen: nur die neuen Wörter
+        ORDER, TEXTS = ORDER[-NEU:], TEXTS[-NEU:]
 
     if args.liste:
         print("\n".join(TEXTS))
@@ -168,7 +178,9 @@ def main():
         a.extend(array.array("h", [0] * 8000))  # 0,5 s Stille zwischen den Dateien
         segs += [(x + off, y + off) for x, y in found]
     print(f"{len(segs)} Stücke gefunden, {len(ORDER)} erwartet")
-    if len(segs) != len(ORDER):
+    if len(segs) == len(ORDER) - NEU and not args.nachtrag:
+        print(f"Ältere Wortliste ohne {', '.join(TEXTS[-NEU:])}: später mit --nachtrag ergänzen")
+    elif len(segs) != len(ORDER):
         print("Bitte --pause oder --schwelle anpassen. Dauer der Stücke (s):")
         print(", ".join(f"{(e - s) / 16000:.2f}" for s, e in segs[:20]))
         sys.exit(1)

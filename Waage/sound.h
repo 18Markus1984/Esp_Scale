@@ -56,6 +56,9 @@ void sound_speak_weight(float grams, int unit);    // "eintausend­zweihundert­
 // Auf Wunsch (Bildschirm angetippt): sofort ansagen, auch wenn die automatische
 // Ansage aus ist, laufende Ansage wird abgebrochen
 void sound_speak_weight_now(float grams, int unit);
+// Zielwiegen: "noch 120 Gramm" / "20 Gramm zu viel" (now = sofort, auf Wunsch).
+// false = Stimmpaket hat die Wörter noch nicht, dann lieber das Gewicht ansagen
+bool sound_speak_rest(float rest_g, bool now);
 void sound_speak_count(int pieces);                // "siebenundvierzig Stück"
 void sound_speak_word(const char *file);           // feste Ansage, z. B. "tara"
 void sound_speak_weight_word(float grams, int unit, const char *word);  // "… Gramm, gespeichert"

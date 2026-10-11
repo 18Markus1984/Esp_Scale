@@ -602,6 +602,31 @@ void sound_speak_count(int pieces) {
   speak(&m, 0);
 }
 
+// Zielwiegen: "noch 120 Gramm" bzw. "20 Gramm zu viel"
+// (englisch "120 grams to go" / "20 grams too much"). Fehlt dem Stimmpaket
+// das Wort (noch.wav, zu_viel.wav, to_go.wav, too_much.wav), kommt false
+// zurück und die Waage sagt stattdessen das Gewicht an.
+bool sound_speak_rest(float rest_g, bool now) {
+  if (!sound_voice_available()) return true;  // ohne Stimme gibt es nichts anzusagen
+  bool en = g_set.lang == LANG_EN;
+  bool over = rest_g < 0;
+  const char *w = over ? (en ? "too_much" : "zu_viel") : (en ? "to_go" : "noch");
+  char path[96];
+  if (g_set.voice[0]) snprintf(path, sizeof(path), VOICE_DIR "/%s/%s.wav", g_set.voice, w);
+  else snprintf(path, sizeof(path), VOICE_DIR "/%s.wav", w);
+  if (!storage_exists(path)) return false;
+  static msg_t m;
+  if (now) sound_speak_stop();
+  m.type = 1;
+  m.count = 0;
+  if (!en && !over) add_word(&m, w);  // "noch" steht vorn, alles andere hinten
+  add_number(&m, (int)lroundf(fabsf(rest_g)));
+  add_word(&m, en ? "grams" : "gramm");
+  if (en || over) add_word(&m, w);
+  speak(&m, now ? 2 : 0);
+  return true;
+}
+
 // Feste Ansagen werden im Code mit dem deutschen Namen aufgerufen,
 // auf Englisch wird die Datei mit dem englischen Namen gespielt.
 // Dateinamen höchstens 13 Zeichen (siehe add_word)
@@ -661,6 +686,10 @@ static bool pack_ok_host(const char *pack) {
 bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }
 void sound_speak_weight(float grams, int unit) { (void)unit; if (getenv("SPKDBG")) printf("ANSAGE %.1f g\n", grams); }  // Testumgebung
 void sound_speak_weight_now(float grams, int unit) { (void)unit; if (getenv("SPKDBG")) printf("ANSAGE (angetippt) %.1f g\n", grams); }
+bool sound_speak_rest(float rest_g, bool now) {  // Testumgebung
+  if (getenv("SPKDBG")) printf("ANSAGE Rest %.0f g%s\n", rest_g, now ? " (angetippt)" : "");
+  return true;
+}
 void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }

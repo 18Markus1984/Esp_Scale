@@ -9,6 +9,8 @@ typedef lv_obj_t *(*page_create_fn)();
 
 lv_obj_t *page_level_create();                        // Wasserwaage
 lv_obj_t *page_ziel_create();                         // Zielgewicht (Parkpiepser)
+lv_obj_t *page_ziel_goal_create(int grams);           // Ziel von außen starten (Web, Sprache)
+int page_ziel_running();                               // Ziel-Seite offen: Zielgewicht, sonst 0
 lv_obj_t *page_portion_create();                      // Portionieren (Teig gleich teilen)
 lv_obj_t *page_web_quick_create();                    // Weboberfläche aus der Systemliste: startet sie sofort, Fertig -> Wiegeseite
 lv_obj_t *page_wlan_qr_create();                      // QR-Codes für WLAN und Weboberfläche

@@ -516,6 +516,28 @@ die Zeile „Auto-Update an/aus“, die Weboberfläche einen Schalter unter Eins
 Assistent einen Schritt „Updates“ (nur mit WLAN, Gerät und Web). Simulator: `UPDTEST=1` bzw. `0`
 mit `SIM_UPD=1`.
 
+**Etappe 4: Zielwiegen mit Parkpiepser im Profil Einfach (11.10.2026):** `ui_target_start(g)` /
+`ui_target_stop()` / `ui_target_goal()` (ui.h) – derselbe Einstieg für Weboberfläche und später die
+Sprachsteuerung. Profil Einfach: tariert, zeigt auf der Wiegeseite oben „Ziel 250 g“, darunter die
+Restmenge groß („noch 120 g“, „Ziel erreicht“, „25 g zu viel“ in Rot, Gewicht dann auch rot), der Ring
+(`h_ring`, im Einfach-Layout sonst aus, jetzt über der Tara-Fläche) füllt sich bis zum Ziel. Parkpiepser
+wie im Modus Ziel (`sound_parking`, Toleranz ±2 g). Ansage: oben antippen bzw. automatisch nach 1,5 s
+Ruhe „noch 120 Gramm“ / „25 Gramm zu viel“ (`sound_speak_rest()`), im Ziel „Ziel erreicht“ vom Piepser.
+Ergebnis kommt still ins Protokoll („Ziel 250 g“). Tara = nächste Portion mit demselben Ziel. Ende:
+nach dem Erreichen abgenommen (3 s unter 10 % des Ziels, `TGT_END_MS`) -> „fertig“, die Waage stellt sich
+wieder auf 0 (Einfach hat kein Auto-Tara); sonst nach 15 min ohne Gewichtsänderung oder über die
+Weboberfläche. Andere Profile: öffnet den Modus Ziel mit diesem Gewicht (`page_ziel_goal_create`,
+`page_ziel_running`). Web: GET `/api/target?g=250` (0 = beenden, 409 wenn Start/Assistent läuft),
+`/api/state` hat `tgt`; Seite Ziel hat „An der Waage anzeigen“ und die Zeile „An der Waage läuft … Beenden“.
+**Neue Wörter im Stimmpaket:** `noch.wav`, `zu_viel.wav` (englisch `to_go.wav`, `too_much.wav`).
+Fehlen sie, sagt die Waage statt der Restmenge das Gewicht an. Roboter/Roboter-EN haben sie (espeak-ng);
+eigene Pakete: `stimme_schneiden.py aufnahme.mp3 <Paket> --nachtrag` (Vorleseliste:
+`--liste x x --nachtrag`), alte Aufnahmen mit 48 Wörtern lassen sich weiter schneiden.
+Simulator: `TGTTEST=1` (Einfach mit Schale, Restmenge, zu viel, Abnehmen -> fertig, Tara-Runde,
+Standard-Profil öffnet den Modus Ziel). Mock: `/api/target`, `tgt`.
+Übersetzungen: `/home/claude/i18n/insert_web.py page.html` setzt den Sprachblock ein (vorher lag
+`setLang` durch das Einsetzen achtmal in page.html, bereinigt).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

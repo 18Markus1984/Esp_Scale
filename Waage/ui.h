@@ -46,5 +46,12 @@ void ui_theme_changed();  // Farbschema umgestellt: Startseite neu aufbauen
 void ui_profile_changed();  // Profil/sichtbare Modi geändert: Farben und Startseite neu
 bool ui_simple();           // Profil Einfach aktiv (nur Wiegen, große Flächen)
 
+// Zielwiegen mit Parkpiepser (Weboberfläche, später Sprache). Im Profil Einfach
+// auf der Wiegeseite (Ziel, Restmenge, Ring), sonst öffnet es den Modus Ziel.
+// grams <= 0 beendet. false = gerade nicht möglich (Start/Assistent läuft)
+bool ui_target_start(int grams);
+void ui_target_stop();
+int ui_target_goal();       // laufendes Zielgewicht in g, 0 = keins
+
 // Name des aktiven Topfs ("" = keiner), z. B. für die Weboberfläche
 const char *ui_active_pot();

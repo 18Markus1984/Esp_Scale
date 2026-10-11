@@ -28,6 +28,8 @@ WORDS = {
     "tara": "Tara", "gespeichert": "gespeichert", "ziel_erreicht": "Ziel erreicht",
     "ueberlast": "Überlast", "topf_erkannt": "Topf erkannt", "fertig": "fertig",
     "waage_leer": "Waage leer",
+    # Zielwiegen: "noch 120 Gramm", "20 Gramm zu viel"
+    "noch": "noch", "zu_viel": "zu viel",
 }
 
 # Englisch: Dateinamen = englische Wörter (an grams.wav erkennt die Waage die Sprache)
@@ -37,7 +39,8 @@ WORDS_EN = {w: w for w in [
     "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
     "point", "minus", "grams", "kilograms", "ounces", "pounds", "pieces", "meters", "milliliters"]}
 WORDS_EN.update({"tare": "Tare", "saved": "saved", "goal_reached": "target reached", "overload": "overload",
-                 "pot_detected": "pot detected", "done": "done", "scale_empty": "scale empty"})
+                 "pot_detected": "pot detected", "done": "done", "scale_empty": "scale empty",
+                 "to_go": "to go", "too_much": "too much"})
 
 
 def trim(data, threshold=300, lead=400, tail=800):

@@ -155,8 +155,19 @@ static void h_state() {
   bool ring = false;
   for (int i = 0; i < TIMER_COUNT; i++) ring = ring || timer_ringing(i);
   s += ",\"tm\":" + String(tn >= 0 ? timer_left(tn) : -1) + ",\"ring\":" + (ring ? "true" : "false") +
-       ",\"lt\":" + (lt_running() ? "true" : "false") + "}";
+       ",\"lt\":" + (lt_running() ? "true" : "false") + ",\"tgt\":" + ui_target_goal() + "}";
   send_json(s);
+}
+
+// Zielwiegen an der Waage starten (?g=250) oder beenden (?g=0). Im Profil Einfach
+// erscheint das Ziel auf der Wiegeseite, sonst öffnet sich der Modus Ziel.
+static void h_target() {
+  int g = (int)s_server.arg("g").toInt();
+  if (!ui_target_start(g)) {
+    s_server.send(409, "application/json", "{\"ok\":0,\"error\":\"Waage ist gerade beschäftigt\"}");
+    return;
+  }
+  ok();
 }
 
 static void h_tara() {
@@ -1090,6 +1101,7 @@ static void routes() {
   s_server.on("/api/save", h_save);
   s_server.on("/api/log_add", h_log_add);
   s_server.on("/api/park", h_park);
+  s_server.on("/api/target", h_target);
   s_server.on("/api/sound", h_sound);
   s_server.on("/api/hide", h_hide);
   s_server.on("/api/ble_send", h_ble_send);

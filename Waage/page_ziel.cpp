@@ -179,8 +179,28 @@ static void za_timer_cb(lv_timer_t *t) {
   }
 }
 
+static lv_obj_t *za_screen = NULL;  // laufende Annäherung (für page_ziel_running)
+
+// Von außen starten (Weboberfläche, später Sprache): Ziel setzen, tarieren, Ring zeigen
+lv_obj_t *page_ziel_goal_create(int grams) {
+  if (grams < 1) grams = 1;
+  if (grams > (int)WAAGE_MAX_G) grams = (int)WAAGE_MAX_G;
+  ziel_g = grams;
+  scale_tare();
+  sound_parking_reset();
+  return page_ziel_active_create();
+}
+
+int page_ziel_running() {
+  return (za_screen && lv_scr_act() == za_screen) ? ziel_g : 0;
+}
+
 static lv_obj_t *page_ziel_active_create() {
   lv_obj_t *s = ui_screen_create();
+  za_screen = s;
+  lv_obj_add_event_cb(s, [](lv_event_t *e) {
+    if (lv_event_get_target(e) == za_screen) za_screen = NULL;
+  }, LV_EVENT_DELETE, NULL);
   za_ring = ui_ring(s, 396);
 
   char b[24];

@@ -39,6 +39,12 @@ static void weight_show(const char *num, const char *unit);  // große Gewichtsa
 static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast, *h_spk;
 static lv_obj_t *h_simple_spk;  // Profil Einfach: Lautsprecher über der Ansage-Fläche
 static lv_obj_t *h_simple_bat;  // Profil Einfach: Akkustand ganz oben
+static lv_obj_t *h_simple_hint, *h_simple_rest, *h_simple_wrow;  // Einfach: Hinweis oben, Restmenge, Gewichtszeile
+// Zielwiegen im Profil Einfach (siehe ui_target_start)
+static int s_tgt = 0;  // Zielgewicht in g, 0 = aus
+static int tgt_state(float net);
+static void tgt_check();
+static void tgt_show(float net, bool restyle);
 static bool h_boot_prev = false;
 static int h_prev_state = -1;  // zuletzt gezeigter Zustand (misst/stabil/Überlast)
 
@@ -609,6 +615,11 @@ static void speak_check() {
   sp_done = true;
   sp_spoken_g = net;
   // Einfach: angezeigt werden ganze Gramm, also auch nur ganze Gramm ansagen
+  if (ui_simple() && s_tgt > 0) {
+    int st = tgt_state(net);
+    if (st == 1) return;  // "Ziel erreicht" sagt schon der Parkpiepser an
+    if (sound_speak_rest(s_tgt - net, false)) return;
+  }
   if (ui_simple()) sound_speak_weight(roundf(net), 0);
   else sound_speak_weight(net, g_set.unit);
 }
@@ -807,6 +818,7 @@ static void home_update_cb(lv_timer_t *t) {
     neg_tare_check();
     if (!ui_simple()) autosave_check();
     speak_check();
+    tgt_check();
   }
   if (cd_active) cd_update();
 
@@ -882,6 +894,7 @@ static void home_update_cb(lv_timer_t *t) {
     snprintf(pb, sizeof(pb), T("präzise ±%s g"), ub);
     ui_chip_set(h_state, pb, C_ACCENT, false);
   }
+  bool restyled = state != prev_state;  // Farben neu gesetzt (Zielwiegen färbt danach nach)
   if (state != prev_state) {
     prev_state = state;
     lv_color_t col = over ? C_DANGER : C_ACCENT;
@@ -902,6 +915,7 @@ static void home_update_cb(lv_timer_t *t) {
 
   // Einfach: Lautsprecher leuchtet, solange angesagt wird; keine Statuszeile
   if (simple) {
+    tgt_show(scale_net(), restyled);
     if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, sound_speaking() ? C_ACCENT : C_MUTED, 0);
     if (h_simple_bat) {
       bat_state_t bst = hal_battery_state();
@@ -1038,8 +1052,11 @@ static bool simple_was_swipe() {
   return LV_ABS(p.x - simple_press_pt.x) > 30 || LV_ABS(p.y - simple_press_pt.y) > 30;
 }
 
+static void tgt_new_round();
 static void simple_tara_cb(lv_event_t *e) {
-  if (!simple_was_swipe()) tara_cb(e);
+  if (simple_was_swipe()) return;
+  tara_cb(e);
+  if (s_tgt > 0) tgt_new_round();  // Zielwiegen: nächste Portion mit demselben Ziel
 }
 
 // Obere Fläche 5 s gedrückt halten: Weboberfläche starten (QR-Code und Adresse).
@@ -1066,7 +1083,164 @@ static void simple_speak_cb(lv_event_t *e) {
     return;
   }
   float net = scale_overload() ? scale_gross() : scale_net();
+  // Zielwiegen: "noch 120 Gramm" / "20 Gramm zu viel", im Ziel das Gewicht
+  if (s_tgt > 0 && !scale_overload() && tgt_state(net) != 1 && sound_speak_rest(s_tgt - net, true)) return;
   sound_speak_weight_now(roundf(net), 0);
+}
+
+// ---------- Zielwiegen mit Parkpiepser (Profil Einfach) ----------
+// Ziel und Restmenge stehen groß auf der Wiegeseite, der Ring füllt sich bis
+// zum Ziel, darüber wird alles rot und ein Warnton kommt. Je näher am Ziel,
+// desto schneller piept die Waage (sound_parking wie im Modus Ziel).
+// Gestartet wird über die Weboberfläche (/api/target), später per Sprache.
+// Fertig: nach dem Erreichen abgenommen (3 s fast leer) -> "fertig".
+// Tara = nächste Portion mit demselben Ziel. Ohne Gewichtsänderung endet es nach 15 min.
+#define TGT_TOL_G 2.0f
+#define TGT_REST_Y 226       // Oberkante der Restmenge (über der Tara-Fläche)
+#define TGT_END_MS 3000UL
+#define TGT_IDLE_MS 900000UL
+static bool s_tgt_reached = false, s_tgt_logged = false;
+static uint32_t s_tgt_low_since = 0, s_tgt_change_ms = 0;
+static float s_tgt_ref = 0;
+static int s_tgt_shown = -1;  // gezeigter Zustand: -1 neu, 0..2 wie tgt_state, 9 = aus
+
+static int tgt_state(float net) {
+  float rest = s_tgt - net;
+  return rest > TGT_TOL_G ? 0 : (rest >= -TGT_TOL_G ? 1 : 2);
+}
+
+static void tgt_new_round() {
+  s_tgt_reached = s_tgt_logged = false;
+  s_tgt_low_since = 0;
+  s_tgt_change_ms = hal_millis();
+  sound_parking_reset();
+}
+
+bool ui_target_start(int grams) {
+  if (grams <= 0) {
+    ui_target_stop();
+    return true;
+  }
+  if (grams > (int)WAAGE_MAX_G) grams = (int)WAAGE_MAX_G;
+  if (!s_start_done || wizard_active()) return false;
+  if (!ui_simple()) {  // andere Profile: Modus Ziel mit diesem Gewicht
+    if (cd_active) cd_hide();
+    ui_open_page(page_ziel_goal_create(grams));
+    return true;
+  }
+  if (lv_scr_act() != scr_home) ui_go_home();
+  scale_tare();
+  s_tgt = grams;
+  tgt_new_round();
+  sp_done = false;  // gleich die Restmenge ansagen
+  sp_stable_since = 0;
+  s_tgt_shown = -1;
+  sound_play(SND_CLICK);
+  return true;
+}
+
+void ui_target_stop() {
+  if (!ui_simple()) {
+    if (page_ziel_running()) ui_go_home();
+    return;
+  }
+  s_tgt = 0;
+  s_tgt_shown = -1;
+  sound_parking_reset();
+}
+
+int ui_target_goal() {
+  return ui_simple() ? s_tgt : page_ziel_running();
+}
+
+// alle 100 ms auf der Wiegeseite: Parkpiepser, Protokoll, Ende erkennen
+static void tgt_check() {
+  if (s_tgt <= 0) return;
+  if (!ui_simple()) {
+    s_tgt = 0;
+    return;
+  }
+  uint32_t now = hal_millis();
+  float net = scale_net();
+  if (scale_overload()) return;
+  sound_parking(net, (float)s_tgt, TGT_TOL_G);
+  if (tgt_state(net) == 1 && scale_stable()) {
+    s_tgt_reached = true;
+    if (!s_tgt_logged) {  // wie im Modus Ziel: Ergebnis still ins Protokoll
+      s_tgt_logged = true;
+      char note[24];
+      snprintf(note, sizeof(note), T("Ziel %d g"), s_tgt);
+      log_add(net, note);
+    }
+  }
+  // Ziel erreicht und wieder abgenommen (fast leer oder im Minus): fertig
+  if (s_tgt_reached && net < s_tgt * 0.1f) {
+    if (!s_tgt_low_since) s_tgt_low_since = now;
+    if (now - s_tgt_low_since > TGT_END_MS) {
+      // die Schale wurde beim Start tariert: abgenommen steht die Waage im Minus,
+      // dann wieder auf 0 (im Profil Einfach ist Auto-Tara aus)
+      if (net < -TGT_TOL_G && scale_stable()) scale_tare();
+      ui_target_stop();
+      sound_play(SND_DONE);
+      return;
+    }
+  } else {
+    s_tgt_low_since = 0;
+  }
+  if (fabsf(net - s_tgt_ref) > 2.0f) {
+    s_tgt_ref = net;
+    s_tgt_change_ms = now;
+  }
+  if (now - s_tgt_change_ms > TGT_IDLE_MS) ui_target_stop();
+}
+
+// Anzeige: Ring, Restmenge, Farben. restyle = Farben wurden gerade allgemein gesetzt
+static void tgt_show(float net, bool restyle) {
+  if (!h_simple_rest) return;
+  bool on = s_tgt > 0;
+  int st = on ? tgt_state(net) : 9;
+  if (on) {
+    int v = (int)(net / s_tgt * 1000.0f);
+    if (v < 0) v = 0;
+    if (v > 1000) v = 1000;
+    if (lv_arc_get_value(h_ring) != v) lv_arc_set_value(h_ring, v);
+    char b[32];
+    if (s_tgt_reached && net < s_tgt * 0.1f) snprintf(b, sizeof(b), "%s", T("Fertig"));  // abgenommen
+    else if (st == 0) snprintf(b, sizeof(b), T("noch %d g"), (int)lroundf(s_tgt - net));
+    else if (st == 1) snprintf(b, sizeof(b), "%s", T("Ziel erreicht"));
+    else snprintf(b, sizeof(b), T("%d g zu viel"), (int)lroundf(net - s_tgt));
+    ui_label_update(h_simple_rest, b);
+  }
+  if (st == s_tgt_shown && !restyle) return;
+  bool layout = (s_tgt_shown == 9) != !on || s_tgt_shown < 0;
+  s_tgt_shown = st;
+  if (layout) {
+    if (on) {
+      char b[32];
+      snprintf(b, sizeof(b), T("Ziel %d g"), s_tgt);
+      lv_label_set_text(h_simple_hint, b);
+      lv_obj_set_style_text_font(h_simple_hint, &font_sg_24, 0);
+      lv_obj_align(h_simple_hint, LV_ALIGN_TOP_MID, 0, 92);
+      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -34);
+      lv_obj_clear_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(h_ring, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_label_set_text(h_simple_hint, T("Antippen: Gewicht ansagen"));
+      lv_obj_set_style_text_font(h_simple_hint, &font_sg_18, 0);
+      lv_obj_align(h_simple_hint, LV_ALIGN_TOP_MID, 0, 96);
+      lv_obj_align(h_simple_wrow, LV_ALIGN_CENTER, 0, -14);
+      lv_obj_add_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(h_ring, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_set_style_text_color(h_weight, scale_overload() ? C_DANGER : C_TEXT, 0);
+      lv_obj_set_style_text_color(h_simple_hint, C_MUTED, 0);
+    }
+  }
+  if (!on) return;
+  lv_color_t c = st == 2 ? C_DANGER : C_ACCENT;
+  lv_obj_set_style_arc_color(h_ring, c, LV_PART_INDICATOR);
+  lv_obj_set_style_text_color(h_simple_rest, c, 0);
+  lv_obj_set_style_text_color(h_weight, st == 2 ? C_DANGER : C_TEXT, 0);
+  lv_obj_set_style_text_color(h_simple_hint, st == 1 ? C_ACCENT : C_MUTED, 0);
 }
 
 static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
@@ -1085,6 +1259,12 @@ static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
   lv_obj_align(h_simple_spk, LV_ALIGN_TOP_MID, 0, 60);
   lv_obj_t *hint = ui_label(tile, "Antippen: Gewicht ansagen", &font_sg_18, C_MUTED);
   lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 96);
+  h_simple_hint = hint;
+  h_simple_wrow = wrow;
+  // Zielwiegen: Restmenge groß unter dem Gewicht (sonst ausgeblendet)
+  h_simple_rest = ui_label(tile, "", &font_sg_34, C_ACCENT);
+  lv_obj_align(h_simple_rest, LV_ALIGN_TOP_MID, 0, TGT_REST_Y);
+  lv_obj_add_flag(h_simple_rest, LV_OBJ_FLAG_HIDDEN);
 
   // obere Fläche: Gewicht ansagen (unsichtbar, über der Anzeige)
   lv_obj_t *top = ui_box(tile);
@@ -1110,6 +1290,10 @@ static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
   lv_obj_add_event_cb(bot, simple_tara_cb, LV_EVENT_CLICKED, NULL);
   lv_obj_t *tl = ui_label(bot, "TARA", &font_sg_34, C_ACCENT);
   lv_obj_align(tl, LV_ALIGN_TOP_MID, 0, 32);
+
+  // Ring fürs Zielwiegen über der Tara-Fläche (nicht anklickbar, Tippen geht durch)
+  lv_obj_move_foreground(h_ring);
+  s_tgt_shown = -1;  // neu aufgebaut: Zielanzeige beim nächsten Durchlauf herstellen
 
   // Meldungen oben statt unten (unten liegt die Tara-Fläche)
   lv_obj_move_foreground(h_toast);
@@ -1220,6 +1404,7 @@ static void build_weigh_tile(lv_obj_t *tile) {
 
   h_simple_spk = NULL;
   h_simple_bat = NULL;
+  h_simple_hint = h_simple_rest = h_simple_wrow = NULL;
   if (ui_simple()) {
     build_simple_layout(tile, wrow);
   } else if (h_tiles > 1) {

@@ -351,6 +351,7 @@ Aufbau wie im Design-Sheet: Übersicht mit Live-Gewicht, Auslastungsbalken, Tara
 und Speichern, darunter Kacheln für alle Modi und die Verwaltung.
 
 - **Ziel:** Zielgewicht, Balken bis zum Ziel, die Waage piept als Parkpiepser mit.
+  „An der Waage anzeigen“ zeigt Ziel und Restmenge groß auf dem Display (Profil Einfach).
 - **Rezept:** Rezept wählen, Portionen (bei Eiern: Anzahl Eier), Schritt für Schritt mit Auto-Tara,
   Anweisungen mit Icon und Timer.
 - **Spule:** Material, Leerspule, Durchmesser, Restmeter live; neue Leerspule anlegen.
@@ -473,6 +474,15 @@ Wischen über die Flächen löst nichts aus. Ganz oben steht der Akkustand. Die 
 sich wie immer. Es gibt am Gerät keinen Weg zurück ins Setup: Einfach wird nur in der
 Weboberfläche verlassen. Zum Starten der Weboberfläche die obere Fläche **5 Sekunden gedrückt
 halten**, dann erscheinen Adresse und QR-Code.
+
+**Zielwiegen im Profil Einfach:** In der Weboberfläche unter Ziel „An der Waage anzeigen“
+antippen. Die Waage tariert, oben steht „Ziel 250 g“, unter dem Gewicht groß die Restmenge
+(„noch 120 g“, „Ziel erreicht“, „25 g zu viel“ in Rot), der Ring füllt sich bis zum Ziel und der
+Parkpiepser piept schneller, je näher das Ziel kommt. Oben antippen sagt „noch 120 Gramm“ an.
+Tara startet die nächste Portion mit demselben Ziel; wird nach dem Erreichen abgenommen, sagt die
+Waage „fertig“ und steht wieder auf 0. In den anderen Profilen öffnet derselbe Knopf den Modus Ziel.
+Für die Ansage braucht das Stimmpaket `noch.wav` und `zu_viel.wav` (englisch `to_go.wav`,
+`too_much.wav`), nachzurüsten mit `stimme_schneiden.py aufnahme.mp3 <Paket> --nachtrag`.
 
 Ist nur eine Gruppe sichtbar (z. B. Profil Küche), zeigt die Modi-Seite gleich deren Modi.
 
