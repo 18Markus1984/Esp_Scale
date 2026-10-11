@@ -459,7 +459,10 @@ static lv_obj_t *page_note_create() {
 
   // Icon statt Gewicht, in der Akzentfarbe des Farbschemas
   lv_obj_t *ic = ui_label(s, SI_GLYPH[z->icon < SI_COUNT ? z->icon : SI_HINWEIS], &font_icons_80, C_ACCENT);
-  lv_obj_align(ic, LV_ALIGN_CENTER, 0, -62);
+  // mit Timer rückt alles nach oben, der Timer-Knopf bekommt eine eigene Zeile
+  // (drei Knöpfe nebeneinander passen nicht in den runden Bildschirm)
+  bool has_timer = z->secs > 0;
+  lv_obj_align(ic, LV_ALIGN_CENTER, 0, has_timer ? -82 : -62);
 
   // Text: kurze Anweisungen groß, längere kleiner und umgebrochen
   const char *txt = z->text[0] ? z->text : T(step_icon_label(z->icon));
@@ -468,23 +471,24 @@ static lv_obj_t *page_note_create() {
   lv_obj_set_width(t, 300);
   lv_label_set_long_mode(t, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(t, LV_ALIGN_CENTER, 0, 30);
+  lv_obj_align(t, LV_ALIGN_CENTER, 0, has_timer ? 4 : 30);
 
   nt_hint = ui_label(s, "", &font_sg_14, C_WARN);
-  lv_obj_align(nt_hint, LV_ALIGN_CENTER, 0, 150);
+  lv_obj_align(nt_hint, LV_ALIGN_CENTER, 0, has_timer ? 162 : 150);
 
   lv_obj_t *row = ui_box(s);
   lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(row, 12, 0);
-  lv_obj_align(row, LV_ALIGN_CENTER, 0, 108);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, has_timer ? 120 : 108);
   lv_obj_t *back = ui_btn(row, "Zurück", BTN_NORMAL);
   lv_obj_set_style_pad_hor(back, 14, 0);
   lv_obj_add_event_cb(back, st_back_cb, LV_EVENT_CLICKED, NULL);
   nt_btn = NULL;
-  if (z->secs) {
-    nt_btn = ui_btn(row, "", BTN_NORMAL);
-    lv_obj_set_style_pad_hor(nt_btn, 14, 0);
+  if (has_timer) {
+    nt_btn = ui_btn(s, "", BTN_NORMAL);
+    lv_obj_set_style_pad_hor(nt_btn, 18, 0);
+    lv_obj_align(nt_btn, LV_ALIGN_CENTER, 0, 64);
     lv_obj_add_event_cb(nt_btn, nt_timer_start_cb, LV_EVENT_CLICKED, NULL);
   }
   lv_obj_t *next = ui_btn(row, s_step + 1 >= s_rec.count ? "Fertig" : "Weiter", BTN_PRIMARY);

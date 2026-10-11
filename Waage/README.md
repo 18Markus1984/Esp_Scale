@@ -449,8 +449,12 @@ fehlt die Modi-Seite, und die Punkte unten zeigen nur die vorhandenen Seiten.
 **Einfach** ist für schlechte Augen gedacht (Bildschirm-Variante A aus dem Konzept): ganze
 Gramm in großen Ziffern, keine Statuszeile und keine Knöpfe. Oben antippen sagt das Gewicht
 an (auch wenn die automatische Ansage aus ist), die gelb hinterlegte Fläche unten ist Tara.
-Wischen über die Flächen löst nichts aus. Die PWR-Taste verhält sich wie immer. Es gibt am
-Gerät keinen Weg zurück ins Setup: Einfach wird nur in der Weboberfläche verlassen.
+Wischen über die Flächen löst nichts aus. Ganz oben steht der Akkustand. Die PWR-Taste verhält
+sich wie immer. Es gibt am Gerät keinen Weg zurück ins Setup: Einfach wird nur in der
+Weboberfläche verlassen. Zum Starten der Weboberfläche die obere Fläche **5 Sekunden gedrückt
+halten**, dann erscheinen Adresse und QR-Code.
+
+Ist nur eine Gruppe sichtbar (z. B. Profil Küche), zeigt die Modi-Seite gleich deren Modi.
 
 ## Spieler und Bestenliste
 

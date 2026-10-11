@@ -447,6 +447,14 @@ Simulator: `PROFTEST=1`. Nächste Etappen laut Konzept: Einrichtung beim ersten 
 (automatisch nach dem Start, Schalter „Auto-Update“), Sprachsteuerung mit Weckwort „Hallo Waage“
 (eigenes deutsches KWS-Netz), Zielwiegen mit Parkpiepser per Stimme im Profil Einfach.
 
+**Profile, Nachbesserung (11.10.2026):** Ist nur eine Gruppe sichtbar (Profil Küche/Werkstatt oder
+alles andere ausgeblendet), zeigt die Modi-Seite gleich deren Modi (Titel = Gruppenname,
+`s_tile_items`/`tile_mode_cb`, Zurück führt auf diese Seite). Einfach: obere Fläche **5 s gedrückt
+halten** öffnet `page_web_quick_create()` (startet die Weboberfläche, `SIMPLE_WEB_HOLD_MS`, über
+`LV_EVENT_PRESSING`, Bewegung > 30 px bricht ab), Hinweis in der Rückfrage am Gerät und in der Web-Karte.
+Akkustand ganz oben („Akku 72 %“, „lädt“/„voll“, ab 20 % orange, ohne Akku ausgeblendet).
+Rezept-Anweisung mit Timer: Timer-Knopf in eigener Zeile über Zurück/Weiter, Icon und Text rücken hoch.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

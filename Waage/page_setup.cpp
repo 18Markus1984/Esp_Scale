@@ -563,7 +563,7 @@ static lv_obj_t *page_profile_simple_create() {
   lv_obj_set_width(l, 290);
   lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(l, LV_ALIGN_CENTER, 0, -42);
-  lv_obj_t *w = ui_label(s, "Zurück nur über die Weboberfläche", &font_sg_14, C_WARN);
+  lv_obj_t *w = ui_label(s, "Zurück nur über die Weboberfläche. Starten: oben 5 s gedrückt halten.", &font_sg_14, C_WARN);
   lv_label_set_long_mode(w, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(w, 280);
   lv_obj_set_style_text_align(w, LV_TEXT_ALIGN_CENTER, 0);

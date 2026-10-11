@@ -38,6 +38,7 @@ static lv_obj_t *h_ring, *h_status, *h_pot, *h_weight, *h_unit, *h_state, *h_pot
 static void weight_show(const char *num, const char *unit);  // große Gewichtsanzeige (unten)
 static lv_obj_t *h_btns, *h_btn_save, *h_btn_remove, *h_toast, *h_spk;
 static lv_obj_t *h_simple_spk;  // Profil Einfach: Lautsprecher über der Ansage-Fläche
+static lv_obj_t *h_simple_bat;  // Profil Einfach: Akkustand ganz oben
 static bool h_boot_prev = false;
 static int h_prev_state = -1;  // zuletzt gezeigter Zustand (misst/stabil/Überlast)
 
@@ -113,6 +114,8 @@ static ui_list_item_t s_modi_items[N_GROUPS];
 static int s_modi_map[N_GROUPS], s_modi_n = 0;
 static ui_list_item_t s_mode_items[6];
 static int s_mode_map[6], s_mode_n = 0;
+static ui_list_item_t s_tile_items[6];  // nur eine Gruppe sichtbar: ihre Modi direkt auf der Modi-Seite
+static int s_tile_map[6], s_tile_n = 0, s_tile_group = -1;
 static ui_list_item_t s_sys_items[8];
 static int s_sys_map[8], s_sys_n = 0;
 
@@ -451,6 +454,17 @@ static lv_obj_t *group_page_create() {
   lv_obj_set_style_pad_bottom(t, 10, 0);
   lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 0);
   return s;
+}
+
+// Nur eine Gruppe sichtbar (z. B. Profil Küche): Modus direkt von der Modi-Seite öffnen,
+// Zurück führt wieder auf die Modi-Seite
+static void tile_mode_cb(int index) {
+  if (index < 0 || index >= s_tile_n) return;
+  s_group = s_tile_group;
+  s_back = NULL;
+  int m = s_tile_map[index];
+  page_create_fn fn = GROUP_PAGES[s_group][m];
+  ui_open_page(fn ? fn() : page_placeholder_create(GROUP_ITEMS[s_group][m].title));
 }
 
 static void modi_cb(int index) {
@@ -867,6 +881,20 @@ static void home_update_cb(lv_timer_t *t) {
   // Einfach: Lautsprecher leuchtet, solange angesagt wird; keine Statuszeile
   if (simple) {
     if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, sound_speaking() ? C_ACCENT : C_MUTED, 0);
+    if (h_simple_bat) {
+      bat_state_t bst = hal_battery_state();
+      int bat = hal_battery_percent();
+      if (bst == BAT_NONE || bat < 0) {
+        lv_obj_add_flag(h_simple_bat, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        if (bst == BAT_CHARGING) snprintf(buf, sizeof(buf), T("Akku lädt"));
+        else if (bst == BAT_FULL) snprintf(buf, sizeof(buf), T("Akku voll"));
+        else snprintf(buf, sizeof(buf), T("Akku %d %%"), bat);
+        ui_label_update(h_simple_bat, buf);
+        lv_obj_set_style_text_color(h_simple_bat, (bst == BAT_DISCHARGE && bat <= 20) ? C_WARN : C_MUTED, 0);
+        lv_obj_clear_flag(h_simple_bat, LV_OBJ_FLAG_HIDDEN);
+      }
+    }
     return;
   }
 
@@ -971,11 +999,16 @@ static void build_countdown(lv_obj_t *tile) {
 // Wischen über eine Fläche zählt nicht als Antippen (sonst sagt die Waage
 // beim versehentlichen Wischen an oder tariert)
 static lv_point_t simple_press_pt;
+static uint32_t simple_press_ms = 0;
+static bool simple_held = false;  // langes Halten hat schon ausgelöst: Loslassen ignorieren
 static void simple_press_cb(lv_event_t *e) {
   lv_indev_t *in = lv_indev_get_act();
   if (in) lv_indev_get_point(in, &simple_press_pt);
+  simple_press_ms = hal_millis();
+  simple_held = false;
 }
 static bool simple_was_swipe() {
+  if (simple_held) return true;
   lv_indev_t *in = lv_indev_get_act();
   if (!in) return false;
   lv_point_t p;
@@ -985,6 +1018,22 @@ static bool simple_was_swipe() {
 
 static void simple_tara_cb(lv_event_t *e) {
   if (!simple_was_swipe()) tara_cb(e);
+}
+
+// Obere Fläche 5 s gedrückt halten: Weboberfläche starten (QR-Code und Adresse).
+// Nur dort lässt sich das Profil Einfach wieder verlassen.
+#define SIMPLE_WEB_HOLD_MS 5000
+static void simple_hold_cb(lv_event_t *e) {
+  if (simple_held || hal_millis() - simple_press_ms < SIMPLE_WEB_HOLD_MS) return;
+  lv_indev_t *in = lv_indev_get_act();
+  if (in) {
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    if (LV_ABS(p.x - simple_press_pt.x) > 30 || LV_ABS(p.y - simple_press_pt.y) > 30) return;
+  }
+  simple_held = true;
+  sound_play(SND_CLICK);
+  ui_open_page(page_web_quick_create());
 }
 
 static void simple_speak_cb(lv_event_t *e) {
@@ -1006,11 +1055,14 @@ static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
   lv_obj_clear_flag(wrow, LV_OBJ_FLAG_CLICKABLE);  // kein langes Drücken für Präzision
   lv_obj_align(wrow, LV_ALIGN_CENTER, 0, -14);
 
-  // Lautsprecher und Hinweis oben
+  // Akku ganz oben, darunter Lautsprecher und Hinweis
+  h_simple_bat = ui_label(tile, "", &font_sg_18, C_MUTED);
+  lv_obj_align(h_simple_bat, LV_ALIGN_TOP_MID, 0, 26);
+  lv_obj_add_flag(h_simple_bat, LV_OBJ_FLAG_HIDDEN);
   h_simple_spk = ui_label(tile, ICON_TON, &font_icons_26, C_MUTED);
-  lv_obj_align(h_simple_spk, LV_ALIGN_TOP_MID, 0, 62);
+  lv_obj_align(h_simple_spk, LV_ALIGN_TOP_MID, 0, 60);
   lv_obj_t *hint = ui_label(tile, "Antippen: Gewicht ansagen", &font_sg_18, C_MUTED);
-  lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 98);
+  lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 96);
 
   // obere Fläche: Gewicht ansagen (unsichtbar, über der Anzeige)
   lv_obj_t *top = ui_box(tile);
@@ -1019,6 +1071,7 @@ static void build_simple_layout(lv_obj_t *tile, lv_obj_t *wrow) {
   lv_obj_add_flag(top, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(top, simple_press_cb, LV_EVENT_PRESSED, NULL);
   lv_obj_add_event_cb(top, simple_speak_cb, LV_EVENT_CLICKED, NULL);
+  lv_obj_add_event_cb(top, simple_hold_cb, LV_EVENT_PRESSING, NULL);
 
   // untere Fläche: Tara, in der Akzentfarbe hinterlegt
   lv_obj_t *bot = ui_box(tile);
@@ -1144,6 +1197,7 @@ static void build_weigh_tile(lv_obj_t *tile) {
   lv_obj_align(h_toast, LV_ALIGN_CENTER, 0, 152);
 
   h_simple_spk = NULL;
+  h_simple_bat = NULL;
   if (ui_simple()) {
     build_simple_layout(tile, wrow);
   } else if (h_tiles > 1) {
@@ -1186,7 +1240,19 @@ static void build_home_screen() {
   build_weigh_tile(h_tile0);
   if (has_modi) {
     lv_obj_t *t = lv_tileview_add_tile(h_tv, x, 0, x + 1 < h_tiles ? LV_DIR_LEFT | LV_DIR_RIGHT : LV_DIR_LEFT);
-    build_list_tile(t, "Modi", s_modi_items, s_modi_n, modi_cb, x);
+    if (s_modi_n == 1) {
+      // nur eine Gruppe: deren Modi gleich hier, ohne den Umweg über die Gruppenliste
+      s_tile_group = s_modi_map[0];
+      s_tile_n = 0;
+      for (int i = 0; i < GROUP_COUNT[s_tile_group]; i++) {
+        if (!mode_visible(s_tile_group, i)) continue;
+        s_tile_items[s_tile_n] = GROUP_ITEMS[s_tile_group][i];
+        s_tile_map[s_tile_n++] = i;
+      }
+      build_list_tile(t, MODI_GROUPS[s_tile_group].title, s_tile_items, s_tile_n, tile_mode_cb, x);
+    } else {
+      build_list_tile(t, "Modi", s_modi_items, s_modi_n, modi_cb, x);
+    }
     x++;
   }
   if (has_sys) {
