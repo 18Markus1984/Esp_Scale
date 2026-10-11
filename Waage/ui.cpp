@@ -328,8 +328,13 @@ static void cd_hide() {
   lv_obj_add_flag(cd_box, LV_OBJ_FLAG_HIDDEN);
 }
 
+// Topf abgelehnt: was jetzt auf der Waage liegt, ist eine normale Wägung
+// (wird also auch automatisch gespeichert), bis die Waage wieder leer ist
+static bool s_pot_rejected = false;
+
 static void cd_cancel_cb(lv_event_t *e) {
   cd_hide();  // s_armed bleibt false, bis die Waage wieder leer ist
+  s_pot_rejected = true;
 }
 
 static void cd_update() {
@@ -492,6 +497,7 @@ static void autosave_check() {
   if (fabsf(net) < EMPTY_G) {  // leer -> bereit für die nächste Wägung
     as_done = false;
     as_stable_since = 0;
+    s_pot_rejected = false;
     return;
   }
   if (!g_set.autosave || as_done || cd_active || net < AUTOSAVE_MIN_G || scale_overload()) return;
@@ -500,7 +506,8 @@ static void autosave_check() {
     return;
   }
   // gerade aufgelegter leerer Topf? Den nicht speichern, die Erkennung übernimmt
-  if (g_set.autotara && s_pot_mode == POT_NONE && pot_match(net, (float)g_set.tol_g, -1) >= 0) return;
+  // (außer der Topf wurde im Countdown abgelehnt)
+  if (g_set.autotara && s_pot_mode == POT_NONE && !s_pot_rejected && pot_match(net, (float)g_set.tol_g, -1) >= 0) return;
 
   uint32_t now = hal_millis();
   if (as_stable_since == 0) as_stable_since = now;
@@ -849,6 +856,12 @@ static void home_update_cb(lv_timer_t *t) {
     unit_fmt(p, sizeof(p), unit_from_g(g_pots[s_pot_idx].grams, u), u);
     snprintf(buf, sizeof(buf), T("brutto %s · Topf %s %s"), a, p, unit_name(u));
     ui_label_update(h_potinfo, buf);
+  }
+
+  // Auto-Speichern an: der Speichern-Knopf ist überflüssig, Tara steht dann allein
+  if (g_set.autosave != lv_obj_has_flag(h_btn_save, LV_OBJ_FLAG_HIDDEN)) {
+    if (g_set.autosave) lv_obj_add_flag(h_btn_save, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(h_btn_save, LV_OBJ_FLAG_HIDDEN);
   }
 
   // Zustand nur bei Änderung umstylen

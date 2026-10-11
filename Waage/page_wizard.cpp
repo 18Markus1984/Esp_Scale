@@ -22,6 +22,8 @@
 #include "sound.h"
 #include "net.h"
 #include "i18n.h"
+#include "scale.h"
+#include "data.h"   // fmt_num
 #include <stdio.h>
 #include <string.h>
 
@@ -675,24 +677,61 @@ static lv_obj_t *page_tut_right() {
   return s;
 }
 
+// Übung 3: die Zahl zeigt das echte Gewicht. Langes Drücken schaltet hier
+// zwischen einer und zwei Nachkommastellen um, so wie auf der Wiegeseite
+// (nur zum Ausprobieren, die Einstellung Präzision bleibt unverändert).
+static lv_obj_t *th_num, *th_chip;
+static bool th_prec = false;
+
+static void th_show(lv_timer_t *t) {
+  if (!th_num) return;
+  char b[16];
+  float v = scale_net();
+  if (v > -0.005f && v < 0.005f) v = 0;
+  fmt_num(b, sizeof(b), v, th_prec ? 2 : 1);
+  ui_label_update(th_num, b);
+}
+
 static lv_obj_t *page_tut_hold() {
+  th_prec = false;
   lv_obj_t *s = tut_page("Halte die Zahl gedrückt", "Lange drücken schaltet die Präzision um");
   lv_obj_t *box = ui_box(s);
-  lv_obj_set_size(box, 230, 112);
+  lv_obj_set_size(box, 330, 112);
   lv_obj_set_style_radius(box, 56, 0);
-  lv_obj_align(box, LV_ALIGN_CENTER, 0, 18);
+  lv_obj_align(box, LV_ALIGN_CENTER, 0, 8);
   lv_obj_add_flag(box, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_t *n = ui_label(box, "0,0", &font_sg_80, C_TEXT);
-  lv_obj_align(n, LV_ALIGN_CENTER, -16, 0);
-  lv_obj_t *u = ui_label(box, "g", &font_sg_34, C_MUTED);
-  lv_obj_align_to(u, n, LV_ALIGN_OUT_RIGHT_BOTTOM, 8, -10);
+  lv_obj_t *row = ui_box(box);  // Zahl und Einheit auf einer Grundlinie
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+  lv_obj_set_style_pad_column(row, 6, 0);
+  lv_obj_center(row);
+  th_num = ui_label(row, "0,0", &font_sg_80, C_TEXT);
+  lv_obj_t *u = ui_label(row, "g", &font_sg_34, C_MUTED);
+  lv_obj_set_style_translate_y(u, -(font_sg_80.base_line - font_sg_34.base_line), 0);
+  th_chip = ui_chip(s, "präzise", C_ACCENT);
+  lv_obj_align(th_chip, LV_ALIGN_CENTER, 0, 86);
+  lv_obj_add_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
   pulse(box);
   lv_obj_add_event_cb(box, [](lv_event_t *e) {
     lv_obj_t *b = lv_event_get_target(e);
     lv_anim_del(b, anim_border_opa);
     lv_obj_set_style_border_opa(b, LV_OPA_COVER, 0);
-    tut_done("Geschafft. So schaltest du die Präzision ein und aus.");
+    th_prec = !th_prec;
+    th_show(NULL);
+    if (th_chip) {
+      if (th_prec) lv_obj_clear_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
+      else lv_obj_add_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
+    }
+    tut_done(th_prec ? "Präzision an: zwei Nachkommastellen. Nochmal halten schaltet sie aus."
+                     : "Präzision aus: eine Nachkommastelle.");
   }, LV_EVENT_LONG_PRESSED, NULL);
+  ui_page_timer(s, th_show, 200);
+  th_show(NULL);
+  lv_obj_add_event_cb(s, [](lv_event_t *e) {
+    forget(&th_num, e);
+    forget(&th_chip, e);
+  }, LV_EVENT_DELETE, NULL);
   lv_obj_add_event_cb(s, tut_gesture_cb, LV_EVENT_GESTURE, NULL);
   nav(s, false, NULL, false);
   return s;

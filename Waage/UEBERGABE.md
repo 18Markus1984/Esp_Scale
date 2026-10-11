@@ -491,6 +491,13 @@ vergessen, wenn sie zur gelöschten Seite gehören (`forget`), weil die alte Sei
 der neuen gelöscht wird. Neue Symbole: `ICON_ZURUECK/WEITER/HAKEN` (font_icons_26),
 `ICON80_HAND/TIPPEN` (font_icons_80). Web: nur noch „← Zurück“ und „Weiter →“ bzw. „Fertig ✓“.
 
+**Kleinigkeiten (11.10.2026):** Übung „Zahl halten“ zeigt das echte Gewicht (`th_show`, 200 ms) und
+schaltet beim langen Drücken zwischen einer und zwei Nachkommastellen um, mit Chip „präzise“ (nur
+Übung, `g_set.precise` bleibt). Ist Auto-Speichern an, ist der Speichern-Knopf auf der Wiegeseite
+ausgeblendet (Tara steht allein; wird in `home_update_cb` nachgeführt). Topf im Countdown abgelehnt
+(`s_pot_rejected`): die Wägung wird jetzt trotzdem automatisch gespeichert, bis die Waage wieder leer
+ist. Simulator: `ASTEST=1`.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

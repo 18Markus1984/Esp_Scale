@@ -508,7 +508,8 @@ Restmeter live, Durchmesser 1,75/2,85 mm umschaltbar, „Speichern“ schreibt i
 
 Vier Gruppen als Kacheln:
 - **Wiegen:** Einheit (g, kg, oz, lb – gilt für Wiegeseite und Protokoll),
-  Auto-Speichern (einmal pro Auflegen, wenn das Gewicht 2 s ruhig liegt, ab 5 g),
+  Auto-Speichern (einmal pro Auflegen, wenn das Gewicht 2 s ruhig liegt, ab 5 g; der
+  Speichern-Knopf ist dann ausgeblendet, auch ein abgelehnter Topf wird gespeichert),
   Auto-Weiter (Rezept und Cocktail schalten selbst weiter, wenn die Menge
   erreicht ist und ruhig liegt), Zur Wiegeseite, Auto-Tara, Auto-Aus.
 - **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth, Akku (Ladestand, Verlauf, Restzeit; Wischen nach rechts führt
