@@ -821,6 +821,22 @@ const i18n_pair_t I18N_EN[] = {
   { "Einrichten", "Set up" },
   { "Einrichtung", "Setup" },
   { "wiederholen ›", "repeat ›" },
+  // ---- Einrichtung Bedienung ----
+  { "Probier es aus · %d / %d", "Try it · %d / %d" },
+  { "Per Handy", "By phone" },
+  { "Wische nach links", "Swipe left" },
+  { "So kommst du zu den Modi und zum System", "This takes you to the modes and the system" },
+  { "Die Hand zeigt die Bewegung", "The hand shows the movement" },
+  { "Das sind die Modi. Jetzt nach rechts zurück zur Wiegeseite", "These are the modes. Now swipe right, back to weighing" },
+  { "Halte die Zahl gedrückt", "Hold the number" },
+  { "Lange drücken schaltet die Präzision um", "A long press toggles precision" },
+  { "Geschafft. So schaltest du die Präzision ein und aus.", "Done. That is how you switch precision on and off." },
+  { "Tippe oben", "Tap the top" },
+  { "Tippe unten auf TARA", "Tap TARE at the bottom" },
+  { "Die Waage sagt das Gewicht an", "The scale speaks the weight" },
+  { "Die Waage stellt auf null", "The scale goes back to zero" },
+  { "Richtig. Oben tippen sagt das Gewicht an.", "Right. Tapping the top speaks the weight." },
+  { "Richtig. Unten tippen stellt auf null.", "Right. Tapping the bottom sets zero." },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

@@ -476,6 +476,21 @@ Mock: `MOCK_FIRSTRUN=1`. **Prüfung vor jeder Lieferung:** zusätzlich zum Simul
 mit arduino-cli, ESP32-Paket 3.1.1, Waveshare-Treibern und LVGL aus dem Waveshare-Paket, FQBN wie im
 GitHub-Workflow (`PartitionScheme=app3M_fat9M_16MB`, `USE_VOICE 0`).
 
+**Assistent neu (11.10.2026, Markus: Ring aus Variante D, Erklärung aus Variante B):** Statt
+„Zurück/Überspringen“ zwei runde Pfeil-Knöpfe unten links und rechts (45° unter der Mitte,
+`NAV_R 150`, damit sie den Fortschrittsbogen am Rand nicht berühren; Bogen = `ui_ring` mit 6 px).
+Der rechte Pfeil übernimmt in Listen den mittleren Eintrag (`list_center`), im letzten Schritt ist er
+ein Haken. Listen sitzen `LIST_SHIFT` (-30 px) höher, unten verdeckt eine Fläche die Einträge hinter
+den Knöpfen. Nach dem WLAN folgt „Probier es aus“ (`WZ_TUT1..3`): links wischen (animierte Hand),
+auf der nachgestellten Modi-Seite rechts wischen, Zahl lange drücken; im Profil Einfach oben tippen
+(Ansage) und unten auf TARA tippen. Der rechte Pfeil bleibt gedämpft, bis die Übung geklappt hat,
+überspringt sie aber auch so. Übungsseiten werden mit `lv_scr_load_anim` ohne die allgemeine
+Wisch-Geste geladen und werten Wischen selbst aus; nach einem Wechsel per Geste `lv_indev_reset`,
+sonst kommt beim nächsten Drücken kein LONG_PRESSED. Seiten-Zeiger werden beim Löschen nur
+vergessen, wenn sie zur gelöschten Seite gehören (`forget`), weil die alte Seite erst nach dem Aufbau
+der neuen gelöscht wird. Neue Symbole: `ICON_ZURUECK/WEITER/HAKEN` (font_icons_26),
+`ICON80_HAND/TIPPEN` (font_icons_80). Web: nur noch „← Zurück“ und „Weiter →“ bzw. „Fertig ✓“.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

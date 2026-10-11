@@ -45,6 +45,12 @@ LV_FONT_DECLARE(font_sg_34);
 #define ICON_TON_AUS   "\xEE\x81\x8F"  // volume_off (U+E04F)
 #define ICON_WEB       "\xEE\x9E\xBA"  // smartphone (U+E7BA)
 #define ICON_SPRUECHE  "\xEE\xA4\x9F"  // record_voice_over (U+E91F)
+#define ICON_ZURUECK   "\xEE\x97\x84"  // arrow_back (U+E5C4)
+#define ICON_WEITER    "\xEE\x97\x88"  // arrow_forward (U+E5C8)
+#define ICON_HAKEN     "\xEE\x99\xA8"  // check (U+E668)
+// in font_icons_80 (Bedien-Erklärung)
+#define ICON80_HAND    "\xEE\xAE\xB9"  // pan_tool_alt (U+EBB9)
+#define ICON80_TIPPEN  "\xEE\xA4\x93"  // touch_app (U+E913)
 
 LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
 LV_FONT_DECLARE(font_icons_80);  // Icons der Rezept-Anweisungen (Material Symbols)

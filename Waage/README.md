@@ -434,9 +434,11 @@ zurück in seine Gruppe und von dort auf die Wiegeseite.
 ## Einrichtung beim ersten Start
 
 Beim allerersten Einschalten führt nach dem Startbild ein Assistent durch Sprache, Profil,
-Kategorien (nicht bei Einfach), Farbe, Ton und WLAN. Jeder Schritt lässt sich mit „Zurück“
-und „Überspringen“ bedienen, Wischen nach rechts geht einen Schritt zurück. Danach folgt der
-gewohnte Lagecheck. Bereits eingerichtete Waagen überspringen den Assistenten nach dem Update.
+Kategorien (nicht bei Einfach), Farbe, Ton und WLAN. Unten links und rechts sitzen zwei
+Pfeil-Knöpfe (zurück, weiter), der Fortschritt läuft als Bogen um den Rand; Wischen nach rechts
+geht ebenfalls einen Schritt zurück. Danach wird die Bedienung zum Ausprobieren erklärt: nach
+links wischen, nach rechts zurück, Zahl lange drücken (im Profil Einfach: oben tippen, unten auf
+TARA tippen). Danach folgt der gewohnte Lagecheck. Bereits eingerichtete Waagen überspringen den Assistenten nach dem Update.
 Wiederholen: Setup -> Waage -> Einrichtung. Alternativ im ersten Schritt „Mit dem Handy
 einrichten“: Die Waage startet die Weboberfläche, dort öffnet sich die Einrichtung von selbst
 (`#/einrichtung`, auch unter Einstellungen -> Waage -> Einrichtung).
