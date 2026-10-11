@@ -15,12 +15,11 @@ void settings_profile_apply(int profile) {
       break;
     case PROFILE_WERKSTATT:
       g_set.cats = CAT_WERKSTATT;
-      g_set.precise = true;
       break;
     case PROFILE_EINFACH:
-      // Für schlechte Augen: große gelbe Ziffern auf Schwarz, Gewicht wird angesagt
+      // Für schlechte Augen: große Ziffern, Gewicht wird angesagt.
+      // Die Farbe bleibt, wie sie ist (passend zum Gehäuse).
       g_set.cats = 0;
-      g_set.theme = 6;          // Gelb
       g_set.speak = true;
       g_set.speak_ev = true;
       if (g_set.volume < 80) g_set.volume = 80;

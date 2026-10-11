@@ -792,7 +792,7 @@ const i18n_pair_t I18N_EN[] = {
   { "Profil, Firmware", "Profile, firmware" },
   { "alle Modi", "all modes" },
   { "Rezept, Timer, Töpfe", "Recipe, timer, pots" },
-  { "Zählen, Spule, Präzision", "Count, spool, precision" },
+  { "Zählen, Spule, Porto", "Count, spool, postage" },
   { "nur Wiegen, groß, mit Ansage", "weighing only, large, spoken" },
   { "Profil Einfach", "Simple profile" },
   { "Nur Wiegen und Tara, große Anzeige, das Gewicht wird angesagt.", "Weighing and tare only, large display, the weight is spoken." },
@@ -804,6 +804,23 @@ const i18n_pair_t I18N_EN[] = {
   { "TARA", "TARE" },
   { "Ton ist aus", "Sound is off" },
   { "Keine Stimme auf der SD-Karte", "No voice on the SD card" },
+  // ---- Einrichtung ----
+  { "Einrichtung · %d / %d", "Setup · %d / %d" },
+  { "‹ Zurück", "‹ Back" },
+  { "Überspringen ›", "Skip ›" },
+  { "Mit dem Handy einrichten ›", "Set up with your phone ›" },
+  { "Kategorien", "Categories" },
+  { "Welche Modi soll die Waage zeigen?", "Which modes should the scale show?" },
+  { "aktuell", "current" },
+  { "Gewicht ansagen", "Speak the weight" },
+  { "noch nicht eingerichtet", "not set up yet" },
+  { "verbinde mit %.24s …", "connecting to %.24s …" },
+  { "%.24s · keine Verbindung", "%.24s · no connection" },
+  { "Netz: %.24s", "Network: %.24s" },
+  { "Für Uhrzeit, Weboberfläche und Updates. Geht auch später im Setup.", "For the clock, web interface and updates. You can also do this later in Setup." },
+  { "Einrichten", "Set up" },
+  { "Einrichtung", "Setup" },
+  { "wiederholen ›", "repeat ›" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

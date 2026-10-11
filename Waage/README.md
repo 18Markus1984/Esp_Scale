@@ -431,6 +431,16 @@ Jeder Eintrag hat ein Symbol (Material Symbols, als `font_icons_26.c` eingebette
 Zeichen siehe `ICON_...` in `ui_theme.h`). Wischen nach rechts führt aus einem Modus
 zurück in seine Gruppe und von dort auf die Wiegeseite.
 
+## Einrichtung beim ersten Start
+
+Beim allerersten Einschalten führt nach dem Startbild ein Assistent durch Sprache, Profil,
+Kategorien (nicht bei Einfach), Farbe, Ton und WLAN. Jeder Schritt lässt sich mit „Zurück“
+und „Überspringen“ bedienen, Wischen nach rechts geht einen Schritt zurück. Danach folgt der
+gewohnte Lagecheck. Bereits eingerichtete Waagen überspringen den Assistenten nach dem Update.
+Wiederholen: Setup -> Waage -> Einrichtung. Alternativ im ersten Schritt „Mit dem Handy
+einrichten“: Die Waage startet die Weboberfläche, dort öffnet sich die Einrichtung von selbst
+(`#/einrichtung`, auch unter Einstellungen -> Waage -> Einrichtung).
+
 ## Profile (Setup -> Waage -> Profil)
 
 Ein Profil legt fest, was die Startseite zeigt, und setzt passende Voreinstellungen:
@@ -439,8 +449,8 @@ Ein Profil legt fest, was die Startseite zeigt, und setzt passende Voreinstellun
 |---|---|---|
 | Standard | Wiegen, Modi (alle Gruppen), System | – |
 | Küche | nur Gruppe Küche, System ohne Wasserwaage | Auto-Tara an |
-| Werkstatt | nur Gruppe Werkstatt, System ohne Töpfe | Präzision an |
-| Einfach | nur die Wiegeseite, kein Wischen | Farbe Gelb, Ansage an, Lautstärke mind. 80 %, Gramm, Auto-Tara/Präzision/Auto-Speichern aus, Auto-Aus mind. 60 min |
+| Werkstatt | nur Gruppe Werkstatt, System ohne Töpfe | – |
+| Einfach | nur die Wiegeseite, kein Wischen | Farbe bleibt, Ansage an, Lautstärke mind. 80 %, Gramm, Auto-Tara/Präzision/Auto-Speichern aus, Auto-Aus mind. 60 min |
 
 Zusätzlich lassen sich in der Weboberfläche (Einstellungen -> Profil) ganze Gruppen und
 einzelne Modi ausblenden. Gruppen ohne sichtbare Modi verschwinden, gibt es keine Gruppe,
@@ -448,7 +458,7 @@ fehlt die Modi-Seite, und die Punkte unten zeigen nur die vorhandenen Seiten.
 
 **Einfach** ist für schlechte Augen gedacht (Bildschirm-Variante A aus dem Konzept): ganze
 Gramm in großen Ziffern, keine Statuszeile und keine Knöpfe. Oben antippen sagt das Gewicht
-an (auch wenn die automatische Ansage aus ist), die gelb hinterlegte Fläche unten ist Tara.
+an (auch wenn die automatische Ansage aus ist), die farbig hinterlegte Fläche unten ist Tara.
 Wischen über die Flächen löst nichts aus. Ganz oben steht der Akkustand. Die PWR-Taste verhält
 sich wie immer. Es gibt am Gerät keinen Weg zurück ins Setup: Einfach wird nur in der
 Weboberfläche verlassen. Zum Starten der Weboberfläche die obere Fläche **5 Sekunden gedrückt

@@ -34,6 +34,13 @@ lv_obj_t *page_toepfe_create();                       // Töpfe verwalten
 lv_obj_t *page_protokoll_create();                    // Protokoll (heute)
 lv_obj_t *page_setup_create();                        // Einstellungen (Übersicht)
 lv_obj_t *page_setup_back();                          // zurück in die zuletzt offene Setup-Gruppe
+void page_setup_back_override(page_create_fn fn);     // solange gesetzt: page_setup_back() liefert fn() (Assistent)
+lv_obj_t *page_wlan_setup_create();                   // WLAN-Seite aus dem Setup (auch für den Assistenten)
+// Einrichtungs-Assistent (page_wizard.cpp)
+void wizard_start(void (*done)());                    // erster Start; done() danach (Lagecheck)
+lv_obj_t *page_wizard_create();                       // Setup -> Waage -> Einrichtung wiederholen
+bool wizard_active();
+void wizard_finish_external();                        // Weboberfläche hat die Einrichtung abgeschlossen
 lv_obj_t *page_display_create();                      // Display drehen (Feinausrichtung)
 lv_obj_t *page_kalib_create();                        // Kalibrierung in 3 Schritten
 lv_obj_t *page_refset_create();                       // Prüfgewicht: Einstellungen und letzte Prüfung

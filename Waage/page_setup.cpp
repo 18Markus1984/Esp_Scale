@@ -123,7 +123,17 @@ static const char *const CAT_TITLE[4] = { "Wiegen", "Zeit & Funk", "Ton", "Waage
 static const char *const CAT_SUB[4] = { "Einheit, Auto-Aus", "Uhr, WLAN, Akku", "Töne, Sprache", "Profil, Firmware" };
 static const char *const CAT_ICON[4] = { ICON_WIEGEN, ICON_ZEIT, ICON_TON, ICON_WAAGE };
 
+static page_create_fn s_back_override = NULL;
+void page_setup_back_override(page_create_fn fn) {
+  s_back_override = fn;
+}
+
+lv_obj_t *page_wlan_setup_create() {
+  return page_wlan_create();
+}
+
 lv_obj_t *page_setup_back() {
+  if (s_back_override) return s_back_override();  // Einrichtungs-Assistent
   return page_cat_create(s_cat);
 }
 
@@ -256,6 +266,7 @@ static void row_value(int cat, int row, char *b, int len) {
     case 26: snprintf(b, len, T("Pegel ›")); break;
     case 37: snprintf(b, len, "%s ›", T(ui_theme_name(g_set.theme))); break;
     case 38: snprintf(b, len, "%s ›", T(PROFILE_NAMES[g_set.profile])); break;
+    case 39: snprintf(b, len, "%s", T("wiederholen ›")); break;
     case 34:
       if (g_set.disp_rot == 0) snprintf(b, len, T("gerade ›"));
       else {
@@ -342,6 +353,7 @@ static void row_cb(lv_event_t *e) {
     case 34: ui_switch_page(page_display_create()); return;
     case 37: ui_switch_page(page_color_pick_create()); return;  // Farbschema wählen
     case 38: ui_switch_page(page_profile_pick_create()); return;  // Profil wählen
+    case 39: ui_switch_page(page_wizard_create()); return;  // Einrichtungs-Assistent
     case 35: wb_from_system = false; ui_switch_page(page_web_create()); return;  // Dateien gibt es im Browser
     case 36: ui_switch_page(page_update_create()); return;
     case 24:  // Sprache: Deutsch <-> English
@@ -373,19 +385,19 @@ static void cat_timer_cb(lv_timer_t *t) {
 }
 
 static lv_obj_t *page_cat_create(int cat) {
-  static const char *const ROWS[4][9] = {
-    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null", NULL },
-    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
-    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL, NULL },
-    { "Profil", "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware" },
+  static const char *const ROWS[4][10] = {
+    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null", NULL, NULL },
+    { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
+    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL, NULL, NULL },
+    { "Profil", "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware", "Einrichtung" },
   };
   // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
   // wenn eine Zeile wegfällt (34 = Portoklassen, jetzt im Porto-Modus).
-  static const int8_t IDS[4][9] = {
-    { 0, 1, 2, 3, 4, 5, 6, 7, -1 },
-    { 10, 11, 12, 14, 15, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
-    { 20, 21, 22, 23, 24, 25, 26, -1, -1 },
-    { 38, 30, 31, 32, 33, 34, 37, 35, 36 },  // 38 Profil
+  static const int8_t IDS[4][10] = {
+    { 0, 1, 2, 3, 4, 5, 6, 7, -1, -1 },
+    { 10, 11, 12, 14, 15, -1, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
+    { 20, 21, 22, 23, 24, 25, 26, -1, -1, -1 },
+    { 38, 30, 31, 32, 33, 34, 37, 35, 36, 39 },  // 38 Profil, 39 Einrichtung wiederholen
   };
   memset(row_val, 0, sizeof(row_val));
   lv_obj_t *s = ui_screen_create();
@@ -400,7 +412,7 @@ static lv_obj_t *page_cat_create(int cat) {
   lv_obj_set_scrollbar_mode(col, LV_SCROLLBAR_MODE_OFF);
   lv_obj_align(col, LV_ALIGN_CENTER, 0, -4);
 
-  for (int r = 0; r < 9 && ROWS[cat][r]; r++) {
+  for (int r = 0; r < 10 && ROWS[cat][r]; r++) {
     lv_obj_t *row = ui_box(col);
     lv_obj_set_size(row, 280, 46);
     lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
@@ -531,7 +543,7 @@ static void profile_pick_cb(int index) {
 }
 
 static lv_obj_t *page_profile_pick_create() {
-  static const char *const SUB[PROFILE_COUNT] = { "alle Modi", "Rezept, Timer, Töpfe", "Zählen, Spule, Präzision",
+  static const char *const SUB[PROFILE_COUNT] = { "alle Modi", "Rezept, Timer, Töpfe", "Zählen, Spule, Porto",
                                                   "nur Wiegen, groß, mit Ansage" };
   static const char *const ICONS[PROFILE_COUNT] = { ICON_WAAGE, ICON_KUECHE, ICON_WERKSTATT, ICON_WIEGEN };
   static ui_list_item_t items[PROFILE_COUNT];
@@ -1215,7 +1227,7 @@ static lv_obj_t *qr_code, *qr_caption, *qr_hint;
 static void qr_escape(char *out, int len, const char *in) {
   int k = 0;
   for (; *in && k < len - 2; in++) {
-    if (strchr("\;,:\"", *in)) out[k++] = '\\';
+    if (strchr("\\;,:\"", *in)) out[k++] = '\\';
     out[k++] = *in;
   }
   out[k] = 0;

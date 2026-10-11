@@ -16,6 +16,8 @@
 #include "ble_kbd.h"
 #include "batt.h"
 #include "ui.h"
+#include "ui_pages.h"   // Einrichtungs-Assistent
+#include "ui_theme.h"   // THEME_COUNT
 #include "config.h"
 #include "tools.h"
 #include "update_online.h"
@@ -707,7 +709,8 @@ static void h_settings() {
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
-             ",\"modes_off\":" + g_set.modes_off;
+             ",\"modes_off\":" + g_set.modes_off + ",\"setup_done\":" + (g_set.setup_done ? "true" : "false") +
+             ",\"theme\":" + g_set.theme;
   {  // Prüfgewicht
     char last[16], next[16];
     refchk_date(g_set.ref_last, last, sizeof(last));
@@ -917,6 +920,22 @@ static void h_modes() {
   ok();
 }
 
+// Einrichtung aus der Weboberfläche abschließen:
+// {"profile":1,"cats":1,"theme":0,"vol":80,"speak":true}. Die Sprache stellt die Seite
+// schon vorher über /api/lang um. Läuft der Assistent an der Waage, endet er damit.
+static void h_setup() {
+  String b = s_server.arg("plain");
+  if (jval(b, "profile").length()) settings_profile_apply(constrain((int)jval(b, "profile").toInt(), 0, PROFILE_COUNT - 1));
+  if (jval(b, "cats").length() && g_set.profile != PROFILE_EINFACH) g_set.cats = (uint8_t)(jval(b, "cats").toInt() & CAT_ALL);
+  if (jval(b, "theme").length()) g_set.theme = constrain((int)jval(b, "theme").toInt(), 0, THEME_COUNT - 1);
+  if (jval(b, "vol").length()) g_set.volume = constrain((int)jval(b, "vol").toInt(), 0, 100);
+  if (jval(b, "speak").length()) g_set.speak = g_set.speak_ev = jval(b, "speak") == "true";
+  g_set.setup_done = true;
+  if (wizard_active()) wizard_finish_external();  // übernimmt Farben, Startseite, speichert
+  else ui_profile_changed();
+  ok();
+}
+
 // Sprache umstellen (0 Deutsch, 1 English): gilt für Anzeige, Weboberfläche und Ansage
 static void h_lang() {
   int l = constrain((int)s_server.arg("l").toInt(), 0, 1);
@@ -1105,6 +1124,7 @@ static void routes() {
   s_server.on("/api/lang", h_lang);
   s_server.on("/api/profile", h_profile);
   s_server.on("/api/modes", HTTP_POST, h_modes);
+  s_server.on("/api/setup", HTTP_POST, h_setup);
   s_server.on("/api/tools", h_tools);
   s_server.on("/api/timer", h_timer);
   s_server.on("/api/lt", h_lt);

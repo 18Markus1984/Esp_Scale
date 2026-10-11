@@ -101,6 +101,7 @@ static long read_counts() {
 #define PIN_HX_SCK  43
 
 static HX711 s_hx;
+static long s_hw_last = 0;  // letzter Rohwert direkt vom HX711 (vor dem Ausreißer-Filter)
 
 static void hw_init() {
   s_hx.begin(PIN_HX_DOUT, PIN_HX_SCK);  // Kanal A, Verstärkung 128, 10 Werte/s
@@ -125,14 +126,15 @@ static void hw_init() {
   bool ok = s_hx.wait_ready_timeout(1000);
   if (ok) s_zero = s_hx.read_average(10);  // ca. 1 s
   s_counts = s_zero;
+  s_hw_last = s_zero;
   printf("HX711: %s, Faktor %.3f\r\n", ok ? "gefunden" : "NICHT gefunden", s_factor);
 }
 
 static long read_counts() {
   // 10 neue Werte pro Sekunde -> passt zum 100-ms-Takt.
   // Ist gerade kein neuer Wert fertig, bleibt der letzte stehen.
-  if (s_hx.is_ready()) s_counts = s_hx.read();
-  return s_counts;
+  if (s_hx.is_ready()) s_hw_last = s_hx.read();
+  return s_hw_last;
 }
 #endif
 
@@ -160,9 +162,36 @@ static float counts_to_g(long c) {
   return 0;
 }
 
+// Ausreißer-Filter: Median der letzten drei Rohwerte. Ein einzelner falsch
+// gelesener Wert des HX711 (Bitfehler, z. B. wenn WLAN den Takt stört) kommt
+// so gar nicht erst an und löst weder "Überlast" noch einen Sprung aus.
+static long s_rb[3];
+static int s_rb_n = 0;
+static long median3(long c) {
+  s_rb[0] = s_rb[1];
+  s_rb[1] = s_rb[2];
+  s_rb[2] = c;
+  if (s_rb_n < 3) {
+    s_rb_n++;
+    return c;
+  }
+  long a = s_rb[0], b = s_rb[1], d = s_rb[2];
+  long lo = a < b ? a : b, hi = a < b ? b : a;
+  return d < lo ? lo : (d > hi ? hi : d);
+}
+
+// Überlast erst melden, wenn sie mehrere Messungen hintereinander anliegt
+#define OVER_SAMPLES 3
+static int s_over_n = 0;
+
 void scale_update() {
-  s_counts = read_counts();
+  s_counts = median3(read_counts());
   s_raw = counts_to_g(s_counts);
+  if (s_raw > WAAGE_MAX_G) {
+    if (s_over_n < OVER_SAMPLES) s_over_n++;
+  } else {
+    s_over_n = 0;
+  }
 
   // Anzeige glätten: große Änderungen sofort übernehmen (es wird etwas
   // aufgelegt), kleine Schwankungen wegmitteln. Liegt das Gewicht ruhig,
@@ -251,7 +280,7 @@ bool scale_stable() {
 }
 
 bool scale_overload() {
-  return s_raw > WAAGE_MAX_G;
+  return s_over_n >= OVER_SAMPLES;
 }
 
 void scale_tare() {

@@ -41,6 +41,7 @@ typedef struct {
   uint8_t  cats;      // sichtbare Gruppen: Bit 0 Küche, Bit 1 Werkstatt, Bit 2 Spiele
   uint16_t modes_off; // ausgeblendete Modi, Bit = Index über alle Gruppen
                       // (Küche 0–5, Werkstatt 6–11, Spiele 12–15)
+  bool     setup_done; // Einrichtungs-Assistent erledigt (sonst startet er nach dem Startbild)
 } settings_t;
 
 #define PROFILE_STANDARD  0
@@ -64,7 +65,7 @@ void settings_save();
 
 // Profil wählen und seine Voreinstellungen übernehmen (ohne zu speichern).
 // Standard: alle Gruppen · Küche: nur Küche, Auto-Tara an · Werkstatt: nur
-// Werkstatt, Präzision an · Einfach: nur Wiegen, Gelb auf Schwarz, Ansage an
+// Werkstatt · Einfach: nur Wiegen, Ansage an (Farbe bleibt)
 void settings_profile_apply(int profile);
 
 // Uhrzeit sichern und zurückholen (falls die RTC beim Ausschalten stromlos ist)

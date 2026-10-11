@@ -46,6 +46,7 @@ Angefasst wurde davon nichts; alles Eigene liegt in den unten genannten Dateien.
 | `storage.*` | SD-Karte mit Sperre (`storage_lock/unlock`), Ausfallerkennung, Selbstheilung |
 | `data.*` | Rezepte, Cocktails, Dichten, Töpfe, Spulen, Spieler, **Bestenliste** |
 | `settings.*`, `settings_profile.cpp` | Einstellungen im Flash, Profil-Voreinstellungen |
+| `page_wizard.cpp` | Einrichtungs-Assistent (erster Start, Setup -> Waage -> Einrichtung) |
 | `net.*`, `web.*`, `web_page.h`, `web/page.html`, `web/build.py` | WLAN und Weboberfläche |
 | `sound.*`, `voice.*`, `mic.*` | Töne, Sprachausgabe, Mikrofon |
 | `batt.*` | Ladezustand, Restzeit, Entladetest |
@@ -454,6 +455,26 @@ halten** öffnet `page_web_quick_create()` (startet die Weboberfläche, `SIMPLE_
 `LV_EVENT_PRESSING`, Bewegung > 30 px bricht ab), Hinweis in der Rückfrage am Gerät und in der Web-Karte.
 Akkustand ganz oben („Akku 72 %“, „lädt“/„voll“, ab 20 % orange, ohne Akku ausgeblendet).
 Rezept-Anweisung mit Timer: Timer-Knopf in eigener Zeile über Zurück/Weiter, Icon und Text rücken hoch.
+
+**Etappe 2 und Korrekturen (11.10.2026):** Profil Werkstatt schaltet die Präzision nicht mehr ein,
+Einfach lässt die Farbe unverändert (vorher Gelb). Einfach sagt nur ganze Gramm an (`speak_check`
+rundet). „Überlast“ ohne Gewicht kam von einzelnen falsch gelesenen HX711-Werten: scale.cpp filtert
+jetzt mit dem Median der letzten drei Rohwerte (`median3`) und meldet Überlast erst nach drei
+Messungen in Folge (`OVER_SAMPLES`). **Einrichtungs-Assistent** (page_wizard.cpp): Sprache, Profil,
+Kategorien (nicht bei Einfach), Farbe, Ton (Lautstärke ±10, Ansage), WLAN; jeder Schritt mit
+„‹ Zurück“, „Überspringen ›“, Wischen nach rechts = Zurück. Startet nach dem Startbild, solange
+`setup_done` (Flash-Schlüssel `setup_done`) falsch ist; bereits eingerichtete Waagen (Schlüssel
+`unit` vorhanden) gelten als erledigt. Danach Lagecheck. Wiederholen: Setup -> Waage -> Einrichtung
+(Kennung 39, `ROWS/IDS[4][10]`). Während er läuft, leitet `ui_set_home_override()` alle
+„zur Wiegeseite“-Wege (Fertig, Wischen) zum aktuellen Schritt um, `page_setup_back_override()` die
+WLAN-Seite. Schritt 1 bietet „Mit dem Handy einrichten“ (startet die Weboberfläche mit QR-Code).
+Web: Seite `#/einrichtung` (öffnet sich von selbst, solange `setup_done` false ist; Link in den
+Einstellungen unter Waage), POST `/api/setup {profile,cats,theme,vol,speak}` beendet auch den
+Assistenten an der Waage (`wizard_finish_external`). Der Schritt „Updates“ aus dem Konzept kommt mit
+Etappe 3 (Auto-Update). Simulator: `FIRSTRUN=1` (Ablauf erster Start + Wiederholen mit Einfach),
+Mock: `MOCK_FIRSTRUN=1`. **Prüfung vor jeder Lieferung:** zusätzlich zum Simulator ein echter Build
+mit arduino-cli, ESP32-Paket 3.1.1, Waveshare-Treibern und LVGL aus dem Waveshare-Paket, FQBN wie im
+GitHub-Workflow (`PartitionScheme=app3M_fat9M_16MB`, `USE_VOICE 0`).
 
 ## 6. Offene Punkte
 

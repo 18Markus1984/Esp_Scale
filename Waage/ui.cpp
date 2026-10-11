@@ -601,7 +601,9 @@ static void speak_check() {
   if (now - sp_stable_since < 1500) return;
   sp_done = true;
   sp_spoken_g = net;
-  sound_speak_weight(net, g_set.unit);
+  // Einfach: angezeigt werden ganze Gramm, also auch nur ganze Gramm ansagen
+  if (ui_simple()) sound_speak_weight(roundf(net), 0);
+  else sound_speak_weight(net, g_set.unit);
 }
 
 // ---------- Zurück zur Wiegeseite nach Inaktivität ----------
@@ -1459,8 +1461,18 @@ void ui_set_back(page_create_fn fn) {
   s_back = fn;
 }
 
+// Solange der Einrichtungs-Assistent läuft, führt „zur Wiegeseite“ zum aktuellen Schritt
+static page_create_fn s_home_override = NULL;
+void ui_set_home_override(page_create_fn fn) {
+  s_home_override = fn;
+}
+
 void ui_go_home() {
   s_back = NULL;
+  if (s_home_override) {
+    ui_switch_page(s_home_override());
+    return;
+  }
   lv_disp_t *d = lv_disp_get_default();
   if (lv_scr_act() == scr_home || d->scr_to_load == scr_home) return;
   ui_input_lock();
@@ -1502,8 +1514,17 @@ void ui_init() {
 
   ui_power_init();
 
-  // Erst das Startbild (Logo leuchtet auf), danach der Lagecheck
+  // Erst das Startbild (Logo leuchtet auf), danach der Lagecheck.
+  // Beim allerersten Start kommt dazwischen die Einrichtung.
   ui_splash_start([]() {
+    if (!g_set.setup_done) {
+      wizard_start([]() {
+        // aus einem Knopf des Assistenten heraus: mit Animation wechseln, damit
+        // die alte Seite erst danach gelöscht wird
+        lv_scr_load_anim(build_start(), LV_SCR_LOAD_ANIM_MOVE_LEFT, 200, 0, true);
+      });
+      return;
+    }
     lv_obj_t *start = build_start();
     lv_scr_load_anim(start, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
   });
