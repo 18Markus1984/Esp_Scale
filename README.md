@@ -58,11 +58,13 @@ The whole UI is available in **English and German** (display, web interface and 
 | **Precise weighing** | 0.1 g resolution, stability detection, **precision mode** (averaging, two decimals), **auto-zero** drift tracking, multi-point calibration, units g / kg / oz / lb / **ml** (12 liquids with density). |
 | **Pot detection** | Place an empty pot you have saved before and it is tared automatically after a short countdown. Took a tared bowl off? A steady minus value on an empty scale is tared away after 3 s. |
 | **20+ modes** | Grouped into *Kitchen*, *Workshop* and *Games*, each with guided steps, a progress ring and a "parking sensor" beeper that gets faster as you approach the target. |
-| **Built-in web app** | Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
-| **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. The scale finds the release and installs it with one tap. |
+| **Built-in web app** | One tap from the *System* list on the scale. Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
+| **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. After switching on, the scale finds the release and installs it by itself (only when empty and charged enough, or it asks), with automatic rollback if the new firmware does not start cleanly. |
 | **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
 | **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, experimental offline voice commands (ESP-SR). |
 | **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
+| **First-start setup** | A short wizard on the display (or on your phone) asks for language, profile, categories, colour, sound and Wi-Fi, then lets you try the gestures once. Repeat it any time under *Setup → Scale → Setup*. |
+| **Profiles** | *Standard*, *Kitchen* and *Workshop* show only the modes you need (each mode can also be hidden on its own). *Simple* turns the scale into a plain kitchen scale for poor eyesight: whole grams in large digits, tap the top half to hear the weight, the bottom half is tare. Leaving *Simple* is only possible in the web app (hold the top half for 5 s to start it). From the web app you can also send a target weight to the scale: *Simple* then shows the target, the remaining amount in large digits and a filling ring, beeps like a parking sensor and announces "120 grams to go". |
 | **Your colour** | Accent colour to match your printed parts: green (default), white, blue, violet, pink, orange, yellow or red – on the display, the start screen and in the web app. |
 | **Quality tools** | Periodic **check weight** reminder with pass/fail history, gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
 
@@ -70,7 +72,7 @@ The whole UI is available in **English and German** (display, web interface and 
 
 | Kitchen | Workshop | Games |
 |---|---|---|
-| **Recipe**: step by step, scaled to servings | **Filament spool**: remaining metres from weight | **Guessing game**: guess the weight, hidden display |
+| **Recipe**: step by step with icons and timers, scaled to servings or whole eggs | **Filament spool**: remaining metres from weight | **Guessing game**: guess the weight, hidden display |
 | **Cocktail**: pour in ml, converted by density | **Count**: learn a reference, count parts, send via Bluetooth keyboard | **Drinking game**: hit the target sip (please drink responsibly) |
 | **Target**: parking-sensor beeper | **Postage**: letter and parcel classes | **Blind pour**: pour a target amount without looking |
 | **Portioning**: split dough into *n* equal pieces | **2K mixing**: resin A:B by ratio, pot-life timer | **Half & half**: cut food as close to 50 % as possible |
@@ -172,7 +174,7 @@ The firmware does not notice any difference, and both buttons keep working:
 
 | Press | Action |
 |---|---|
-| short (while off) | switch on (the firmware latches the power as early as possible during boot, so a short press is enough) |
+| short (while off) | switch on: release once the logo lights up with the soft start-up chord (holding longer does no harm) |
 | short | standby with dimmed clock, wake up by button, touch or placing weight |
 | hold 3 s | switch off (a ring shows the progress, releasing cancels) |
 
@@ -297,7 +299,19 @@ portionen=2
 Flour;250
 Milk;500
 Eggs;110
+>ruehren;Whisk until smooth
+>ruhen;Let the batter rest;10
 ```
+
+Lines starting with `>` are **instructions** (`>icon;text;minutes`): instead of the weight the
+scale shows a large icon and the text, and with minutes a button starts a kitchen timer.
+Icons: `ruehren` (stir), `mixen`, `kneten` (knead), `braten` (fry), `kochen` (boil), `backen` (bake),
+`grillen`, `schneiden` (cut), `kuehlen` (chill), `ruhen` (rest), `mikrowelle`, `giessen` (pour),
+`erhitzen` (heat), `servieren` (serve), `hinweis` (note). The web editor has a picker for them.
+
+Recipes with eggs (`Ei`/`Eier`/`Egg`/`Eggs`) scale by whole eggs instead of servings
+(55 g per egg, `EGG_G` in `config.h`): you pick the number of eggs, weigh them first, and all other
+ingredients follow the real egg weight, whether the eggs are small or large.
 
 All files use `;` as separator and a comma as decimal mark, so they open directly in Excel.
 Everything can be managed in the browser under **Files** without taking the card out.
