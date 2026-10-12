@@ -23,6 +23,8 @@
 #include "update_online.h"
 #include "refcheck.h"
 #include "voice.h"
+#include "zipw.h"
+#include <time.h>
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
@@ -585,6 +587,129 @@ static void h_file_get() {
   storage_unlock();
 }
 
+// ------------------------------------------------------------
+//  Ganzen Ordner als ZIP herunterladen (/zip?dir=/Waage/Sprache/Aufnahmen)
+//  Ohne Kompression, Teil für Teil gesendet (Chunked), Unterordner bis
+//  4 Ebenen tief. Die SD-Karte ist nur während des Lesens gesperrt, damit
+//  Ton und Spracherkennung nicht hängen. Die Anzeige steht währenddessen,
+//  wie bei jeder großen Datei (die Weboberfläche läuft im Haupttakt).
+// ------------------------------------------------------------
+#define ZIP_MAX_FILES 3000
+typedef struct {
+  char name[112];  // Name im ZIP, z. B. "Aufnahmen/tara/a001.wav"
+  uint32_t crc, size, off;
+} zip_ent_t;
+
+static void zip_walk(const String &dir, const String &rel, zip_ent_t *ents, int *n, int depth) {
+  if (depth > 4) return;
+  storage_lock();
+  File d = SD_MMC.open(dir);
+  String subdirs[32];
+  int ns = 0;
+  if (d && d.isDirectory()) {
+    File f = d.openNextFile();
+    while (f && *n < ZIP_MAX_FILES) {
+      String name = f.name();
+      int slash = name.lastIndexOf('/');
+      if (slash >= 0) name = name.substring(slash + 1);
+      if (f.isDirectory()) {
+        if (ns < 32) subdirs[ns++] = name;
+      } else if ((rel + "/" + name).length() < sizeof(ents[0].name)) {
+        snprintf(ents[*n].name, sizeof(ents[0].name), "%s/%s", rel.c_str(), name.c_str());
+        ents[*n].size = (uint32_t)f.size();
+        (*n)++;
+      }
+      f.close();
+      f = d.openNextFile();
+    }
+    d.close();
+  }
+  storage_unlock();
+  for (int i = 0; i < ns; i++) zip_walk(dir + "/" + subdirs[i], rel + "/" + subdirs[i], ents, n, depth + 1);
+}
+
+static void h_zip() {
+  hit();
+  String dir = s_server.arg("dir");
+  while (dir.endsWith("/")) dir.remove(dir.length() - 1);
+  if (!path_ok(dir) || !storage_ok()) {
+    s_server.send(403, "text/plain", "Pfad nicht erlaubt");
+    return;
+  }
+  String top = dir.substring(dir.lastIndexOf('/') + 1);
+  zip_ent_t *ents = (zip_ent_t *)ps_malloc(sizeof(zip_ent_t) * ZIP_MAX_FILES);
+  uint8_t *buf = (uint8_t *)malloc(4096);
+  if (!ents || !buf) {
+    free(ents);
+    free(buf);
+    s_server.send(500, "text/plain", "zu wenig Speicher");
+    return;
+  }
+  int n = 0;
+  zip_walk(dir, top, ents, &n, 0);
+  uint16_t zt, zd;
+  time_t now = time(NULL);
+  struct tm tmv;
+  localtime_r(&now, &tmv);
+  zip_dos_time(tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday, tmv.tm_hour, tmv.tm_min, tmv.tm_sec, &zt, &zd);
+
+  s_server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  s_server.sendHeader("Content-Disposition", "attachment; filename=" + top + ".zip");
+  s_server.send(200, "application/zip", "");
+  printf("ZIP: %s, %d Dateien\r\n", dir.c_str(), n);
+  uint32_t off = 0;
+  int sent = 0;
+  for (int i = 0; i < n; i++) {
+    zip_ent_t &e = ents[i];
+    int k = zip_local_header(buf, e.name, zt, zd);
+    s_server.sendContent((const char *)buf, k);
+    e.off = off;
+    off += k;
+    // Pfad auf der Karte: Ordner + Name ohne den obersten Ordner
+    String path = dir + String(e.name + top.length());
+    storage_lock();
+    File f = SD_MMC.open(path, FILE_READ);
+    storage_unlock();
+    uint32_t crc = 0, size = 0;
+    if (f) {
+      while (true) {
+        storage_lock();
+        int r = f.read(buf, 4096);
+        storage_unlock();
+        if (r <= 0) break;
+        crc = zip_crc32(crc, buf, r);
+        size += r;
+        s_server.sendContent((const char *)buf, r);
+        if (!s_server.client().connected()) break;  // Browser hat abgebrochen
+      }
+      storage_lock();
+      f.close();
+      storage_unlock();
+    }
+    e.crc = crc;
+    e.size = size;
+    off += size;
+    k = zip_data_desc(buf, crc, size);
+    s_server.sendContent((const char *)buf, k);
+    off += k;
+    sent++;
+    hit();
+    delay(0);
+    if (!s_server.client().connected()) break;
+  }
+  uint32_t cd_off = off, cd_size = 0;
+  for (int i = 0; i < sent; i++) {
+    int k = zip_central(buf, ents[i].name, ents[i].crc, ents[i].size, ents[i].off, zt, zd);
+    s_server.sendContent((const char *)buf, k);
+    cd_size += k;
+  }
+  int k = zip_end(buf, (uint16_t)sent, cd_size, cd_off);
+  s_server.sendContent((const char *)buf, k);
+  s_server.sendContent("");  // Ende der Übertragung
+  free(ents);
+  free(buf);
+}
+
 static void h_file_del() {
   String path = s_server.arg("path");
   if (!path_ok(path)) {
@@ -1128,6 +1253,7 @@ static void routes() {
   s_server.on("/log.csv", h_log_csv);
   s_server.on("/api/files", h_files);
   s_server.on("/file", h_file_get);
+  s_server.on("/zip", h_zip);
   s_server.on("/api/file/del", h_file_del);
   s_server.on("/api/file/mkdir", h_mkdir);
   s_server.on("/upload", HTTP_POST, h_upload_done, h_upload);

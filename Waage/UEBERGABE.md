@@ -589,6 +589,14 @@ Befehle doppelt; Prüfstimme ramona bleibt draußen; eigene Aufnahmen vierfach),
 wird es deutlich besser. Simulator: `KWSTEST=1` (Testsätze der Prüfstimme aus /home/claude/kws/test,
 Aufnahme-Seite); Testumgebung kompiliert voice.cpp jetzt mit (`voice_sim_feed`).
 
+**Ordner als ZIP (12.10.2026):** Weboberfläche -> Dateien: je Ordnerzeile „↓ ZIP“, unter der Liste
+„↓ <Ordner> als ZIP herunterladen“ (mit allen Unterordnern, bis 4 Ebenen, höchstens 3000 Dateien).
+`/zip?dir=…` in web.cpp (`h_zip`, `zip_walk`), ZIP-Bausteine in `zipw.cpp/.h` (gespeichert ohne
+Kompression, Datenbeschreibung hinter den Daten, CRC-32 mit 16er-Tabelle, Chunked-Übertragung). Die
+SD-Karte ist nur während jedes 4-KB-Lesevorgangs gesperrt. Die Anzeige steht während des Downloads (wie
+bei großen Einzeldateien, die Weboberfläche läuft im Haupttakt). Geprüft: ZIP aus zipw-Bausteinen mit
+Python `zipfile` und `unzip -t` fehlerfrei; Mock liefert für /zip Testdaten.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

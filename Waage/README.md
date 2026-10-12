@@ -314,7 +314,8 @@ Die Ladekurve endet bei 4,15 V = 100 %.
 
 ## Dateien auf der SD-Karte (Browser)
 
-Weboberfläche -> „Dateien“: Ordner durchklicken, Dateien herunterladen (antippen),
+Weboberfläche -> „Dateien“: Ordner durchklicken, Dateien herunterladen (antippen), ganze Ordner
+mit Unterordnern als ZIP herunterladen („↓ ZIP“, z. B. die Sprachaufnahmen),
 löschen, neue Ordner anlegen und beliebig viele Dateien hochladen (mit Fortschritt).
 Damit lassen sich Rezepte, Cocktails, Sprachpakete und Protokolle pflegen, ohne die
 Karte auszubauen. Alles ist auf /Waage begrenzt, darüber hinaus geht nichts.
