@@ -29,6 +29,7 @@
 
 bool storage_begin();   // Karte einhängen, Ordner anlegen
 bool storage_ok();      // Karte vorhanden?
+void storage_end();     // vor einem Neustart aushängen (nur Gerät)
 void storage_loop();    // regelmäßig aufrufen: bemerkt Ausfälle und hängt die Karte neu ein
 unsigned long storage_error_count();  // Zahl der bemerkten Kartenausfälle
 

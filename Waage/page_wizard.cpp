@@ -52,7 +52,6 @@ static bool is_tut(int st) { return st >= WZ_TUT1; }
 // Kategorien und der dritte Übungsschritt entfallen im Profil Einfach
 static bool step_used(int st) {
   if (g_set.profile == PROFILE_EINFACH && (st == WZ_CATS || st == WZ_TUT3)) return false;
-  if (st == WZ_UPDATES && !net_has_credentials()) return false;  // Updates nur mit WLAN
   return true;
 }
 
@@ -528,7 +527,7 @@ static lv_obj_t *page_wlan() {
   return s;
 }
 
-// ---------- 7. Updates (nur mit WLAN) ----------
+// ---------- 7. Updates (auch ohne WLAN: gilt, sobald eins eingerichtet ist) ----------
 static void upd_cb(lv_event_t *e) {
   g_set.upd_auto = (bool)(intptr_t)lv_event_get_user_data(e);
   sound_play(SND_CLICK);
@@ -538,7 +537,9 @@ static void upd_cb(lv_event_t *e) {
 static lv_obj_t *page_updates() {
   lv_obj_t *s = ui_screen_create();
   frame(s, "Updates", false);
-  lv_obj_t *h = ui_label(s, "Neue Versionen kurz nach dem Einschalten", &font_sg_14, C_MUTED);
+  lv_obj_t *h = ui_label(s, net_has_credentials() ? "Neue Versionen kurz nach dem Einschalten"
+                                                  : "Sucht erst, wenn WLAN eingerichtet ist",
+                         &font_sg_14, C_MUTED);
   lv_obj_align(h, LV_ALIGN_TOP_MID, 0, 94);
   lv_obj_t *a = big_btn(s, "Automatisch", g_set.upd_auto, -30);
   lv_obj_add_event_cb(a, upd_cb, LV_EVENT_CLICKED, (void *)(intptr_t)1);

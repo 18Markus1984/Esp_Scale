@@ -24,6 +24,7 @@
 #include "refcheck.h"
 #include "voice.h"
 #include "zipw.h"
+#include "crash.h"
 #include <time.h>
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1039,7 +1040,9 @@ static void h_ota() {
   static const char *const ST[] = { "idle", "connect", "check", "latest", "available", "download", "done", "error" };
   String s = "{\"ver\":\"" + esc(fw_version()) + "\",\"local\":" + (fw_is_local() ? "true" : "false") +
              ",\"repo\":\"" + esc(upd_repo()) + "\",\"state\":\"" + ST[upd_state()] + "\",\"latest\":\"" +
-             esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) + "\"}";
+             esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) +
+             "\",\"crash\":\"" + esc(crash_reason()) + "\",\"crash_at\":\"" + esc(crash_where()) +
+             "\",\"crash_pct\":" + crash_pct() + "}";
   send_json(s);
 }
 
@@ -1139,7 +1142,7 @@ static void h_update_done() {
                             : "<h2>Fehlgeschlagen. Bitte erneut versuchen.</h2>");
   if (s_update_ok) {
     delay(500);
-    ESP.restart();
+    upd_restart();  // WLAN abmelden, SD aushängen, Display-Reset
   }
 }
 
@@ -1149,6 +1152,8 @@ static void h_update_upload() {
     printf("OTA: %s wird übertragen\r\n", up.filename.c_str());
     s_update_ok = false;
     sound_play(SND_TICK);
+    voice_hold(true);
+    crash_phase("Beim Update über den Browser", 0);
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
   } else if (up.status == UPLOAD_FILE_WRITE) {
     if (Update.write(up.buf, up.currentSize) != up.currentSize) Update.printError(Serial);
@@ -1156,6 +1161,8 @@ static void h_update_upload() {
   } else if (up.status == UPLOAD_FILE_END) {
     s_update_ok = Update.end(true);
     printf("OTA: %s\r\n", s_update_ok ? "erfolgreich" : "fehlgeschlagen");
+    crash_phase(NULL, 0);
+    if (!s_update_ok) voice_hold(false);
     sound_play(s_update_ok ? SND_DONE : SND_WARN);
   }
 }
@@ -1323,7 +1330,7 @@ void web_stop() {
   if (s_ap) s_dns.stop();
   MDNS.end();
   WiFi.softAPdisconnect(true);
-  if (!upd_busy()) {  // ein laufendes Online-Update behält seine Verbindung
+  if (!upd_wants_wifi()) {  // ein laufendes oder anstehendes Online-Update behält seine Verbindung
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
   }

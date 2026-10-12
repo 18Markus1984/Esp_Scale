@@ -106,6 +106,14 @@ void storage_loop() {
   }
 }
 
+// Vor einem Neustart: Karte sauber aushängen (offene Schreibvorgänge abschließen)
+void storage_end() {
+  Lock l;
+  if (s_ok) SD_MMC.end();
+  s_ok = false;
+  s_ever_ok = false;
+}
+
 bool storage_ok() {
   return s_ok;
 }

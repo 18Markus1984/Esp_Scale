@@ -16,6 +16,7 @@
 #include "voice.h"
 #include "batt.h"
 #include "tools.h"
+#include "crash.h"
 #include "update_online.h"
 #include "refcheck.h"
 #include "disp_rot.h"
@@ -1692,14 +1693,22 @@ static void rebuild_home() {
 // ============================================================
 #define BOOT_UPD_AUTO_MS 60000UL   // so lange nach dem Einschalten darf automatisch installiert werden
 #define BOOT_UPD_GIVEUP_MS 180000UL
-static uint8_t s_bu = 0;           // 0 noch nicht, 1 sucht, 2 erledigt
+#define BOOT_UPD_DELAY_MS 3000UL   // erst suchen, wenn der Start durch ist (Modell, Töne, Uhrzeit)
+static uint8_t s_bu = 0;           // 0 noch nicht, 3 wartet, 1 sucht, 2 erledigt
+static uint32_t s_bu_at = 0;
 
 static void boot_update_start() {
   if (s_bu) return;
   s_bu = 2;
   if (fw_is_local() || !net_has_credentials()) return;
-  upd_check_quiet();
-  s_bu = 1;
+  // Gerade aktualisiert (neue Firmware noch in der Probezeit) oder nach einem
+  // Absturz neu gestartet: diesmal nicht suchen, erst einmal ruhig laufen
+  if (upd_pending_verify() || crash_last_abnormal()) {
+    printf("Update: Suche beim Start ausgelassen (%s)\r\n", upd_pending_verify() ? "eben aktualisiert" : "nach Absturz");
+    return;
+  }
+  s_bu = 3;
+  s_bu_at = hal_millis() + BOOT_UPD_DELAY_MS;
 }
 
 static bool boot_update_safe() {
@@ -1712,6 +1721,10 @@ static bool boot_update_safe() {
 }
 
 static void boot_update_tick() {
+  if (s_bu == 3 && (int32_t)(hal_millis() - s_bu_at) >= 0) {
+    upd_check_quiet();
+    s_bu = 1;
+  }
   if (s_bu != 1) return;
   upd_state_t st = upd_state();
   if (st == UPD_CONNECT || st == UPD_CHECK) {
@@ -1904,6 +1917,7 @@ void ui_init() {
   ui_theme_set(g_set.theme);     // Farbschema Grün oder Weiß
   disp_rot_set(g_set.disp_rot);  // Feinausrichtung des Displays (nur wenn != 0)
   storage_begin();  // muss vor sound_begin() laufen, sonst wird die Stimme nicht gefunden
+  crash_begin();    // Grund des letzten Neustarts, Absturzbericht auf die SD-Karte
   {  // RTC ohne Strom gewesen? Dann die gesicherte Uhrzeit setzen
     int y, mo, d, h, mi, sec;
     if (!hal_now(&y, &mo, &d, &h, &mi, &sec) && settings_load_time(&y, &mo, &d, &h, &mi))

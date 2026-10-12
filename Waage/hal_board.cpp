@@ -1,4 +1,5 @@
 // Umsetzung der Hardware-Schicht mit den Waveshare-Treibern
+#include "batt_filter.h"
 #include <Arduino.h>
 #include "hal.h"
 #include "Gyro_QMI8658.h"
@@ -105,8 +106,20 @@ void hal_set_datetime(int year, int month, int day, int hour, int minute, int se
   datetime = dt;  // Anzeige sofort aktualisieren
 }
 
+// Der Treiber misst alle 500 ms (Driver_Loop). Hier wird jeder neue Wert
+// geglättet (batt_filter.cpp), sonst springt die Prozentanzeige.
+static void bat_sample() {
+  static uint32_t last = 0;
+  uint32_t now = millis();
+  if (bf_ready() && now - last < 450) return;
+  if (BAT_analogVolts <= 0) return;  // noch nicht gemessen
+  last = now;
+  bf_feed(BAT_analogVolts, now);
+}
+
 float hal_battery_volts() {
-  return BAT_analogVolts;
+  bat_sample();
+  return bf_ready() ? bf_slow() : BAT_analogVolts;
 }
 
 // Ladezustand aus der Spannung, abgeglichen mit Messungen am Gerät:
@@ -121,7 +134,8 @@ bat_state_t hal_battery_state() {
   static uint32_t t_ref = 0;
   static bat_state_t state = BAT_DISCHARGE;
   static float trend = 0;
-  float v = BAT_analogVolts;
+  bat_sample();
+  float v = bf_ready() ? bf_fast() : BAT_analogVolts;
   if (v < 3.0f) return BAT_NONE;
 
   uint32_t now = millis();
@@ -152,8 +166,16 @@ bat_state_t hal_battery_state() {
 // Laufzeit von 4,11 V bis 3,02 V). Die Prozentzahl entspricht dem Anteil der
 // verbleibenden Laufzeit, nicht der Spannung: bei 3,75 V ist noch gut die
 // Hälfte der Zeit übrig, obwohl die Spannung schon tief aussieht.
+static int percent_of(float v);
+
 int hal_battery_percent() {
-  float v = BAT_analogVolts;
+  bat_sample();
+  if (!bf_ready()) return -1;
+  bat_state_t st = hal_battery_state();
+  return bf_percent(percent_of(bf_slow()), st == BAT_CHARGING || st == BAT_FULL);
+}
+
+static int percent_of(float v) {
   if (v < 2.5f) return -1;  // kein Akku erkannt
   if (v > 4.15f) v = 4.15f;  // 4,15 V ist der volle Akku ohne Kabel
   static const float CURVE[][2] = { { 3.20f, 0 },  { 3.30f, 3 },  { 3.35f, 6 },  { 3.40f, 9 },

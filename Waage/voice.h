@@ -14,6 +14,7 @@
 bool voice_available();  // Spracherkennung einkompiliert?
 bool voice_begin();      // startet das Zuhören (Modell laden, Mikrofon)
 void voice_stop();       // beendet es wieder
+void voice_hold(bool on); // Online-Update: Mikrofon und Erkennung kurz anhalten (Rechenzeit, Speicher)
 bool voice_starting();   // Start läuft gerade (Modell wird geladen)
 bool voice_start_stuck(); // Start dauert ungewöhnlich lange (> 12 s)
 bool voice_lack_memory(); // Start abgelehnt: zu wenig Speicher

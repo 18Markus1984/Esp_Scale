@@ -29,8 +29,9 @@ void settings_profile_apply(int profile) {
       g_set.autosave = false;
       if (g_set.auto_off_min && g_set.auto_off_min < 60) g_set.auto_off_min = 60;
       break;
-    default:
+    default:  // Standard
       g_set.cats = CAT_ALL;
+      g_set.autosave = true;  // ruhige Wägungen landen von selbst im Protokoll
       break;
   }
 }

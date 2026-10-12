@@ -597,6 +597,42 @@ SD-Karte ist nur während jedes 4-KB-Lesevorgangs gesperrt. Die Anzeige steht w�
 bei großen Einzeldateien, die Weboberfläche läuft im Haupttakt). Geprüft: ZIP aus zipw-Bausteinen mit
 Python `zipfile` und `unzip -t` fehlerfrei; Mock liefert für /zip Testdaten.
 
+**Stabilität und Kleinigkeiten (12.10.2026, nach Rückmeldung aus dem Alltag):**
+- **Ringalphabet:** Die Lupe (drei Buchstaben in der Mitte) zeigt die Nachbarn jetzt so, wie sie auf
+  dem Ring liegen: unten (etwa 4 bis 8 Uhr, `cos < -0,5`) läuft das Alphabet von rechts nach links,
+  dort steht der nächste Buchstabe links. Oben und an den Seiten bleibt es alphabetisch
+  (`ui_text.cpp`, `show_press`). Simulator: `TXTTEST=1`.
+- **Profil Standard:** `settings_profile_apply` schaltet Auto-Speichern ein (vorher blieb es nach
+  Einfach aus).
+- **Assistent:** Schritt „Updates“ immer (Gerät und Web), ohne WLAN mit dem Hinweis „Sucht erst, wenn
+  WLAN eingerichtet ist“. Simulator: `NOWLAN=1 FIRSTRUN=1`, Mock: `MOCK_NOWLAN=1`.
+- **Akku-Prozent:** `batt_filter.*`: Median aus 5 Messungen, dann gleitender Mittelwert (schnell
+  ≈ 3 s für Lade-/Entladeerkennung, langsam ≈ 30 s für Prozent und Volt), Prozent mit Hysterese
+  (Entladen nur abwärts, Laden nur aufwärts, Gegenrichtung erst ab 3 Punkten). `hal_board.cpp`
+  füttert den Filter mit jedem neuen ADC-Wert (alle 500 ms aus `Driver_Loop`).
+- **Online-Update robuster** (`update_online.cpp`):
+  - Download wird bei Abbruch bis zu 5× mit `Range: bytes=n-` fortgesetzt (Header bleibt über die
+    GitHub-Weiterleitung erhalten; kann der Server nicht fortsetzen, von vorn).
+  - Nach jedem Stück `vTaskDelay(1)`: im Arduino-Paket ist `CONFIG_ESP_TASK_WDT_PANIC=y` mit 5 s
+    und Leerlauf-Task Kern 0 überwacht, eine Update-Schleife ohne Pause kann sonst einen
+    Watchdog-Neustart auslösen.
+  - Spracherkennung ruht während Suche und Download (`voice_hold`), auch beim Browser-Update.
+  - WLAN bleibt nach „neue Version gefunden“ 3 min an (`upd_wants_wifi`, gilt auch in `wifi_off`
+    und `web_stop`), statt zwischen Suche und Installation aus- und wieder einzuschalten.
+  - Neustart nach dem Update über `upd_restart()`: beim Router abmelden (`WiFi.disconnect(true)`),
+    SD aushängen (`storage_end`), Display in den Reset (`hal_restart`). Vermutete Ursache für
+    „nach einem Neustart durch die Firmware klappt das Update schlecht, nach Aus/Ein schon“: der
+    Router hält die alte Anmeldung noch, und die Peripherie (Display, SD) behält ihren Zustand.
+  - Beim Start keine Update-Suche, wenn die Firmware noch in der Probezeit ist (eben aktualisiert,
+    `upd_pending_verify`) oder der letzte Neustart ein Absturz war; sonst erst 3 s nach dem
+    Lagecheck (`BOOT_UPD_DELAY_MS`).
+- **Absturzbericht** (`crash.*`): beim Start Grund (`esp_reset_reason`) und, nach einer Panik, die
+  Core-Dump-Zusammenfassung (Task, PC, Ursache, 8 Rücksprungadressen) lesen, nach
+  `/Waage/Absturz.txt` schreiben und den Core-Dump löschen. `crash_phase()` merkt sich in
+  RTC_NOINIT, was gerade lief („Beim Laden des Updates“, 37 %). Weboberfläche: Firmware-Karte zeigt
+  „Letzter Neustart: Absturz“ mit Phase. Die Action legt `Waage.ino.elf` ins Release
+  (addr2line, siehe GITHUB.md). Simulator: `CRASH=1`, Mock: `CRASH=1`.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner
@@ -617,6 +653,9 @@ Python `zipfile` und `unzip -t` fehlerfrei; Mock liefert für /zip Testdaten.
      in der Weboberfläche.
 3. **Englisches Stimmpaket** erstellt Markus selbst (Wortliste siehe oben).
 4. **Porto-Tabelle ab 01.01.2027** aktualisieren, sobald die neuen Preise feststehen.
+5. **Online-Update auf dem Gerät prüfen** (Stand 12.10.2026 nur im Simulator und per Build geprüft).
+   Stürzt es weiter ab: Zeilen aus `/Waage/Absturz.txt` und den seriellen Monitor auswerten
+   (Adressen mit `Waage.ino.elf` des Releases, siehe GITHUB.md).
 
 ## 7. Hinweise zur Zusammenarbeit
 

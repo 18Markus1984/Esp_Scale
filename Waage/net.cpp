@@ -181,7 +181,7 @@ static void connect_tick() {
 
 static void wifi_off() {
   if (s_scanning) return;  // Suche läuft noch
-  if (upd_busy()) return;   // Online-Update braucht das WLAN
+  if (upd_wants_wifi()) return;  // Online-Update braucht das WLAN (läuft oder steht gleich an)
   if (web_running()) return;  // Weboberfläche braucht das WLAN noch
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);

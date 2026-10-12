@@ -13,13 +13,19 @@
 #include <Preferences.h>
 #include <esp_ota_ops.h>
 #include "i18n.h"
+#include "voice.h"
+#include "crash.h"
+#include "storage.h"
+#include "hal.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define WIFI_WAIT_MS 45000   // so lange auf das Heimnetz warten
 #define HTTP_TIMEOUT_MS 15000
-#define READ_STALL_MS 20000  // Download bricht ab, wenn so lange nichts kommt
+#define READ_STALL_MS 20000  // Verbindung gilt als weg, wenn so lange nichts kommt
+#define DL_TRIES 5           // so oft wird ein abgerissener Download fortgesetzt
+#define KEEP_WIFI_MS 180000UL  // nach "neue Version gefunden" das WLAN so lange halten
 
 static volatile upd_state_t s_state = UPD_IDLE;
 static volatile int s_progress = 0;
@@ -33,6 +39,7 @@ static uint32_t s_done_ms = 0;
 static upd_state_t s_seen = UPD_IDLE;
 static bool s_was_task = false;
 static bool s_quiet = false;  // Suche nach dem Start: ohne Töne
+static uint32_t s_avail_ms = 0;  // wann die neue Version gefunden wurde
 
 const char *fw_version() {
   return FW_VERSION;
@@ -171,70 +178,118 @@ static void do_check() {
 // ------------------------------------------------------------
 //  Laden und schreiben
 // ------------------------------------------------------------
+// Download in Stücken direkt in die freie Update-Partition. Reißt die
+// Verbindung ab (WLAN schwach, GitHub-Server), geht es mit einer
+// Range-Anfrage an derselben Stelle weiter statt von vorn.
 static void do_install() {
   s_state = UPD_DOWNLOAD;
   s_progress = 0;
-  WiFiClientSecure cli;
-  cli.setInsecure();
-  HTTPClient http;
-  if (!http.begin(cli, s_url)) {
-    fail("Download fehlgeschlagen");
-    return;
-  }
-  http.setTimeout(HTTP_TIMEOUT_MS);
-  http.setUserAgent(String("Waage/") + FW_VERSION);
-  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);  // GitHub leitet auf den Dateispeicher um
-  int code = http.GET();
-  if (code != 200) {
-    printf("Update: Download %d\r\n", code);
-    http.end();
-    fail(code == 404 ? "Keine Firmware im Release" : "Download fehlgeschlagen");
-    return;
-  }
-  int len = http.getSize();
-  if (len <= 0) {
-    http.end();
-    fail("Download fehlgeschlagen");
-    return;
-  }
-  printf("Update: %d Byte, frei intern %u (Block %u), PSRAM %u\r\n", len,
-         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-         (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-  if (!Update.begin(len, U_FLASH)) {
-    printf("Update: %s\r\n", Update.errorString());
-    http.end();
-    // Platz in der Update-Partition oder Arbeitsspeicher? Unterschiedliche Meldung
-    fail(Update.getError() == UPDATE_ERROR_SIZE ? "Zu wenig Platz für das Update" : "Zu wenig Arbeitsspeicher, bitte neu starten");
-    return;
-  }
-  WiFiClient *st = http.getStreamPtr();
   static uint8_t buf[4096];
-  int got = 0;
-  uint32_t last = millis();
-  while (got < len) {
-    int avail = st->available();
-    if (avail > 0) {
-      int n = st->readBytes(buf, avail > (int)sizeof(buf) ? sizeof(buf) : avail);
-      if (n > 0) {
-        if (Update.write(buf, n) != (size_t)n) break;
-        got += n;
-        s_progress = (int)((int64_t)got * 100 / len);
-        last = millis();
+  int len = -1, got = 0;
+  bool begun = false;
+  const char *err = "Download fehlgeschlagen";
+  crash_phase("Beim Laden des Updates", 0);
+  for (int attempt = 0; attempt < DL_TRIES && (len < 0 || got < len); attempt++) {
+    if (attempt) {
+      printf("Update: Verbindung weg bei %d von %d Byte, setze fort (%d. Versuch)\r\n", got, len, attempt + 1);
+      vTaskDelay(pdMS_TO_TICKS(2000));
+      if (!wait_wifi()) break;
+      s_state = UPD_DOWNLOAD;
+    }
+    WiFiClientSecure cli;
+    cli.setInsecure();
+    HTTPClient http;
+    if (!http.begin(cli, s_url)) continue;
+    http.setTimeout(HTTP_TIMEOUT_MS);
+    http.setUserAgent(String("Waage/") + FW_VERSION);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);  // GitHub leitet auf den Dateispeicher um
+    if (got > 0) {
+      char r[32];
+      snprintf(r, sizeof(r), "bytes=%d-", got);
+      http.addHeader("Range", r);  // gilt auch für die Weiterleitung
+    }
+    int code = http.GET();
+    int size = http.getSize();
+    if (code == 404) {
+      http.end();
+      err = "Keine Firmware im Release";
+      break;
+    }
+    if (got > 0 && code == 200) {  // Server kann nicht fortsetzen: von vorn
+      printf("Update: kein Fortsetzen möglich, von vorn\r\n");
+      Update.abort();
+      begun = false;
+      got = 0;
+    }
+    if (!((code == 200 && got == 0) || (code == 206 && got > 0 && size == len - got))) {
+      printf("Update: Download %d (%d Byte)\r\n", code, size);
+      http.end();
+      continue;
+    }
+    if (!begun) {
+      len = size;
+      if (len <= 0) {
+        http.end();
+        break;
       }
-    } else {
-      if (!st->connected() || millis() - last > READ_STALL_MS) break;
-      vTaskDelay(pdMS_TO_TICKS(5));
+      printf("Update: %d Byte, frei intern %u (Block %u), PSRAM %u\r\n", len,
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+      if (!Update.begin(len, U_FLASH)) {
+        printf("Update: %s\r\n", Update.errorString());
+        http.end();
+        // Platz in der Update-Partition oder Arbeitsspeicher? Unterschiedliche Meldung
+        err = Update.getError() == UPDATE_ERROR_SIZE ? "Zu wenig Platz für das Update" : "Zu wenig Arbeitsspeicher, bitte neu starten";
+        len = -1;
+        break;
+      }
+      begun = true;
+    }
+    WiFiClient *st = http.getStreamPtr();
+    uint32_t last = millis();
+    int last_pct = -1;
+    bool write_err = false;
+    while (got < len) {
+      int avail = st->available();
+      if (avail > 0) {
+        int n = st->readBytes(buf, avail > (int)sizeof(buf) ? sizeof(buf) : avail);
+        if (n > 0) {
+          if (Update.write(buf, n) != (size_t)n) {
+            write_err = true;
+            break;
+          }
+          got += n;
+          s_progress = (int)((int64_t)got * 100 / len);
+          if (s_progress / 5 != last_pct) {  // für den Absturzbericht: wie weit es kam
+            last_pct = s_progress / 5;
+            crash_phase("Beim Laden des Updates", s_progress);
+          }
+          last = millis();
+        }
+        vTaskDelay(1);  // Leerlauf-Task auf Kern 0 drankommen lassen (Watchdog)
+      } else {
+        if (!st->connected() || millis() - last > READ_STALL_MS) break;
+        vTaskDelay(pdMS_TO_TICKS(5));
+      }
+    }
+    http.end();
+    if (write_err) {
+      printf("Update: Schreiben: %s\r\n", Update.errorString());
+      err = "Update fehlgeschlagen";
+      break;
     }
   }
-  http.end();
-  if (got < len) {
-    Update.abort();
-    fail("Download fehlgeschlagen");
+  if (!begun || len <= 0 || got < len) {
+    if (begun) Update.abort();
+    crash_phase(NULL, 0);
+    fail(err);
     return;
   }
+  crash_phase("Beim Prüfen des Updates", 100);
   if (!Update.end(true)) {  // prüft das Abbild und stellt die neue Partition ein
     printf("Update: %s\r\n", Update.errorString());
+    crash_phase(NULL, 0);
     fail("Update fehlgeschlagen");
     return;
   }
@@ -243,9 +298,13 @@ static void do_install() {
 }
 
 static void task(void *arg) {
+  if (!s_install) crash_phase("Bei der Update-Suche", 0);
   if (!wait_wifi()) fail("Kein WLAN");
   else if (s_install) do_install();
   else do_check();
+  if (s_state != UPD_DONE) crash_phase(NULL, 0);
+  if (s_state == UPD_AVAILABLE) s_avail_ms = millis();
+  printf("Update: Stapel frei %u Byte\r\n", (unsigned)uxTaskGetStackHighWaterMark(NULL));
   s_task = false;
   vTaskDelete(NULL);
 }
@@ -262,6 +321,9 @@ static void start(bool install) {
   }
   s_install = install;
   s_error = "";
+  // Spracherkennung ruht: Mikrofon und Netz brauchen Rechenzeit auf Kern 0
+  // (dort laufen auch WLAN und TLS), wieder an in upd_loop
+  voice_hold(true);
   // Verbindung anstoßen (eigenes WLAN der Weboberfläche dabei offen lassen)
   if (WiFi.status() != WL_CONNECTED) net_connect_start(web_running() && web_ap_mode());
   // Während Suche und Download das Display-Drehen aussetzen: TLS und WLAN
@@ -278,6 +340,26 @@ static void start(bool install) {
     s_task = false;
     fail("Zu wenig Speicher");
   }
+}
+
+bool upd_wants_wifi() {
+  if (s_task) return true;
+  // neue Version gefunden: WLAN noch halten, gleich wird wohl installiert
+  return s_state == UPD_AVAILABLE && millis() - s_avail_ms < KEEP_WIFI_MS;
+}
+
+// Sauber neu starten: beim Router abmelden (sonst lehnt er die erste
+// Wiederanmeldung nach dem Neustart manchmal ab), SD-Karte aushängen,
+// Display in den Reset (hal_restart)
+void upd_restart() {
+  crash_phase(NULL, 0);
+  if (WiFi.getMode() != WIFI_OFF) {
+    WiFi.disconnect(true);
+    delay(150);
+    WiFi.mode(WIFI_OFF);
+  }
+  storage_end();
+  hal_restart();
 }
 
 void upd_check() {
@@ -314,15 +396,25 @@ void upd_loop() {
       p.end();
     }
   }
-  // Display-Drehung nach Suche oder Fehler wieder einschalten (bei Erfolg startet die Waage neu)
-  if (s_rot_paused && !s_task && st != UPD_DONE) {
-    disp_rot_resume();
-    s_rot_paused = false;
+  // Display-Drehung und Spracherkennung nach Suche oder Fehler wieder
+  // einschalten (bei Erfolg startet die Waage neu)
+  if (!s_task && st != UPD_DONE) {
+    if (s_rot_paused) {
+      disp_rot_resume();
+      s_rot_paused = false;
+    }
+    voice_hold(false);
   }
-  // WLAN wieder abgeben, wenn es nur für die Suche an war
-  if (s_was_task && !s_task && st != UPD_DONE) net_wifi_release();
+  // WLAN wieder abgeben, wenn es nur für die Suche an war. Ist eine neue
+  // Version da, bleibt es noch ein paar Minuten an (Installieren folgt meist).
+  static bool s_release = false;
+  if (s_was_task && !s_task && st != UPD_DONE) s_release = true;
+  if (s_release && !s_task && !upd_wants_wifi()) {
+    s_release = false;
+    net_wifi_release();
+  }
   s_was_task = s_task;
-  if (st == UPD_DONE && millis() - s_done_ms > 3000) ESP.restart();
+  if (st == UPD_DONE && millis() - s_done_ms > 3000) upd_restart();
 }
 
 // ------------------------------------------------------------
@@ -347,6 +439,12 @@ void upd_mark_valid() {
     esp_ota_mark_app_valid_cancel_rollback();
     printf("Update: neue Firmware %s als gültig markiert\r\n", FW_VERSION);
   }
+}
+
+bool upd_pending_verify() {
+  const esp_partition_t *run = esp_ota_get_running_partition();
+  esp_ota_img_states_t st;
+  return run && esp_ota_get_state_partition(run, &st) == ESP_OK && st == ESP_OTA_IMG_PENDING_VERIFY;
 }
 
 const char *upd_boot_notice(bool *ok) {

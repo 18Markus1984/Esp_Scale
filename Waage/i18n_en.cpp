@@ -876,6 +876,7 @@ const i18n_pair_t I18N_EN[] = {
   { "Neue Versionen kurz nach dem Einschalten", "New versions shortly after switching on" },
   { "Automatisch", "Automatic" },
   { "Nur nachfragen", "Ask first" },
+  { "Sucht erst, wenn WLAN eingerichtet ist", "Checks once Wi-Fi is set up" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

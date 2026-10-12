@@ -286,6 +286,7 @@ const char *voice_word_text(int i) { return ""; }
 int voice_word_count(int i) { return 0; }
 bool voice_rec_start(int word) { return false; }
 void voice_rec_session(bool on) {}
+void voice_hold(bool on) {}
 int voice_rec_state() { return -1; }
 float voice_rec_progress() { return 0; }
 int voice_rec_ms(int word) { return 0; }
@@ -355,6 +356,7 @@ static int s_counts[WORDS_MAX + NWORDS_FIX];
 
 // ---- Zustand ----
 static volatile bool s_want = false;      // Zuhören eingeschaltet
+static volatile bool s_hold = false;      // Online-Update läuft: Mikrofon ruht
 static volatile int s_session = 0;        // offene Aufnahmeseiten (Zähler: neue Seite entsteht vor dem Löschen der alten)
 static volatile bool s_running = false;   // Modell geladen, Mikrofon läuft
 static volatile bool s_starting = false;
@@ -731,7 +733,7 @@ static void voice_task(void *arg) {
   static int16_t raw[512];  // 256 Stereo-Paare = 16 ms
   static int16_t mono[256];
   while (true) {
-    bool need = s_want || s_session || s_rec_state == 1 || s_rec_state == 2;
+    bool need = (s_want || s_session || s_rec_state == 1 || s_rec_state == 2) && !s_hold;
     if (!need) {
       if (s_mic_on) {
         mic_set_exclusive(false);
@@ -806,6 +808,12 @@ void voice_rec_session(bool on) {
   if (on) ensure_task();
 }
 
+void voice_hold(bool on) {
+  if (s_hold == on) return;
+  s_hold = on;
+  if (!on) s_reset_req = true;  // danach mit leerem Verlauf weiter
+}
+
 void voice_sim_feed(const int16_t *pcm, int n) {}
 
 #else
@@ -826,6 +834,7 @@ void voice_stop() {
   s_awake = false;
 }
 void voice_rec_session(bool on) { s_session += on ? 1 : (s_session > 0 ? -1 : 0); }
+void voice_hold(bool on) { s_hold = on; }
 void voice_sim_feed(const int16_t *pcm, int n) {
   while (n > 0) {
     int k = n > 256 ? 256 : n;

@@ -161,10 +161,17 @@ static void show_press(int idx) {
   lv_obj_clear_flag(s_hl, LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_style_text_color(s_keys[idx], C_ON_PRIMARY, 0);
 
+  // Nachbarn so zeigen, wie sie auf dem Ring liegen: oben läuft das
+  // Alphabet von links nach rechts, unten (etwa 4 bis 8 Uhr) von rechts
+  // nach links. Dort steht der nächste Buchstabe also links vom aktuellen.
+  // An den Seiten (Buchstaben übereinander) bleibt es alphabetisch.
   int n = n_keys();
-  lv_label_set_text(s_lp_prev, SETS[s_set][(idx + n - 1) % n]);
+  bool lower = cosf(idx * 6.2831853f / n) < -0.5f;
+  const char *before = SETS[s_set][(idx + n - 1) % n];
+  const char *after = SETS[s_set][(idx + 1) % n];
+  lv_label_set_text(s_lp_prev, lower ? after : before);
   lv_label_set_text(s_lp_cur, SETS[s_set][idx]);
-  lv_label_set_text(s_lp_next, SETS[s_set][(idx + 1) % n]);
+  lv_label_set_text(s_lp_next, lower ? before : after);
   lv_obj_set_style_text_font(s_lp_cur, is_special(idx) ? &font_sg_18 : &font_sg_34, 0);
 
   char t[TEXT_MAX + 8];

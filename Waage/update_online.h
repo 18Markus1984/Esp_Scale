@@ -34,12 +34,15 @@ const char *upd_latest();      // gefundene Version, z. B. "1.5.0"
 int         upd_progress();    // 0 … 100 beim Laden
 const char *upd_error();       // deutscher Text (für T())
 void        upd_loop();        // aus dem UI-Takt: Ton, WLAN freigeben, Neustart
+bool        upd_wants_wifi();  // WLAN nicht abschalten (Update läuft oder steht gleich an)
+void        upd_restart();     // sauber neu starten (WLAN abmelden, SD aushängen, Display-Reset)
 
 // Nach dem Einschalten (ui.cpp): still suchen, ohne Töne und Fehlermeldung
 void        upd_check_quiet();
 // Neue Firmware erst nach einem erfolgreichen Start als gültig markieren
 // (OTA-Rollback: startet sie nicht sauber, kommt beim nächsten Einschalten die alte zurück)
 void        upd_mark_valid();
+bool        upd_pending_verify();  // laufende Firmware ist noch in der Probezeit
 // Einmal nach dem Start: Text zum letzten Online-Update ("Aktualisiert auf Version %s"
 // bzw. "Update fehlgeschlagen …") oder NULL. Text ist schon übersetzt.
 const char *upd_boot_notice(bool *ok);
