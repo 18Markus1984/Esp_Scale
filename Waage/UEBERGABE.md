@@ -554,12 +554,40 @@ Simulator: `TGTTEST=1` startet über die Fläche ZIEL und prüft mit `edge_check
 Beschriftung über den Display-Rand bzw. den beschnittenen Kreis ragt (6 px Luft); `EDGEALL=1` prüft
 das bei jedem Bildschirmfoto (meldet auch kleine Seitentitel ganz oben, die sichtbar noch passen).
 Der Web-Knopf „An der Waage anzeigen“ und `/api/target` bleiben als zusätzlicher Weg.
-**Etappe 5 (Sprachsteuerung) begonnen, noch nicht eingebaut:** storage.h hat `storage_size`,
-`storage_read_bin`, `storage_write_bin` und den Ordner `DIR_SPEECH` (/Waage/Sprache) für Modell und
-Aufnahmen. Plan: eigene KWS-Engine ohne Bibliothek (Log-Mel 40×75, kleines DS-CNN, Modell
-`kws_de.bin` von der SD-Karte, also ohne Firmware-Update tauschbar), Training in Python mit
-Piper-Stimmen (GitHub-Release v0.0.2) und Aufnahmen vom Gerät, Klassen wie `hallo_waage`, `tara`,
-`wie_viel`, `ziel_250` (Ziel aus dem Klassennamen).
+**Etappe 5: Sprachsteuerung „Hallo Waage“ (12.10.2026):** Eigene Schlüsselwort-Erkennung ohne
+Bibliothek und ohne ESP-SR (`USE_VOICE 0` bleibt, Partitionsschema unverändert). `kws.cpp/.h`:
+Merkmale (16 kHz, 30/20 ms, FFT 512, 40 Mel 20–7600 Hz, log, gleitender Mittelwert je Band über
+`cmn_frames` 150 abgezogen, Normierung aus dem Modell) und Netz (CONV, DW, GAP, DENSE, „same“-Ränder wie
+TensorFlow), Modell `/Waage/Sprache/kws_de.bin` (Format im Kopf von kws.cpp), Gewichte und Puffer im PSRAM,
+FFT-Puffer per malloc (statisch hätte der interne RAM nicht gereicht: `dram0_0_seg` lief über).
+Python und C rechnen identisch (Paritätstest: Merkmale < 0,001, Wahrscheinlichkeiten < 1e-8).
+`voice.cpp` (Zweig ohne ESP-SR): Task „Voice“ auf Kern 0 liest das Mikrofon (beide Kanäle addiert),
+`process()` → `kws_feed()` alle 10 Rahmen (200 ms, Fenster 2 s = 100 Rahmen, Netz 32/64/96 Kanäle, etwa 4 Mio. MAC; Rechenzeit steht
+alle 30 s im seriellen Monitor), drei Auswertungen gemittelt. Ablauf: Weckwort ≥ 65 % → Ton (SND_TEST)
+und „Ich höre zu …“ (Einfach: Zeile oben + Mikrofonsymbol in Akzentfarbe, sonst Meldung), 6 s lang
+Befehle ≥ 40 % (Schwellen stehen im Modell); nach dem ersten Treffer 0,45 s sammeln und die höchste
+Spitze nehmen, bei Zielmengen 1 s sammeln und die Zahl nehmen, die zuletzt über der Schwelle war
+(„zweihundertfünfzig“ erreicht seine Spitze nach „zweihundert“). Während Ton/Ansage (`sound_busy()`),
+2 s nach dem Einschalten (Mittelwert schwingt ein), 0,5 s nach dem Weckwort und 1,2 s nach einem Befehl
+wird nichts ausgewertet. Nach einem Befehl schläft die Waage wieder. Befehle nach Klassennamen:
+`tara` (`ui_cmd_tara`), `wie_viel` (`ui_cmd_speak`, beim Zielwiegen Restmenge), `speichern`, `weiter`,
+`zurueck`, `stopp`, `ziel_<g>` (`ui_target_start`). Neue Zielmengen also nur im Modell.
+**Wörter aufnehmen:** Setup -> Ton -> Wörter (Kennung 27, `page_voice_rec.cpp`): Liste aller Wörter mit
+Anzahl, je Wort runder Knopf, Piepton, nach 0,35 s 1,6–1,8 s Aufnahme (Küchengeräusche 10 s), Ring zeigt
+den Fortschritt, Pegelbalken. Dateien `/Waage/Sprache/Aufnahmen/<klasse>/a001.wav` (16 kHz Mono).
+`voice_rec_session()` zählt offene Seiten. Mikrofonseite zeigt „hört: tara 62 %“. Setup-Zeile
+Sprachbefehle: „kein Modell“, ohne Modell lässt sie sich nicht einschalten. Web: Einstellungen zeigen
+Modellinfo bzw. Fehler; Hochladen einer Datei `kws_*.bin` lädt das Modell neu (`voice_model_changed`).
+**Ordner Sprachmodell** (neu, neben Waage): `kws_common.py` (Klassen, Sätze, Merkmale, Netz, Export),
+`stimmen_laden.py` (sechs Piper-Stimmen von GitHub, Release v0.0.2), `kws_daten.py` (Piper, espeak-ng,
+acht MBROLA-Stimmen mb-de1…8 falls installiert, Stimmpakete), `kws_train.py` (Augmentierung:
+Lautstärke −45…−3 dB, Tempo, Stimmlage per VTLP, Hall, Färbung, Rauschen bei 8–65 dB Abstand,
+Hintergrund vor dem Fenster anders laut, Brummen, Klappern, fremde Sprache; Weckwort dreifach, kurze
+Befehle doppelt; Prüfstimme ramona bleibt draußen; eigene Aufnahmen vierfach), `set_thresholds()`,
+`kws_pruefen.py` (WAV wie die Waage auswerten, nur numpy), LIESMICH.md. Mitgeliefertes Modell
+`SD-Karte/Waage/Sprache/kws_de.bin` ist nur mit künstlichen Stimmen trainiert; mit Aufnahmen vom Gerät
+wird es deutlich besser. Simulator: `KWSTEST=1` (Testsätze der Prüfstimme aus /home/claude/kws/test,
+Aufnahme-Seite); Testumgebung kompiliert voice.cpp jetzt mit (`voice_sim_feed`).
 
 ## 6. Offene Punkte
 

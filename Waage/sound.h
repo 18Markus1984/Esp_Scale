@@ -64,6 +64,7 @@ void sound_speak_word(const char *file);           // feste Ansage, z. B. "tara"
 void sound_speak_weight_word(float grams, int unit, const char *word);  // "… Gramm, gespeichert"
 void sound_play_tone(sound_t s);                   // nur der Ton, ohne Sprachansage
 bool sound_speaking();                             // Ansage läuft oder wartet
+bool sound_busy();                                 // Ton oder Ansage läuft (Spracherkennung pausiert)
 void sound_speak_stop();                           // laufende und wartende Ansagen abbrechen
 
 // Ansage-Modus: Zahlen = Gewicht/Stückzahl vorlesen (g_set.speak),

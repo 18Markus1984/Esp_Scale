@@ -1,0 +1,6 @@
+name=Pina Colada
+portionen=1
+Rum weiß;50
+Kokoslikör;30
+Ananassaft;90
+Sahne;20

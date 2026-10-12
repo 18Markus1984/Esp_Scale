@@ -1,5 +1,13 @@
 // ============================================================
-//  Spracherkennung (ESP-SR, nur ESP32-S3)
+//  Sprachbefehle
+//
+//  Standard (USE_VOICE 0, unten ab "eigene Schlüsselwort-Erkennung"):
+//  eigenes kleines Netz (kws.cpp), Modell von der SD-Karte, deutsches
+//  Weckwort "Hallo Waage". Trainiert wird es mit dem Werkzeug im Ordner
+//  Sprachmodell; Aufnahmen dafür macht die Waage selbst
+//  (Setup -> Ton -> Wörter aufnehmen).
+//
+//  Alt (USE_VOICE 1): ESP-SR, nur ESP32-S3, englische Befehle:
 //
 //  Wofür sinnvoll: genau dann, wenn beide Hände voll oder klebrig
 //  sind. Deshalb nur wenige, kurze Befehle rund ums Wiegen.
@@ -264,18 +272,568 @@ void voice_loop() {
   }
 }
 
-#else  // ohne Spracherkennung
+// neue Funktionen (eigenes Modell, Aufnahmen) gibt es nur ohne ESP-SR
+void voice_model_changed() {}
+bool voice_model_ok() { return true; }
+const char *voice_model_error() { return ""; }
+const char *voice_model_info() { return "ESP-SR"; }
+const char *voice_model_path() { return ""; }
+int voice_live(float *p) { if (p) *p = 0; return -1; }
+float voice_level() { return 0; }
+int voice_words() { return 0; }
+const char *voice_word_id(int i) { return ""; }
+const char *voice_word_text(int i) { return ""; }
+int voice_word_count(int i) { return 0; }
+bool voice_rec_start(int word) { return false; }
+void voice_rec_session(bool on) {}
+int voice_rec_state() { return -1; }
+float voice_rec_progress() { return 0; }
+int voice_rec_ms(int word) { return 0; }
+void voice_sim_feed(const int16_t *pcm, int n) {}
 
-bool voice_available() { return false; }
-bool voice_begin() { return false; }
-bool voice_starting() { return false; }
-bool voice_start_stuck() { return false; }
-bool voice_lack_memory() { return false; }
-void voice_stop() {}
-bool voice_running() { return false; }
-bool voice_awake() { return false; }
-void voice_loop() {}
-const char *voice_last() { return ""; }
-unsigned long voice_last_ms() { return 0; }
+#else  // eigene Schlüsselwort-Erkennung (kws.*)
+#include "kws.h"
+#include "ui.h"
+#include "scale.h"
+#include "sound.h"
+#include "settings.h"
+#include "storage.h"
+#include "data.h"
+#include "hal.h"
+#include "i18n.h"
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#ifdef ARDUINO
+#include <Arduino.h>
+#include <ESP_I2S.h>
+#include <esp_heap_caps.h>
+#include "mic.h"
+extern I2SClass &mic_i2s();
+static void ensure_task();
+#endif
+
+#define AWAKE_MS 6000      // so lange nach "Hallo Waage" auf einen Befehl warten
+#define DECIDE_MS 450      // nach dem ersten Treffer noch so lange sammeln, dann den besten nehmen
+#define DECIDE_ZIEL_MS 1000  // bei Zielmengen länger: "zweihundert…" kommt vor "…fünfzig"
+#define AFTER_WAKE_MS 500  // nach dem Weckwort kurz nichts auswerten (Rest von "Waage")
+#define AFTER_CMD_MS 1200  // nach einem Befehl dasselbe Wort nicht nochmal erkennen
+#define REC_WAIT_MS 350    // nach dem Piepton warten (Ton nicht mitaufnehmen)
+#define REC_DIR DIR_SPEECH "/Aufnahmen"
+
+// ---- Wörter: feste Liste (wie Sprachmodell/kws_common.py) ----
+typedef struct {
+  const char *id, *text;
+  int ms;
+} word_t;
+static const word_t WORDS[] = {
+  { "hallo_waage", "Hallo Waage", 1600 },
+  { "tara", "Tara", 1600 },
+  { "wie_viel", "Wie viel?", 1600 },
+  { "speichern", "Speichern", 1600 },
+  { "weiter", "Weiter", 1600 },
+  { "zurueck", "Zurück", 1600 },
+  { "stopp", "Stopp", 1600 },
+  { "ziel_50", "50 Gramm", 1800 },
+  { "ziel_100", "100 Gramm", 1800 },
+  { "ziel_150", "150 Gramm", 1800 },
+  { "ziel_200", "200 Gramm", 1800 },
+  { "ziel_250", "250 Gramm", 1800 },
+  { "ziel_300", "300 Gramm", 1800 },
+  { "ziel_500", "500 Gramm", 1800 },
+  { "ziel_1000", "1000 Gramm", 1800 },
+  { "_unbekannt", "ein anderes Wort", 1600 },
+  { "_hintergrund", "Küchengeräusche", 10000 },
+};
+#define NWORDS_FIX ((int)(sizeof(WORDS) / sizeof(WORDS[0])))
+#define WORDS_MAX 40
+static char s_extra_id[WORDS_MAX][24], s_extra_text[WORDS_MAX][24];
+static int s_nextra = 0;
+static int s_counts[WORDS_MAX + NWORDS_FIX];
+
+// ---- Zustand ----
+static volatile bool s_want = false;      // Zuhören eingeschaltet
+static volatile int s_session = 0;        // offene Aufnahmeseiten (Zähler: neue Seite entsteht vor dem Löschen der alten)
+static volatile bool s_running = false;   // Modell geladen, Mikrofon läuft
+static volatile bool s_starting = false;
+static volatile uint32_t s_start_ms = 0;
+static char s_err[64] = "";
+static bool s_model_tried = false;
+static int s_model_lang = -1;
+static uint32_t s_clock = 0;              // Zeit aus der Zahl der Abtastwerte (ms)
+static uint32_t s_samples = 0;
+static volatile bool s_awake = false;
+static uint32_t s_awake_until = 0, s_mute_until = 0, s_dec_end = 0;
+static bool s_dec_active = false;
+static float s_peak[KWS_MAX_CLASSES];
+static uint32_t s_peak_t[KWS_MAX_CLASSES];  // wann die Spitze war
+static bool s_dec_ziel = false;             // erster Treffer war eine Zielmenge
+static int s_wake_idx = -1;
+static volatile int s_pending = -1;       // erkannte Klasse, im UI-Takt ausführen
+static volatile bool s_reset_req = true;  // Verlauf leeren (beim Einschalten), passiert im Audio-Takt
+static uint32_t s_listen_start = 0;       // erst nach 2 s auswerten (gleitender Mittelwert muss einschwingen)
+#define WARMUP_MS 2000
+static volatile bool s_ev_wake = false;
+static char s_last[24] = "";
+static volatile unsigned long s_last_ms = 0;
+static volatile float s_level = 0;
+static volatile int s_live = -1;
+static volatile float s_live_p = 0;
+
+// Aufnahme
+static volatile int s_rec_state = 0;
+static int s_rec_word = -1;
+static int16_t *s_rec_buf = NULL;         // 22 Werte Platz für den WAV-Kopf, dann die Aufnahme
+static int s_rec_len = 0, s_rec_pos = 0, s_rec_wait = 0;
+static uint32_t s_rec_done_ms = 0;
+
+const char *voice_model_path() {
+  return g_set.lang == LANG_EN ? DIR_SPEECH "/kws_en.bin" : DIR_SPEECH "/kws_de.bin";
+}
+
+static void *big_alloc(size_t n) {
+#ifdef ARDUINO
+  void *p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p ? p : malloc(n);
+#else
+  return malloc(n);
+#endif
+}
+
+// ---- Wortliste ----
+static void rebuild_extra() {
+  s_nextra = 0;
+  for (int k = 0; k < kws_num_classes() && s_nextra < WORDS_MAX; k++) {
+    const char *c = kws_class(k);
+    if (strcmp(c, "_stille") == 0) continue;
+    bool known = false;
+    for (int i = 0; i < NWORDS_FIX; i++)
+      if (strcmp(WORDS[i].id, c) == 0) known = true;
+    if (known) continue;
+    snprintf(s_extra_id[s_nextra], sizeof(s_extra_id[0]), "%s", c);
+    if (strncmp(c, "ziel_", 5) == 0) snprintf(s_extra_text[s_nextra], sizeof(s_extra_text[0]), "%s Gramm", c + 5);
+    else snprintf(s_extra_text[s_nextra], sizeof(s_extra_text[0]), "%s", c);
+    s_nextra++;
+  }
+  for (int i = 0; i < WORDS_MAX + NWORDS_FIX; i++) s_counts[i] = -1;
+}
+
+int voice_words() { return NWORDS_FIX + s_nextra; }
+const char *voice_word_id(int i) {
+  if (i >= 0 && i < NWORDS_FIX) return WORDS[i].id;
+  i -= NWORDS_FIX;
+  return (i >= 0 && i < s_nextra) ? s_extra_id[i] : "";
+}
+const char *voice_word_text(int i) {
+  if (i >= 0 && i < NWORDS_FIX) return WORDS[i].text;
+  i -= NWORDS_FIX;
+  return (i >= 0 && i < s_nextra) ? s_extra_text[i] : "";
+}
+int voice_rec_ms(int i) { return (i >= 0 && i < NWORDS_FIX) ? WORDS[i].ms : 1600; }
+
+int voice_word_count(int i) {
+  if (i < 0 || i >= voice_words()) return 0;
+  if (s_counts[i] >= 0) return s_counts[i];
+  // Namensliste nur kurz vom Heap (statisch wären es 10 KB im knappen internen RAM)
+  char(*names)[STORAGE_NAME_LEN] = (char(*)[STORAGE_NAME_LEN])big_alloc(300 * STORAGE_NAME_LEN);
+  if (!names) return 0;
+  char dir[80];
+  snprintf(dir, sizeof(dir), REC_DIR "/%s", voice_word_id(i));
+  int n = storage_list(dir, names, 300), c = 0;
+  for (int k = 0; k < n; k++)
+    if (strstr(names[k], ".wav") || strstr(names[k], ".WAV")) c++;
+  free(names);
+  s_counts[i] = c;
+  return c;
+}
+
+// ---- Modell ----
+static bool load_model() {
+  s_model_tried = true;
+  s_model_lang = g_set.lang;
+  bool ok = kws_load_file(voice_model_path());
+  snprintf(s_err, sizeof(s_err), "%s", ok ? "" : kws_error());
+  s_wake_idx = ok ? kws_class_index("hallo_waage") : -1;
+  rebuild_extra();
+  printf("Sprache: %s %s\r\n", voice_model_path(), ok ? kws_info() : kws_error());
+  return ok;
+}
+
+bool voice_model_ok() {
+  if (!s_model_tried || s_model_lang != g_set.lang) return storage_size(voice_model_path()) > 0;
+  return kws_ready();
+}
+const char *voice_model_error() {
+  if (!s_model_tried && storage_size(voice_model_path()) <= 0) return "kein Modell auf der SD-Karte";
+  return s_err;
+}
+const char *voice_model_info() { return kws_ready() ? kws_info() : ""; }
+void voice_model_changed() {
+  s_model_tried = false;  // Task (bzw. voice_begin im Simulator) lädt neu
+#ifndef ARDUINO
+  if (s_want) voice_begin();
+#endif
+}
+
+// ---- Erkennung: Weckwort, dann Befehl ----
+static bool is_cmd(int k) {
+  const char *c = kws_class(k);
+  return c[0] != '_' && k != s_wake_idx;
+}
+
+static void decide() {
+  const float *p = kws_probs();
+  uint32_t now = s_clock;
+  static uint32_t last_log = 0;  // zur Fehlersuche: wie lange eine Auswertung dauert
+  if (now - last_log > 30000) {
+    last_log = now;
+    printf("Sprache: Auswertung %u ms\r\n", (unsigned)(kws_infer_us() / 1000));
+  }
+  // bester Befehl (für die Mikrofonseite)
+  float bp;
+  int b = kws_best(&bp);
+  s_live = b;
+  s_live_p = bp;
+  if (s_session || sound_busy() || now < s_mute_until || now - s_listen_start < WARMUP_MS) {
+    s_dec_active = false;
+    return;
+  }
+  if (s_wake_idx >= 0 && p[s_wake_idx] >= kws_wake_threshold() && !s_dec_active) {
+    if (!s_awake) s_ev_wake = true;
+    s_awake = true;
+    s_awake_until = now + AWAKE_MS;
+    s_mute_until = now + AFTER_WAKE_MS;
+    return;
+  }
+  if (!s_awake) return;
+  if (!s_dec_active && now > s_awake_until) {
+    s_awake = false;
+    return;
+  }
+  if (!s_dec_active) {
+    bool hit = false;
+    for (int k = 0; k < kws_num_classes(); k++)
+      if (is_cmd(k) && p[k] >= kws_threshold()) hit = true;
+    if (!hit) return;
+    s_dec_active = true;
+    memset(s_peak, 0, sizeof(s_peak));
+    memset(s_peak_t, 0, sizeof(s_peak_t));
+    int first = -1;
+    float fp = 0;
+    for (int k = 0; k < kws_num_classes(); k++)
+      if (is_cmd(k) && p[k] > fp) {
+        fp = p[k];
+        first = k;
+      }
+    s_dec_ziel = first >= 0 && strncmp(kws_class(first), "ziel_", 5) == 0;
+    s_dec_end = now + (s_dec_ziel ? DECIDE_ZIEL_MS : DECIDE_MS);
+  }
+  for (int k = 0; k < kws_num_classes(); k++)
+    if (is_cmd(k) && p[k] > s_peak[k]) {
+      s_peak[k] = p[k];
+      s_peak_t[k] = now;
+    }
+  if (now < s_dec_end) return;
+  int best = -1;
+  float pk = 0;
+  if (s_dec_ziel) {
+    // Zielmengen: die zuletzt über der Schwelle war, ist die vollständige Zahl
+    // ("zweihundert" erreicht seine Spitze vor "zweihundertfünfzig")
+    uint32_t bt = 0;
+    for (int k = 0; k < kws_num_classes(); k++)
+      if (is_cmd(k) && strncmp(kws_class(k), "ziel_", 5) == 0 && s_peak[k] >= kws_threshold() &&
+          (s_peak_t[k] > bt || (s_peak_t[k] == bt && s_peak[k] > pk))) {
+        bt = s_peak_t[k];
+        pk = s_peak[k];
+        best = k;
+      }
+  }
+  if (best < 0)  // sonst: höchste Spitze im Sammelfenster
+    for (int k = 0; k < kws_num_classes(); k++)
+      if (is_cmd(k) && s_peak[k] > pk) {
+        pk = s_peak[k];
+        best = k;
+      }
+  s_dec_active = false;
+  if (best < 0) return;
+  s_pending = best;
+  snprintf(s_last, sizeof(s_last), "%s", kws_class(best));
+  s_last_ms = hal_millis();
+  s_awake_until = now + AWAKE_MS;  // gleich noch ein Befehl möglich ("weiter", "weiter")
+  s_mute_until = now + AFTER_CMD_MS;
+}
+
+// ---- Aufnahme speichern (WAV, 16 kHz, Mono) ----
+static void put32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
+static void put16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
+
+static void rec_save() {
+  const char *id = voice_word_id(s_rec_word);
+  char dir[80], path[100];
+  storage_mkdir(REC_DIR);
+  snprintf(dir, sizeof(dir), REC_DIR "/%s", id);
+  storage_mkdir(dir);
+  int n = 1;
+  do {
+    snprintf(path, sizeof(path), "%s/a%03d.wav", dir, n++);
+  } while (storage_exists(path) && n < 1000);
+  uint8_t *h = (uint8_t *)s_rec_buf;
+  uint32_t bytes = s_rec_len * 2;
+  memcpy(h, "RIFF", 4);
+  put32(h + 4, 36 + bytes);
+  memcpy(h + 8, "WAVEfmt ", 8);
+  put32(h + 16, 16);
+  put16(h + 20, 1);
+  put16(h + 22, 1);
+  put32(h + 24, KWS_RATE);
+  put32(h + 28, KWS_RATE * 2);
+  put16(h + 32, 2);
+  put16(h + 34, 16);
+  memcpy(h + 36, "data", 4);
+  put32(h + 40, bytes);
+  bool ok = storage_write_bin(path, s_rec_buf, 44 + bytes);
+  free(s_rec_buf);
+  s_rec_buf = NULL;
+  if (ok && s_counts[s_rec_word] >= 0) s_counts[s_rec_word]++;
+  printf("Sprache: Aufnahme %s %s\r\n", path, ok ? "gespeichert" : "fehlgeschlagen");
+  s_rec_state = ok ? 4 : -1;
+  s_rec_done_ms = hal_millis();
+}
+
+// Ein Block Audio (16 kHz Mono) aus dem Mikrofon bzw. dem Simulator
+static void process(const int16_t *pcm, int n) {
+  // Pegel für Anzeigen (Spitze des Blocks, langsam fallend)
+  int mx = 0;
+  for (int i = 0; i < n; i++) {
+    int a = pcm[i] < 0 ? -pcm[i] : pcm[i];
+    if (a > mx) mx = a;
+  }
+  float lv = mx / 32768.0f;
+  s_level = lv > s_level ? lv : s_level * 0.92f;
+  s_samples += n;
+  s_clock = s_samples / (KWS_RATE / 1000);
+  // Aufnahme
+  if (s_rec_state == 1) {
+    s_rec_wait -= n;
+    if (s_rec_wait <= 0) s_rec_state = 2;
+  } else if (s_rec_state == 2 && s_rec_buf) {
+    int k = s_rec_len - s_rec_pos;
+    if (k > n) k = n;
+    memcpy(s_rec_buf + 22 + s_rec_pos, pcm, k * 2);
+    s_rec_pos += k;
+    if (s_rec_pos >= s_rec_len) s_rec_state = 3;  // speichern übernimmt der Task bzw. gleich unten
+  }
+  // Erkennung
+  if (s_want && kws_ready()) {
+    if (s_reset_req) {
+      s_reset_req = false;
+      kws_reset();
+      s_listen_start = s_clock;
+      s_awake = false;
+    }
+    if (kws_feed(pcm, n)) decide();
+  }
+}
+
+bool voice_rec_start(int word) {
+  if (word < 0 || word >= voice_words() || !storage_ok()) return false;
+  if (s_rec_state == 1 || s_rec_state == 2 || s_rec_state == 3) return false;
+  int ms = voice_rec_ms(word);
+  s_rec_len = KWS_RATE / 1000 * ms;
+  s_rec_buf = (int16_t *)big_alloc((22 + s_rec_len) * sizeof(int16_t));
+  if (!s_rec_buf) return false;
+  s_rec_word = word;
+  s_rec_pos = 0;
+  s_rec_wait = KWS_RATE / 1000 * REC_WAIT_MS;
+  s_rec_state = 1;
+#ifdef ARDUINO
+  ensure_task();
+#endif
+  return true;
+}
+
+int voice_rec_state() {
+  // "gespeichert" nach 1,2 s wieder auf bereit
+  if ((s_rec_state == 4 || s_rec_state == -1) && hal_millis() - s_rec_done_ms > 1200) s_rec_state = 0;
+  return s_rec_state;
+}
+float voice_rec_progress() {
+  if (s_rec_state == 2) return s_rec_len ? (float)s_rec_pos / s_rec_len : 0;
+  return s_rec_state >= 3 ? 1.0f : 0.0f;
+}
+float voice_level() { return s_level; }
+int voice_live(float *p) {
+  if (p) *p = s_live_p;
+  return s_live;
+}
+
+bool voice_available() { return true; }
+bool voice_running() { return s_running; }
+bool voice_awake() { return s_awake; }
+bool voice_starting() { return s_starting; }
+bool voice_start_stuck() { return s_starting && hal_millis() - s_start_ms > 12000; }
+bool voice_lack_memory() { return strstr(s_err, "Speicher") != NULL; }
+const char *voice_last() { return s_last; }
+unsigned long voice_last_ms() { return s_last_ms; }
+
+// ---- Befehle ausführen (UI-Takt) ----
+void voice_loop() {
+#ifndef ARDUINO
+  if (s_rec_state == 3 && s_rec_buf) rec_save();  // Simulator: kein eigener Task
+#endif
+  if (s_ev_wake) {
+    s_ev_wake = false;
+    sound_play_tone(SND_TEST);  // kurzer Ton: "ich höre zu"
+  }
+  if (s_awake && s_clock > s_awake_until + 200 && !s_dec_active) s_awake = false;
+  int cmd = s_pending;
+  if (cmd < 0) return;
+  s_pending = -1;
+  const char *c = kws_class(cmd);
+  printf("Sprache: Befehl %s\r\n", c);
+  if (strcmp(c, "tara") == 0) {
+    ui_cmd_tara();
+  } else if (strcmp(c, "wie_viel") == 0) {
+    ui_cmd_speak();
+  } else if (strcmp(c, "speichern") == 0) {
+    sound_play(log_add(scale_net(), T("Sprachbefehl")) ? SND_SAVE : SND_WARN);
+  } else if (strcmp(c, "weiter") == 0) {
+    static const char *const NEXT_LABELS[] = { "Weiter", "Fertig", "Start", "Tippen", "Los",
+                                               "Nächste Runde", "Übernehmen", "Mixen" };
+    if (!ui_click_button(NEXT_LABELS, sizeof(NEXT_LABELS) / sizeof(NEXT_LABELS[0]))) sound_play(SND_WARN);
+  } else if (strcmp(c, "zurueck") == 0) {
+    ui_go_home();
+  } else if (strcmp(c, "stopp") == 0) {
+    if (ui_target_goal() > 0) {
+      ui_target_stop();
+      sound_play(SND_DONE);
+    } else {
+      sound_parking_reset();
+      ui_go_home();
+    }
+  } else if (strncmp(c, "ziel_", 5) == 0) {
+    int g = atoi(c + 5);
+    if (g > 0 && !ui_target_start(g)) sound_play(SND_WARN);
+  }
+  s_awake = false;  // Befehl ausgeführt: wieder schlafen, nächstes Mal mit "Hallo Waage"
+}
+
+#ifdef ARDUINO
+// ------------------------------------------------------------
+//  Gerät: eigener Task auf Kern 0 liest das Mikrofon
+// ------------------------------------------------------------
+static TaskHandle_t s_task = NULL;
+static bool s_mic_on = false;
+
+static void voice_task(void *arg) {
+  static int16_t raw[512];  // 256 Stereo-Paare = 16 ms
+  static int16_t mono[256];
+  while (true) {
+    bool need = s_want || s_session || s_rec_state == 1 || s_rec_state == 2;
+    if (!need) {
+      if (s_mic_on) {
+        mic_set_exclusive(false);
+        s_mic_on = false;
+        s_running = false;
+        s_awake = false;
+      }
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+    if (!s_mic_on) {
+      mic_set_exclusive(true);  // Pegel-Task liest nicht mehr
+      mic_listen(false);
+      for (int i = 0; i < 20 && !mic_idle(); i++) vTaskDelay(pdMS_TO_TICKS(50));
+      if (!mic_begin()) {
+        snprintf(s_err, sizeof(s_err), "Mikrofon fehlt");
+        mic_set_exclusive(false);
+        s_want = false;
+        s_session = 0;
+        s_starting = false;
+        vTaskDelay(pdMS_TO_TICKS(500));
+        continue;
+      }
+      s_mic_on = true;
+    }
+    if (s_want && (!s_model_tried || s_model_lang != g_set.lang)) {
+      s_starting = true;
+      s_start_ms = hal_millis();
+      load_model();
+      s_starting = false;
+      if (!kws_ready()) s_want = false;  // ohne Modell nicht zuhören
+    }
+    s_running = s_want && kws_ready();
+    if (s_rec_state == 3 && s_rec_buf) {
+      rec_save();
+      continue;
+    }
+    size_t got = mic_i2s().readBytes((char *)raw, sizeof(raw));
+    int frames = (int)got / 4;
+    if (frames <= 0) {
+      vTaskDelay(pdMS_TO_TICKS(5));
+      continue;
+    }
+    // beide Kanäle zusammen: das Mikrofon liegt je nach Verdrahtung links oder rechts
+    for (int i = 0; i < frames; i++) {
+      int v = (int)raw[2 * i] + raw[2 * i + 1];
+      mono[i] = (int16_t)(v > 32767 ? 32767 : (v < -32768 ? -32768 : v));
+    }
+    process(mono, frames);
+  }
+}
+
+static void ensure_task() {
+  if (!s_task) xTaskCreatePinnedToCore(voice_task, "Voice", 8192, NULL, 3, &s_task, 0);
+}
+
+bool voice_begin() {
+  s_want = true;
+  s_reset_req = true;
+  if (!s_model_tried) s_starting = true;
+  ensure_task();
+  return true;
+}
+
+void voice_stop() {
+  s_want = false;
+  s_awake = false;
+}
+
+void voice_rec_session(bool on) {
+  s_session += on ? 1 : (s_session > 0 ? -1 : 0);
+  if (on) ensure_task();
+}
+
+void voice_sim_feed(const int16_t *pcm, int n) {}
+
+#else
+// ------------------------------------------------------------
+//  Simulator: Modell sofort laden, Audio kommt über voice_sim_feed
+// ------------------------------------------------------------
+bool voice_begin() {
+  s_want = true;
+  s_reset_req = true;
+  if (!s_model_tried || s_model_lang != g_set.lang) load_model();
+  s_running = kws_ready();
+  if (!kws_ready()) s_want = false;
+  return s_running;
+}
+void voice_stop() {
+  s_want = false;
+  s_running = false;
+  s_awake = false;
+}
+void voice_rec_session(bool on) { s_session += on ? 1 : (s_session > 0 ? -1 : 0); }
+void voice_sim_feed(const int16_t *pcm, int n) {
+  while (n > 0) {
+    int k = n > 256 ? 256 : n;
+    process(pcm, k);
+    if (s_rec_state == 3 && s_rec_buf) rec_save();
+    pcm += k;
+    n -= k;
+  }
+}
+#endif
 #endif

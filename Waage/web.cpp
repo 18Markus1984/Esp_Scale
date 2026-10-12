@@ -639,6 +639,7 @@ static void h_upload() {
       storage_unlock();
     }
     sound_play(s_up_ok ? SND_SAVE : SND_WARN);
+    if (s_up_ok && up.filename.startsWith("kws_")) voice_model_changed();  // neues Sprachmodell
   }
 }
 
@@ -717,6 +718,8 @@ static void h_settings() {
              ",\"scheme\":" + g_set.scheme + ",\"speak\":" + (g_set.speak ? "true" : "false") +
              ",\"speak_ev\":" + (g_set.speak_ev ? "true" : "false") +
              ",\"voice_on\":" + (g_set.voice_on ? "true" : "false") + ",\"voice_ok\":" + (voice_available() ? "true" : "false") +
+             ",\"voice_model\":" + (voice_model_ok() ? "true" : "false") + ",\"voice_info\":\"" + esc(voice_model_info()) +
+             "\",\"voice_err\":\"" + esc(voice_model_error()) + "\"" +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
@@ -778,9 +781,9 @@ static void h_settings_save() {
   g_set.scheme = constrain((int)jval(b, "scheme").toInt(), 0, SCHEME_COUNT - 1);
   g_set.speak = jval(b, "speak") == "true";
   if (jval(b, "speak_ev").length()) g_set.speak_ev = jval(b, "speak_ev") == "true";
-  // Sprachbefehle (nur wenn ESP-SR einkompiliert ist)
+  // Sprachbefehle (eigenes Modell von der SD-Karte)
   if (jval(b, "voice_on").length() && voice_available() && !voice_starting()) {
-    bool on = jval(b, "voice_on") == "true";
+    bool on = jval(b, "voice_on") == "true" && voice_model_ok();  // ohne Modell nicht zuhören
     if (on != g_set.voice_on) {
       g_set.voice_on = on;
       if (on) voice_begin();

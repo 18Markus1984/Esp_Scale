@@ -1,0 +1,16 @@
+name=Risotto
+portionen=2
+Zwiebeln;80
+>schneiden;Zwiebeln fein würfeln
+Butter;30
+>braten;Zwiebeln in der Hälfte der Butter glasig dünsten;3
+Risottoreis;180
+>braten;Reis kurz mitdünsten, bis er glasig ist;2
+Weißwein;100
+>giessen;Mit Wein ablöschen und einkochen lassen
+Brühe;700
+>kochen;Heiße Brühe nach und nach angießen, oft rühren;18
+Parmesan;60
+>ruehren;Parmesan und restliche Butter unterrühren
+>ruhen;Zugedeckt kurz ziehen lassen;2
+>servieren;Sofort servieren

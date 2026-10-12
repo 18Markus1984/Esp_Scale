@@ -1,0 +1,5 @@
+name=Aperol Spritz
+portionen=1
+Aperol;60
+Prosecco;90
+Soda;30

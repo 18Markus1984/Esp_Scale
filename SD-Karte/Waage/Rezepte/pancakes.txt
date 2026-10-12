@@ -1,0 +1,14 @@
+name=Pancakes
+portionen=2
+Mehl;200
+Zucker;30
+Backpulver;10
+>ruehren;Trockene Zutaten in einer Schüssel mischen
+Milch;250
+Eier;110
+Butter;30
+>mikrowelle;Butter schmelzen und zum Teig geben;1
+>ruehren;Kurz verrühren, kleine Klümpchen sind ok
+>ruhen;Teig ruhen lassen;5
+>braten;Bei mittlerer Hitze je Seite ca. 2 min backen
+>servieren;Mit Ahornsirup und Beeren servieren

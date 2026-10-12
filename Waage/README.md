@@ -73,7 +73,7 @@ Für den QR-Code (System → Weboberfläche) in derselben Datei außerdem:
 | `page_cocktail.cpp` | Cocktails in ml mixen |
 | `page_mic.cpp` | Mikrofon-Pegeltest |
 | `mic.*` | Mikrofon (I2S-Port 1) |
-| `voice.*` | Spracherkennung mit ESP-SR (aus) |
+| `voice.*`, `kws.*` | Sprachbefehle „Hallo Waage“ (eigenes Netz, Modell von der SD-Karte) |
 | `ui_text.*` | Texteingabe über den Buchstabenring |
 | `storage.*` | SD-Karte (Ordner, Lesen, Schreiben) |
 | `data.*` | Dateiformate für Töpfe, Protokoll, Rezepte |
@@ -410,22 +410,28 @@ bei eingeschalteter Spracherkennung, ob das Weckwort erkannt wurde und welcher B
 zuletzt verstanden wurde. Kommen vom Mikrofon länger keine Daten, startet die Waage
 den I2S-Empfang selbst neu.
 
-**Spracherkennung (ESP-SR)** schaltest du im Betrieb unter Setup -> Ton ->
-Sprachbefehle ein und aus. Der Start läuft in einem eigenen Task (die Modelle
-brauchen ein bis zwei Sekunden), die Zeile zeigt so lange „startet …“.
-Während die Erkennung läuft, gehört das Mikrofon ihr allein; die Pegelanzeige unter
-System -> Mikrofon zeigt dann stattdessen Weckwort und erkannte Befehle. Damit sie überhaupt zur Verfügung steht (sonst steht dort
-„nicht geladen“), muss sie einkompiliert sein:
-1. In `config.h` `USE_VOICE` auf 1,
-2. in der Arduino-IDE das Partitionsschema **„ESP SR 16M“** wählen (die Sprachmodelle
-   brauchen eine eigene Partition; die Anwendung hat dort genauso viel Platz wie jetzt),
-3. hochladen.
+**Sprachbefehle „Hallo Waage“** schaltest du unter Setup -> Ton -> Sprachbefehle ein und aus
+(Weboberfläche: Einstellungen -> Ton). Die Erkennung läuft komplett auf der Waage mit einem kleinen
+eigenen Netz (`kws.cpp`), ohne Internet und ohne ESP-SR, mit dem normalen Partitionsschema. Das Modell
+ist eine Datei auf der SD-Karte, `/Waage/Sprache/kws_de.bin`; fehlt sie, steht in der Zeile
+„kein Modell“. Ablauf: „Hallo Waage“ sagen, die Waage piept und zeigt „Ich höre zu …“, dann innerhalb
+von 6 s einen Befehl:
 
-Weckwort ist **„Hi ESP“** (fest eingebaut), danach einer der Befehle:
-`tare the scale`, `save the weight`, `next step`, `read the weight`, `go back`, `stop`.
-Die Befehle sind englisch, weil ESP-SR nur Englisch und Chinesisch beherrscht.
-„next step“ drückt den fortführenden Knopf der aktuellen Seite, funktioniert also in
-Rezept, Cocktail und den Spielen.
+| Sagen | Wirkung |
+|---|---|
+| „Tara“ | Tara (beim Zielwiegen: nächste Portion) |
+| „Wie viel?“ | Gewicht ansagen, beim Zielwiegen die Restmenge |
+| „Speichern“ | ins Protokoll |
+| „Weiter“ | Weiter-Knopf der Seite (Rezept, Cocktail, Spiele) |
+| „Zurück“ | zur Wiegeseite |
+| „Stopp“ | Zielwiegen bzw. Modus beenden |
+| „50, 100, 150, 200, 250, 300, 500 Gramm“, „ein Kilo“ | Zielwiegen mit Parkpiepser |
+
+Während die Waage selbst spricht oder piept, hört sie weg. Unter **Setup -> Ton -> Wörter** nimmst du
+mit dem Mikrofon der Waage Beispiele auf (Wort wählen, runden Knopf tippen, nach dem Piepton sprechen).
+Damit trainierst du am PC ein besseres Modell, siehe Ordner `Sprachmodell` (LIESMICH.md). Das
+mitgelieferte Modell kennt nur künstliche Stimmen. Die alte ESP-SR-Variante (englisch, „Hi ESP“) gibt
+es weiterhin mit `USE_VOICE 1` und dem Partitionsschema „ESP SR 16M“.
 
 ## Anzeige und Modi-Menü
 
@@ -534,7 +540,7 @@ Vier Gruppen als Kacheln:
   erreicht ist und ruhig liegt), Zur Wiegeseite, Auto-Tara, Auto-Aus.
 - **Zeit & Funk:** Uhrzeit, Datum, WLAN, Bluetooth, Akku (Ladestand, Verlauf, Restzeit; Wischen nach rechts führt
   zurück). Die Weboberfläche steht jetzt ganz oben in der Systemliste.
-- **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprachbefehle.
+- **Ton:** Lautstärke, Tonschema, Ansage, Stimme, Sprache, Sprachbefehle, Mikrofon, Wörter (Aufnahmen fürs Sprachmodell).
 - **Waage:** Profil, Kalibrierung, Prüfgewicht, Messmittelprüfung, Libelle, Display, Farbe, Dateien, Firmware.
 
 Einfache Werte werden direkt durch Antippen umgeschaltet, Zeilen mit „›“ öffnen

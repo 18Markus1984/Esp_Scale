@@ -61,10 +61,10 @@ The whole UI is available in **English and German** (display, web interface and 
 | **Built-in web app** | One tap from the *System* list on the scale. Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
 | **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. After switching on, the scale finds the release and installs it by itself (only when empty and charged enough, or it asks), with automatic rollback if the new firmware does not start cleanly. |
 | **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
-| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, experimental offline voice commands (ESP-SR). |
+| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, offline voice commands in German: say "Hallo Waage", then "Tara", "Wie viel?" or "zweihundertfünfzig Gramm". A small keyword-spotting network runs on the scale itself; the model is a file on the SD card and can be retrained with your own recordings (folder `Sprachmodell`). |
 | **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
 | **First-start setup** | A short wizard on the display (or on your phone) asks for language, profile, categories, colour, sound and Wi-Fi, then lets you try the gestures once. Repeat it any time under *Setup → Scale → Setup*. |
-| **Profiles** | *Standard*, *Kitchen* and *Workshop* show only the modes you need (each mode can also be hidden on its own). *Simple* turns the scale into a plain kitchen scale for poor eyesight: whole grams in large digits, tap the top half to hear the weight, the bottom half is tare. Leaving *Simple* is only possible in the web app (hold the top half for 5 s to start it). From the web app you can also send a target weight to the scale: *Simple* then shows the target, the remaining amount in large digits and a filling ring, beeps like a parking sensor and announces "120 grams to go". |
+| **Profiles** | *Standard*, *Kitchen* and *Workshop* show only the modes you need (each mode can also be hidden on its own). *Simple* turns the scale into a plain kitchen scale for poor eyesight: whole grams in large digits, tap the top half to hear the weight, the bottom half is tare. Leaving *Simple* is only possible in the web app (hold the top half for 5 s to start it). A second button next to tare starts target weighing: pick 100, 200, 250 or 500 g, then the scale shows the remaining amount in large digits and a filling ring, beeps like a parking sensor and announces "70 grams to go". |
 | **Your colour** | Accent colour to match your printed parts: green (default), white, blue, violet, pink, orange, yellow or red – on the display, the start screen and in the web app. |
 | **Quality tools** | Periodic **check weight** reminder with pass/fail history, gauge capability study (Cg / Cgk, "type 1 study") with CSV export, spirit level from the IMU, long-term CSV logging with trend. |
 
@@ -206,7 +206,7 @@ Board settings in the Arduino IDE:
 
 - **Board:** Waveshare ESP32-S3-Touch-LCD-1.46
 - **PSRAM:** Enabled
-- **Partition scheme:** 16M Flash (3MB APP/9.9MB FATFS). Use *ESP SR 16M* only if you enable voice commands (`USE_VOICE 1`).
+- **Partition scheme:** 16M Flash (3MB APP/9.9MB FATFS). Voice commands work with this scheme. *ESP SR 16M* is only needed for the old ESP-SR variant (`USE_VOICE 1`).
 
 ### 2. LVGL configuration
 
@@ -288,6 +288,7 @@ step-by-step setup (in German) is in [GITHUB.md](GITHUB.md).
 ├── Pruefung/    gauge studies
 ├── Akku/        battery history and discharge tests
 ├── Spiel/       leaderboard
+├── Sprache/     speech model kws_de.bin, Aufnahmen/ = your training recordings
 └── Stimme/      voice packs (one folder each, 16 kHz mono WAV)
 ```
 

@@ -1,0 +1,5 @@
+name=Tequila Sunrise
+portionen=1
+Tequila;45
+Orangensaft;120
+Grenadine;15

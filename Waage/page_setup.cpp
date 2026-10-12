@@ -246,8 +246,11 @@ static void row_value(int cat, int row, char *b, int len) {
       else if (voice_lack_memory()) snprintf(b, len, T("zu wenig RAM"));
       else if (voice_start_stuck()) snprintf(b, len, T("Start hängt"));
       else if (voice_starting()) snprintf(b, len, T("startet …"));
-      else snprintf(b, len, "%s", voice_running() ? T("an") : T("aus"));
+      else if (voice_running()) snprintf(b, len, "%s", T("an"));
+      else if (!voice_model_ok()) snprintf(b, len, "%s", T("kein Modell"));
+      else snprintf(b, len, "%s", T("aus"));
       break;
+    case 27: snprintf(b, len, "%s", T("Aufnahmen ›")); break;
     case 30:
       if (scale_cal_count() > 1) snprintf(b, len, T("%d Punkte ›"), scale_cal_count());
       else snprintf(b, len, T("1 Punkt ›"));
@@ -342,6 +345,10 @@ static void row_cb(lv_event_t *e) {
     }
     case 25:
       if (!voice_available() || voice_starting()) return;
+      if (!g_set.voice_on && !voice_model_ok()) {  // ohne Modell auf der SD-Karte kein Zuhören
+        sound_play(SND_WARN);
+        return;
+      }
       g_set.voice_on = !g_set.voice_on;
       if (g_set.voice_on) voice_begin();  // läuft im Hintergrund an
       else voice_stop();
@@ -351,6 +358,10 @@ static void row_cb(lv_event_t *e) {
     case 32: ui_switch_page(page_msa_create()); return;
     case 33: ui_switch_page(page_level_setup_create()); return;
     case 26: ui_switch_page(page_mic_create()); return;  // Pegel für die Sprachbefehle prüfen
+    case 27:  // Trainingsaufnahmen für das eigene Sprachmodell
+      ui_switch_page(page_voice_rec_create());
+      ui_set_back(page_setup_back);
+      return;
     case 34: ui_switch_page(page_display_create()); return;
     case 37: ui_switch_page(page_color_pick_create()); return;  // Farbschema wählen
     case 38: ui_switch_page(page_profile_pick_create()); return;  // Profil wählen
@@ -389,7 +400,7 @@ static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][10] = {
     { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null", NULL, NULL },
     { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
-    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", NULL, NULL, NULL },
+    { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", "Wörter", NULL, NULL },
     { "Profil", "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware", "Einrichtung" },
   };
   // Kennung jeder Zeile (Kategorie * 10 + Nummer). Die Nummern bleiben fest, auch
@@ -397,7 +408,7 @@ static lv_obj_t *page_cat_create(int cat) {
   static const int8_t IDS[4][10] = {
     { 0, 1, 2, 3, 4, 5, 6, 7, -1, -1 },
     { 10, 11, 12, 14, 15, -1, -1, -1, -1, -1 },  // 13 Weboberfläche: jetzt in der Systemliste; 15 Akku (vorher Systemliste)
-    { 20, 21, 22, 23, 24, 25, 26, -1, -1, -1 },
+    { 20, 21, 22, 23, 24, 25, 26, 27, -1, -1 },
     { 38, 30, 31, 32, 33, 34, 37, 35, 36, 39 },  // 38 Profil, 39 Einrichtung wiederholen
   };
   memset(row_val, 0, sizeof(row_val));

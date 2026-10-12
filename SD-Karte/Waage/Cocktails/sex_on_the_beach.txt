@@ -1,0 +1,6 @@
+name=Sex on the Beach
+portionen=1
+Wodka;40
+Pfirsichlikör;20
+Orangensaft;60
+Cranberrysaft;60

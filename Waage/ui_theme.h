@@ -55,7 +55,7 @@ LV_FONT_DECLARE(font_sg_34);
 
 LV_FONT_DECLARE(font_icons_26);  // Material Symbols, nur die benutzten Zeichen
 LV_FONT_DECLARE(font_icons_80);  // Icons der Rezept-Anweisungen (Material Symbols)
-LV_FONT_DECLARE(font_icons_36);  // nur der Haken (Zielwiegen: "Ziel erreicht")
+LV_FONT_DECLARE(font_icons_36);  // nur Haken und Mikrofon (ICON36_HAKEN, ICON_MIKRO)
 #define ICON36_HAKEN   "\xEE\x97\x8A"  // check (U+E5CA)
 LV_FONT_DECLARE(font_sg_80);  // Ziffern, % und , . - : ? (Gewicht, Uhr)
 LV_FONT_DECLARE(font_sg_104); // dieselben Zeichen, groß für die Wiegeseite

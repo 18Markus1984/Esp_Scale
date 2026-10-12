@@ -53,5 +53,9 @@ bool ui_target_start(int grams);
 void ui_target_stop();
 int ui_target_goal();       // laufendes Zielgewicht in g, 0 = keins
 
+// Sprachbefehle: wie die Tasten auf der Wiegeseite
+void ui_cmd_tara();         // Tara (beim Zielwiegen: nächste Portion)
+void ui_cmd_speak();        // Gewicht bzw. Restmenge ansagen
+
 // Name des aktiven Topfs ("" = keiner), z. B. für die Weboberfläche
 const char *ui_active_pot();

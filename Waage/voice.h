@@ -1,17 +1,50 @@
 #pragma once
 // ============================================================
-//  Spracherkennung (ESP-SR). Siehe Kopf von voice.cpp:
-//  USE_VOICE in config.h und Partitionsschema "ESP SR 16M".
+//  Sprachbefehle
+//
+//  Standard (USE_VOICE 0): eigene Schlüsselwort-Erkennung (kws.*),
+//  Modell von der SD-Karte (/Waage/Sprache/kws_de.bin), Weckwort
+//  "Hallo Waage", danach einige Sekunden lang Befehle wie "Tara",
+//  "Wie viel?", "Zweihundertfünfzig Gramm". Braucht keine eigene
+//  Partition und kein ESP-SR.
+//  Alt (USE_VOICE 1): ESP-SR mit englischen Befehlen, siehe voice.cpp.
 // ============================================================
+#include <stdint.h>
 
-bool voice_available();  // ist ESP-SR einkompiliert? (USE_VOICE in config.h)
-bool voice_begin();      // startet Weckwort-Erkennung (false = nicht verfügbar)
-void voice_stop();       // beendet sie wieder
-bool voice_starting();   // Start läuft gerade (Modelle werden geladen)
+bool voice_available();  // Spracherkennung einkompiliert?
+bool voice_begin();      // startet das Zuhören (Modell laden, Mikrofon)
+void voice_stop();       // beendet es wieder
+bool voice_starting();   // Start läuft gerade (Modell wird geladen)
 bool voice_start_stuck(); // Start dauert ungewöhnlich lange (> 12 s)
-bool voice_lack_memory(); // Start abgelehnt: zu wenig interner Speicher
+bool voice_lack_memory(); // Start abgelehnt: zu wenig Speicher
 bool voice_running();
 bool voice_awake();    // Weckwort erkannt, wartet auf Befehl
 void voice_loop();     // im UI-Takt aufrufen: führt erkannte Befehle aus
 const char *voice_last();      // zuletzt verstandener Befehl ("" = noch keiner)
 unsigned long voice_last_ms(); // wann (hal_millis)
+
+// ---- eigenes Modell ----
+bool voice_model_ok();             // Modell geladen (oder ladbar)
+const char *voice_model_error();   // z. B. "kein Modell auf der SD-Karte"
+const char *voice_model_info();    // Text aus dem Modell (Datum, Beispiele)
+const char *voice_model_path();    // /Waage/Sprache/kws_de.bin bzw. kws_en.bin
+void voice_model_changed();        // neue Modelldatei hochgeladen: beim nächsten Zuhören neu laden
+int voice_live(float *p);          // Mikrofonseite: beste Klasse gerade (Index in voice_word…)
+float voice_level();               // Pegel 0 … 1 (für Anzeigen)
+
+// ---- Wörter aufnehmen (Trainingsdaten für das eigene Modell) ----
+// Liste: feste Befehle + weitere Klassen des geladenen Modells
+int voice_words();
+const char *voice_word_id(int i);    // Ordnername, z. B. "hallo_waage"
+const char *voice_word_text(int i);  // was man sagen soll, z. B. "Hallo Waage"
+int voice_word_count(int i);         // vorhandene Aufnahmen (zählt auf der SD-Karte)
+// Aufnahme starten (nach dem Piepton sprechen). false = Mikrofon/SD fehlt oder beschäftigt
+bool voice_rec_start(int word);
+void voice_rec_session(bool on);     // Aufnahmeseite offen: Mikrofon bereithalten
+// 0 bereit, 1 gleich geht's los, 2 nimmt auf, 3 speichert, 4 gespeichert, -1 Fehler
+int voice_rec_state();
+float voice_rec_progress();          // 0 … 1 während der Aufnahme
+int voice_rec_ms(int word);          // Länge der Aufnahme
+
+// Simulator: Audio direkt hineingeben (statt Mikrofon)
+void voice_sim_feed(const int16_t *pcm, int n);

@@ -1,0 +1,16 @@
+name=Hefezopf
+portionen=1
+Milch;250
+Butter;100
+>mikrowelle;Milch und Butter lauwarm erwärmen;1
+Hefe;21
+>ruehren;Hefe in der warmen Milch auflösen
+Mehl;500
+Zucker;80
+Salz;5
+Eier;55
+>kneten;Alles zu einem glatten Teig kneten;8
+>ruhen;Zugedeckt an einem warmen Ort gehen lassen;60
+>hinweis;In drei Stränge teilen und zum Zopf flechten
+>ruhen;Nochmals gehen lassen;20
+>backen;Bei 180 Grad Umluft goldbraun backen;30

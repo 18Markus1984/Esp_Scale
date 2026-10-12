@@ -30,6 +30,7 @@ lv_obj_t *page_spule_create();                        // Filament-Restmenge
 lv_obj_t *page_msa_create();                          // Messmittelfähigkeit (Verfahren 1)
 lv_obj_t *page_akku_create();                         // Ladestand und Verlauf
 lv_obj_t *page_mic_create();                          // Mikrofon-Pegeltest
+lv_obj_t *page_voice_rec_create();                    // Setup -> Ton -> Wörter: Aufnahmen fürs Sprachmodell
 lv_obj_t *page_cocktail_create();                     // Cocktails in ml mixen
 lv_obj_t *page_trink_create();                        // Trinkspiel (Schluckgröße schätzen)
 lv_obj_t *page_players_create(page_create_fn back);   // Spielernamen (gemeinsam für alle Spiele)

@@ -1,0 +1,12 @@
+name=Pizzateig
+portionen=2
+Wasser;190
+Hefe;4
+>ruehren;Hefe im lauwarmen Wasser auflösen
+Mehl;300
+Salz;7
+Olivenöl;15
+>kneten;Zu einem glatten, elastischen Teig kneten;10
+>ruhen;Abgedeckt gehen lassen, bis er sich verdoppelt;90
+>schneiden;Teig teilen und zu Kugeln formen
+>backen;Dünn ausrollen, belegen, bei Höchsthitze backen;10

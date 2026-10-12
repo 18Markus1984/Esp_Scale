@@ -917,10 +917,39 @@ static void home_update_cb(lv_timer_t *t) {
     lv_obj_set_style_text_color(save_lbl, over ? C_FAINT : C_TEXT, 0);
   }
 
+  // Sprachbefehle in den anderen Profilen: kurze Meldung beim Weckwort
+  {
+    static bool was_awake = false;
+    bool aw = voice_awake();
+    if (aw && !was_awake && !simple) show_toast("Ich höre zu …", C_ACCENT);
+    was_awake = aw;
+  }
+
   // Einfach: Lautsprecher leuchtet, solange angesagt wird; keine Statuszeile
   if (simple) {
     tgt_show(scale_net(), restyled);
-    if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, sound_speaking() ? C_ACCENT : C_MUTED, 0);
+    if (h_simple_spk) lv_obj_set_style_text_color(h_simple_spk, (sound_speaking() || voice_awake()) ? C_ACCENT : C_MUTED, 0);
+    // Sprachbefehle: nach "Hallo Waage" zeigt die Waage, dass sie zuhört
+    static int awake_shown = -1;
+    int aw = voice_awake() ? 1 : 0;
+    if (aw != awake_shown && h_simple_hint && h_simple_goal) {
+      awake_shown = aw;
+      lv_obj_t *lbl = s_tgt > 0 ? h_simple_goal : h_simple_hint;
+      if (aw) {
+        lv_label_set_text(lbl, "Ich höre zu …");
+        lv_obj_set_style_text_color(lbl, C_ACCENT, 0);
+        lv_label_set_text(h_simple_spk, ICON_MIKRO);
+      } else {
+        char gb[32];
+        snprintf(gb, sizeof(gb), T("Ziel %d g"), s_tgt);
+        lv_label_set_text(h_simple_hint, T("Antippen: Gewicht ansagen"));
+        if (s_tgt > 0) lv_label_set_text(h_simple_goal, gb);
+        // beide zurück (das Ziel kann inzwischen begonnen oder geendet haben)
+        lv_obj_set_style_text_color(h_simple_hint, C_MUTED, 0);
+        lv_obj_set_style_text_color(h_simple_goal, C_MUTED, 0);
+        lv_label_set_text(h_simple_spk, ICON_TON);
+      }
+    }
     if (h_simple_bat && s_tgt <= 0) {  // beim Zielwiegen steht oben das Ziel
       bat_state_t bst = hal_battery_state();
       int bat = hal_battery_percent();
@@ -1109,6 +1138,31 @@ static void simple_speak_cb(lv_event_t *e) {
   // Zielwiegen: "noch 120 Gramm" / "20 Gramm zu viel", im Ziel das Gewicht
   if (s_tgt > 0 && !scale_overload() && tgt_state(net) != 1 && sound_speak_rest(s_tgt - net, true)) return;
   sound_speak_weight_now(roundf(net), 0);
+}
+
+// ---------- Sprachbefehle (voice.cpp) ----------
+void ui_cmd_tara() {
+  if (ui_simple() && s_tgt > 0) {  // Zielwiegen: nächste Portion
+    scale_tare();
+    sound_play(SND_TARA);
+    tgt_new_round();
+    return;
+  }
+  tara_cb(NULL);
+}
+
+void ui_cmd_speak() {
+  if (!sound_voice_available() || g_set.volume <= 0) {
+    sound_play(SND_WARN);
+    return;
+  }
+  float net = scale_overload() ? scale_gross() : scale_net();
+  if (ui_simple()) {
+    if (s_tgt > 0 && !scale_overload() && tgt_state(net) != 1 && sound_speak_rest(s_tgt - net, true)) return;
+    sound_speak_weight_now(roundf(net), 0);
+  } else {
+    sound_speak_weight_now(net, g_set.unit);
+  }
 }
 
 // ---------- Zielwiegen mit Parkpiepser (Profil Einfach) ----------

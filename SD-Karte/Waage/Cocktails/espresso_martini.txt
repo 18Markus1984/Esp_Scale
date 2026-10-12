@@ -1,0 +1,6 @@
+name=Espresso Martini
+portionen=1
+Wodka;50
+Kaffeelikör;20
+Espresso;30
+Zuckersirup;10

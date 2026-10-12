@@ -10,10 +10,17 @@
 #include "ui_theme.h"
 #include "mic.h"
 #include "voice.h"
+#include "kws.h"
 #include "config.h"
 #include "hal.h"
 #include <stdio.h>
 #include <math.h>
+
+#if USE_VOICE
+#define WAKE_HINT "Weckwort: „Hi ESP“"
+#else
+#define WAKE_HINT "Weckwort: „Hallo Waage“"
+#endif
 
 static lv_obj_t *m_ring, *m_icon, *m_state, *m_hint, *m_cmd;
 static float m_loud = -90.0f;       // lautester Wert seit dem Öffnen
@@ -34,13 +41,21 @@ static void m_timer_cb(lv_timer_t *t) {
 
   // Läuft die Spracherkennung, gehört das Mikrofon ihr: dann keine Pegelmessung
   if (mic_exclusive() || voice_running() || voice_starting()) {
-    lv_arc_set_value(m_ring, voice_awake() ? 1000 : 120);
+    // Ring folgt dem Pegel der Spracherkennung, voll solange sie zuhört
+    int lv = (int)(voice_level() * 4000.0f);
+    lv_arc_set_value(m_ring, voice_awake() ? 1000 : (lv > 1000 ? 1000 : lv));
     lv_color_t vc = voice_awake() ? C_ACCENT : C_TEXT2;
     lv_obj_set_style_arc_color(m_ring, vc, LV_PART_INDICATOR);
     lv_obj_set_style_text_color(m_icon, vc, 0);
     lv_obj_set_style_text_color(m_state, C_TEXT, 0);
     ui_label_update(m_state, voice_starting() ? "startet …" : (voice_awake() ? "hört zu …" : "wartet"));
-    ui_label_update(m_hint, voice_starting() ? "Sprachmodelle werden geladen" : "Weckwort: „Hi ESP“");
+    // was das Netz gerade am ehesten hört (zur Kontrolle beim Trainieren)
+    float lp;
+    int li = voice_live(&lp);
+    char hb[64];
+    if (!voice_starting() && li >= 0 && lp > 0.3f) snprintf(hb, sizeof(hb), T("hört: %s %d %%"), kws_class(li), (int)(lp * 100));
+    else snprintf(hb, sizeof(hb), "%s", T(voice_starting() ? "Sprachmodell wird geladen" : WAKE_HINT));
+    ui_label_update(m_hint, hb);
     char vb[64];
     if (voice_last()[0] && now - voice_last_ms() < 15000) snprintf(vb, sizeof(vb), "„%s“", voice_last());
     else snprintf(vb, sizeof(vb), T("noch kein Befehl"));
@@ -64,10 +79,10 @@ static void m_timer_cb(lv_timer_t *t) {
     ui_label_update(m_hint, "Befehl sagen");
   } else if (heard) {
     ui_label_update(m_state, "hört etwas");
-    ui_label_update(m_hint, voice_running() ? "Weckwort: „Hi ESP“" : "sprich oder klatsche");
+    ui_label_update(m_hint, voice_running() ? WAKE_HINT : "sprich oder klatsche");
   } else {
     ui_label_update(m_state, m_loud > -50.0f ? "bereit" : "still");
-    ui_label_update(m_hint, voice_running() ? "Weckwort: „Hi ESP“" : "sprich oder klatsche");
+    ui_label_update(m_hint, voice_running() ? WAKE_HINT : "sprich oder klatsche");
   }
 
   // Was zuletzt verstanden wurde

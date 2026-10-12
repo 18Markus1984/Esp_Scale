@@ -1,0 +1,6 @@
+name=Hugo
+portionen=1
+Prosecco;100
+Holundersirup;20
+Soda;50
+Limettensaft;10

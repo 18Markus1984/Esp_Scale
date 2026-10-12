@@ -533,6 +533,11 @@ bool sound_speaking() {
   return s_speaking || (s_speechq && uxQueueMessagesWaiting(s_speechq) > 0);
 }
 
+// Kommt gerade etwas aus dem Lautsprecher? (Spracherkennung hört dann weg)
+bool sound_busy() {
+  return sound_speaking() || s_playing_long || millis() - s_last_ms < 450;
+}
+
 void sound_speak_stop() {
   if (s_speechq) xQueueReset(s_speechq);
   s_abort_speech = true;
@@ -694,7 +699,7 @@ void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stu
 void sound_speak_word(const char *file) { (void)file; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
-bool sound_speaking() { return false; }
+bool sound_speaking() { return false; } bool sound_busy() { return false; }
 void sound_speak_stop() {}
 int sound_voice_packs(char names[][24], int max) {
   static char dirs[64][STORAGE_NAME_LEN];
