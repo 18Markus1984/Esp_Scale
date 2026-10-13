@@ -8,6 +8,12 @@
 #
 #    python3 stimme_erzeugen.py ausgabeordner
 #    python3 stimme_erzeugen.py ausgabeordner --lang en   (englisches Paket)
+#    python3 stimme_erzeugen.py _Zusatz --zusatz          (nur die Ansagen der Sprachsteuerung)
+#    python3 stimme_erzeugen.py _Zusatz --zusatz --piper de-eva_k-x-low.onnx
+#                                       (Piper statt espeak-ng, pip install piper-tts)
+#
+#  Der Ordner /Waage/Stimme/_Zusatz (englisch _Zusatz-EN) springt ein, wenn
+#  dem gewählten Paket ein Satz der Sprachsteuerung fehlt ("Ja?", Hilfe …).
 #
 #  Eigene Stimme? Einfach die Dateien im Ordner ersetzen:
 #  16 kHz, Mono, 16 Bit PCM, Dateinamen wie unten.
@@ -32,6 +38,35 @@ WORDS = {
     "noch": "noch", "zu_viel": "zu viel",
 }
 
+# Ansagen der Sprachsteuerung (auch einzeln: --zusatz). Dateinamen höchstens 13 Zeichen.
+ZUSATZ = {
+    "ja": "Ja?",
+    "nicht_verst": "Nicht verstanden. Sag Hilfe.",
+    "hilfe": "Sag zuerst: Hallo Waage. Oder tippe zweimal oben auf die Waage. Dann zum Beispiel: "
+             "Tara. Wie viel? Speichern. Fünfzig Gramm. Stopp. Akku. Uhrzeit. Lauter. Leiser. Nochmal.",
+    "ziel": "Ziel",
+    "einfuellen": "Jetzt einfüllen.",
+    "ziel_beendet": "Zielwiegen beendet.",
+    "akku": "Akku",
+    "prozent": "Prozent",
+    "laedt": "wird geladen",
+    "uhr": "Uhr",
+}
+ZUSATZ_EN = {
+    "yes": "Yes?",
+    "not_underst": "Not understood. Say help.",
+    "help": "First say: Hallo Waage. Or tap the top of the scale twice. Then for example: "
+            "tare, how much, save, fifty grams, stop, battery, time, louder, quieter, again.",
+    "target": "Target",
+    "fill_now": "Fill in now.",
+    "target_off": "Target weighing stopped.",
+    "battery": "Battery",
+    "percent": "percent",
+    "charging": "charging",
+    "oclock": "o'clock",
+}
+WORDS.update(ZUSATZ)
+
 # Englisch: Dateinamen = englische Wörter (an grams.wav erkennt die Waage die Sprache)
 WORDS_EN = {w: w for w in [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -41,6 +76,7 @@ WORDS_EN = {w: w for w in [
 WORDS_EN.update({"tare": "Tare", "saved": "saved", "goal_reached": "target reached", "overload": "overload",
                  "pot_detected": "pot detected", "done": "done", "scale_empty": "scale empty",
                  "to_go": "to go", "too_much": "too much"})
+WORDS_EN.update(ZUSATZ_EN)
 
 
 def trim(data, threshold=300, lead=400, tail=800):
@@ -74,13 +110,30 @@ def to_16k_mono(data, rate, channels):
     return out.tobytes()
 
 
-def main(out_dir, lang="de"):
+def speak_piper(onnx, text, raw):
+    from piper import PiperVoice, SynthesisConfig
+    if onnx not in _piper:
+        _piper[onnx] = PiperVoice.load(onnx)
+    with wave.open(raw, "wb") as w:  # etwas langsamer: Ansagen für ältere und blinde Nutzer
+        _piper[onnx].synthesize_wav(text, w, syn_config=SynthesisConfig(length_scale=1.1))
+
+
+_piper = {}
+
+
+def main(out_dir, lang="de", zusatz=False, piper=None):
     os.makedirs(out_dir, exist_ok=True)
-    words = WORDS_EN if lang == "en" else WORDS
+    if zusatz:
+        words = ZUSATZ_EN if lang == "en" else ZUSATZ
+    else:
+        words = WORDS_EN if lang == "en" else WORDS
     for name, text in words.items():
         raw = os.path.join(out_dir, "_tmp.wav")
-        subprocess.run(["espeak-ng", "-v", "en" if lang == "en" else "de", "-s", "160", "-p", "35", "-a", "170",
-                        "-w", raw, text], check=True)
+        if piper:
+            speak_piper(piper, text, raw)
+        else:
+            subprocess.run(["espeak-ng", "-v", "en" if lang == "en" else "de", "-s", "160", "-p", "35", "-a", "170",
+                            "-w", raw, text], check=True)
         with wave.open(raw, "rb") as w:
             data = w.readframes(w.getnframes())
             rate, width, channels = w.getframerate(), w.getsampwidth(), w.getnchannels()
@@ -98,7 +151,12 @@ def main(out_dir, lang="de"):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    lang = "en" if "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1:][:1] == ["en"] else "de"
-    args = [a for a in args if a != "en"]
-    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang)
+    argv = sys.argv[1:]
+    piper = None
+    if "--piper" in argv:
+        i = argv.index("--piper")
+        piper = argv[i + 1]
+        del argv[i:i + 2]
+    lang = "en" if "--lang" in argv and argv[argv.index("--lang") + 1:][:1] == ["en"] else "de"
+    args = [a for a in argv if not a.startswith("--") and a != "en"]
+    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang, "--zusatz" in argv, piper)

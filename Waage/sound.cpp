@@ -183,13 +183,26 @@ static void play_note(uint16_t freq, uint16_t ms, cat_t cat) {
 //  WAV-Wiedergabe (16 Bit PCM; andere Abtastraten werden einfach
 //  umgerechnet)
 // ------------------------------------------------------------
+// Pfad eines Bausteins: im gewählten Paket, sonst (extra = true) im
+// gemeinsamen Ordner _Zusatz bzw. _Zusatz-EN. Dort liegen die Ansagen der
+// Sprachsteuerung ("Ja?", "Nicht verstanden", Hilfe …) für Pakete, die
+// diese Sätze (noch) nicht haben.
+static void word_path(char *path, int len, const char *name, bool extra) {
+  if (extra) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.lang == LANG_EN ? "_Zusatz-EN" : "_Zusatz", name);
+  else if (g_set.voice[0]) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.voice, name);
+  else snprintf(path, len, VOICE_DIR "/%s.wav", name);
+}
+
 static bool play_wav(const char *name) {
   char path[96];
   if (!storage_ok()) return false;
-  if (g_set.voice[0]) snprintf(path, sizeof(path), VOICE_DIR "/%s/%s.wav", g_set.voice, name);
-  else snprintf(path, sizeof(path), VOICE_DIR "/%s.wav", name);
+  word_path(path, sizeof(path), name, false);
   storage_lock();
   File f = SD_MMC.open(path, FILE_READ);
+  if (!f) {
+    word_path(path, sizeof(path), name, true);
+    f = SD_MMC.open(path, FILE_READ);
+  }
   uint8_t hdr[44];
   bool good = f && f.read(hdr, 44) == 44 && !memcmp(hdr, "RIFF", 4) && !memcmp(hdr + 8, "WAVE", 4);
   storage_unlock();
@@ -385,7 +398,10 @@ void sound_begin() {
   printf("Sound: Stimme %s\r\n", s_voice ? "gefunden" : "nicht gefunden");
   s_queue = xQueueCreate(1, sizeof(uint8_t));
   s_speechq = xQueueCreate(4, sizeof(msg_t));
-  xTaskCreatePinnedToCore(sound_task, "Sound", 6144, NULL, 2, &s_task, 0);  // liest auch WAVs von der SD
+  // Priorität 4: über der Spracherkennung (3) auf demselben Kern. Sonst
+  // rechnet das Netz mitten in eine Ansage hinein, der I2S-Puffer läuft leer
+  // und die Stimme stottert. Der Task wartet fast nur auf I2S und SD.
+  xTaskCreatePinnedToCore(sound_task, "Sound", 6144, NULL, 4, &s_task, 0);  // liest auch WAVs von der SD
 }
 
 // Prüft, ob das eingestellte Paket (oder die Dateien direkt im Ordner) da sind
@@ -510,8 +526,12 @@ void sound_play_tone(sound_t s) {
   if (s_task) xTaskNotifyGive(s_task);
 }
 
+// Letzte Ansage für "Nochmal" (Rückmeldungen der Sprachsteuerung zählen nicht)
+static msg_t s_last_msg;
+static bool s_have_last = false;
+
 // kind: 0 = Zahlen (Gewicht, Stückzahl), 1 = Sprüche des Stimmpakets
-static void speak(msg_t *m, int kind) {
+static void speak(msg_t *m, int kind, bool remember = true) {
   if (!s_speechq || g_set.volume <= 0 || !sound_voice_available()) return;
   // kind 0 = Gewicht automatisch, 1 = Spruch, 2 = auf Wunsch (immer)
   if (kind == 0 && !g_set.speak) return;
@@ -524,6 +544,10 @@ static void speak(msg_t *m, int kind) {
       memcmp(last.words, m->words, sizeof(m->words[0]) * m->count) == 0) return;
   memcpy(&last, m, sizeof(msg_t));
   last_ms = now;
+  if (remember) {
+    memcpy(&s_last_msg, m, sizeof(msg_t));
+    s_have_last = true;
+  }
   m->type = 1;
   xQueueSend(s_speechq, m, 0);  // voll (4 wartende Ansagen): neue verwerfen
   if (s_task) xTaskNotifyGive(s_task);
@@ -639,6 +663,11 @@ static const char *const WORD_EN[][2] = {
   { "tara", "tare" },          { "gespeichert", "saved" },      { "ziel_erreicht", "goal_reached" },
   { "ueberlast", "overload" }, { "topf_erkannt", "pot_detected" }, { "fertig", "done" },
   { "waage_leer", "scale_empty" }, { "meter", "meters" },
+  // Sprachsteuerung (stimme_erzeugen.py, Ordner _Zusatz / _Zusatz-EN)
+  { "ja", "yes" },             { "nicht_verst", "not_underst" }, { "hilfe", "help" },
+  { "ziel", "target" },        { "einfuellen", "fill_now" },     { "ziel_beendet", "target_off" },
+  { "akku", "battery" },       { "prozent", "percent" },         { "laedt", "charging" },
+  { "uhr", "oclock" },         { "gramm", "grams" },
 };
 
 static const char *word_file(const char *file) {
@@ -646,6 +675,78 @@ static const char *word_file(const char *file) {
     for (unsigned i = 0; i < sizeof(WORD_EN) / sizeof(WORD_EN[0]); i++)
       if (strcmp(file, WORD_EN[i][0]) == 0) return WORD_EN[i][1];
   return file;
+}
+
+// ------------------------------------------------------------
+//  Rückmeldungen der Sprachsteuerung (für blinde Nutzer gedacht:
+//  immer gesprochen, auch wenn die Sprüche aus sind)
+// ------------------------------------------------------------
+static bool have_word(const char *name) {
+  char path[96];
+  word_path(path, sizeof(path), name, false);
+  if (storage_exists(path)) return true;
+  word_path(path, sizeof(path), name, true);
+  return storage_exists(path);
+}
+
+// Alle Wörter einer Nachricht vorhanden? Sonst lieber gar nicht ansagen
+static bool say_msg(msg_t *m, bool now) {
+  if (!sound_voice_available() || g_set.volume <= 0) return false;
+  for (int i = 0; i < m->count; i++)
+    if (!have_word(m->words[i])) return false;
+  if (now) sound_speak_stop();
+  speak(m, 2, false);
+  return true;
+}
+
+bool sound_say(const char *words) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  char buf[96];
+  snprintf(buf, sizeof(buf), "%s", words);
+  for (char *t = strtok(buf, " "); t; t = strtok(NULL, " ")) add_word(&m, word_file(t));
+  return say_msg(&m, true);
+}
+
+bool sound_say_target(int grams) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  add_word(&m, word_file("ziel"));
+  add_number(&m, grams);
+  add_word(&m, word_file("gramm"));
+  add_word(&m, word_file("einfuellen"));
+  return say_msg(&m, true);
+}
+
+bool sound_say_battery(int pct, bool charging) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  add_word(&m, word_file("akku"));
+  add_number(&m, pct < 0 ? 0 : pct);
+  add_word(&m, word_file("prozent"));
+  if (charging) add_word(&m, word_file("laedt"));
+  return say_msg(&m, true);
+}
+
+// "vierzehn Uhr fünf" bzw. "fourteen five", volle Stunde "vierzehn Uhr" / "fourteen o'clock"
+bool sound_say_time(int h, int mi) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  add_number(&m, h);
+  if (g_set.lang != LANG_EN || mi == 0) add_word(&m, word_file("uhr"));
+  if (mi > 0) add_number(&m, mi);
+  return say_msg(&m, true);
+}
+
+bool sound_repeat() {
+  if (!s_have_last) return false;
+  static msg_t m;
+  memcpy(&m, &s_last_msg, sizeof(msg_t));
+  return say_msg(&m, true);
 }
 
 void sound_speak_word(const char *file) {
@@ -697,6 +798,15 @@ bool sound_speak_rest(float rest_g, bool now) {  // Testumgebung
 }
 void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
+static bool sim_say(const char *what) {
+  if (getenv("SPKDBG")) printf("ANSAGE %s\n", what);
+  return true;
+}
+bool sound_say(const char *words) { return sim_say(words); }
+bool sound_say_target(int grams) { char b[48]; snprintf(b, sizeof(b), "ziel %d gramm einfuellen", grams); return sim_say(b); }
+bool sound_say_battery(int pct, bool charging) { char b[48]; snprintf(b, sizeof(b), "akku %d prozent%s", pct, charging ? " laedt" : ""); return sim_say(b); }
+bool sound_say_time(int h, int mi) { char b[48]; snprintf(b, sizeof(b), "%d uhr %d", h, mi); return sim_say(b); }
+bool sound_repeat() { return sim_say("(nochmal)"); }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
 bool sound_speaking() { return false; } bool sound_busy() { return false; }

@@ -284,9 +284,12 @@ int voice_words() { return 0; }
 const char *voice_word_id(int i) { return ""; }
 const char *voice_word_text(int i) { return ""; }
 int voice_word_count(int i) { return 0; }
-bool voice_rec_start(int word) { return false; }
+bool voice_rec_start(int word, bool series) { return false; }
 void voice_rec_session(bool on) {}
 void voice_hold(bool on) {}
+void voice_rec_stop() {}
+bool voice_rec_series() { return false; }
+bool voice_wake() { return false; }
 int voice_rec_state() { return -1; }
 float voice_rec_progress() { return 0; }
 int voice_rec_ms(int word) { return 0; }
@@ -322,6 +325,7 @@ static void ensure_task();
 #define AFTER_WAKE_MS 500  // nach dem Weckwort kurz nichts auswerten (Rest von "Waage")
 #define AFTER_CMD_MS 1200  // nach einem Befehl dasselbe Wort nicht nochmal erkennen
 #define REC_WAIT_MS 350    // nach dem Piepton warten (Ton nicht mitaufnehmen)
+#define AFTER_SOUND_MS 250 // nach eigener Ansage/Ton so lange nicht auswerten (Nachhall)
 #define REC_DIR DIR_SPEECH "/Aufnahmen"
 
 // ---- Wörter: feste Liste (wie Sprachmodell/kws_common.py) ----
@@ -329,25 +333,35 @@ typedef struct {
   const char *id, *text;
   int ms;
 } word_t;
+// Längen großzügig: nach dem Piepton braucht man eine halbe Sekunde, bis
+// man spricht, und ein abgeschnittenes "Hallo Waa…" lehrt das Netz das
+// Falsche. Die Stille vorn und hinten schneidet das Training weg.
 static const word_t WORDS[] = {
-  { "hallo_waage", "Hallo Waage", 1600 },
-  { "tara", "Tara", 1600 },
-  { "wie_viel", "Wie viel?", 1600 },
-  { "speichern", "Speichern", 1600 },
-  { "weiter", "Weiter", 1600 },
-  { "zurueck", "Zurück", 1600 },
-  { "stopp", "Stopp", 1600 },
-  { "ziel_50", "50 Gramm", 1800 },
-  { "ziel_100", "100 Gramm", 1800 },
-  { "ziel_150", "150 Gramm", 1800 },
-  { "ziel_200", "200 Gramm", 1800 },
-  { "ziel_250", "250 Gramm", 1800 },
-  { "ziel_300", "300 Gramm", 1800 },
-  { "ziel_500", "500 Gramm", 1800 },
-  { "ziel_1000", "1000 Gramm", 1800 },
-  { "_unbekannt", "ein anderes Wort", 1600 },
+  { "hallo_waage", "Hallo Waage", 3000 },
+  { "tara", "Tara", 2500 },
+  { "wie_viel", "Wie viel?", 2500 },
+  { "speichern", "Speichern", 2500 },
+  { "weiter", "Weiter", 2500 },
+  { "zurueck", "Zurück", 2500 },
+  { "stopp", "Stopp", 2500 },
+  { "ziel_50", "50 Gramm", 3000 },
+  { "ziel_100", "100 Gramm", 3000 },
+  { "ziel_150", "150 Gramm", 3000 },
+  { "ziel_200", "200 Gramm", 3000 },
+  { "ziel_250", "250 Gramm", 3000 },
+  { "ziel_300", "300 Gramm", 3000 },
+  { "ziel_500", "500 Gramm", 3000 },
+  { "ziel_1000", "1000 Gramm", 3000 },
+  { "hilfe", "Hilfe", 2500 },
+  { "nochmal", "Nochmal", 2500 },
+  { "lauter", "Lauter", 2500 },
+  { "leiser", "Leiser", 2500 },
+  { "akku", "Akku", 2500 },
+  { "uhrzeit", "Uhrzeit", 2500 },
+  { "_unbekannt", "ein anderes Wort", 2500 },
   { "_hintergrund", "Küchengeräusche", 10000 },
 };
+#define SERIES_MS 30000  // Serienaufnahme: dasselbe Wort mehrmals, das Training zerschneidet sie
 #define NWORDS_FIX ((int)(sizeof(WORDS) / sizeof(WORDS[0])))
 #define WORDS_MAX 40
 static char s_extra_id[WORDS_MAX][24], s_extra_text[WORDS_MAX][24];
@@ -357,6 +371,7 @@ static int s_counts[WORDS_MAX + NWORDS_FIX];
 // ---- Zustand ----
 static volatile bool s_want = false;      // Zuhören eingeschaltet
 static volatile bool s_hold = false;      // Online-Update läuft: Mikrofon ruht
+static bool s_snd_busy = false;           // Waage spricht gerade (Erkennung ruht)
 static volatile int s_session = 0;        // offene Aufnahmeseiten (Zähler: neue Seite entsteht vor dem Löschen der alten)
 static volatile bool s_running = false;   // Modell geladen, Mikrofon läuft
 static volatile bool s_starting = false;
@@ -378,6 +393,10 @@ static volatile bool s_reset_req = true;  // Verlauf leeren (beim Einschalten), 
 static uint32_t s_listen_start = 0;       // erst nach 2 s auswerten (gleitender Mittelwert muss einschwingen)
 #define WARMUP_MS 2000
 static volatile bool s_ev_wake = false;
+static volatile bool s_ev_notund = false; // wach, es wurde etwas gesagt, aber kein Befehl erkannt
+static bool s_heard = false;               // seit dem Wecken hat jemand gesprochen
+static uint32_t s_awake_since = 0;
+static int s_unk_idx = -1;
 static char s_last[24] = "";
 static volatile unsigned long s_last_ms = 0;
 static volatile float s_level = 0;
@@ -388,6 +407,7 @@ static volatile float s_live_p = 0;
 static volatile int s_rec_state = 0;
 static int s_rec_word = -1;
 static int16_t *s_rec_buf = NULL;         // 22 Werte Platz für den WAV-Kopf, dann die Aufnahme
+static bool s_rec_series = false;         // Serienaufnahme (30 s, Datei s001.wav …)
 static int s_rec_len = 0, s_rec_pos = 0, s_rec_wait = 0;
 static uint32_t s_rec_done_ms = 0;
 
@@ -458,6 +478,7 @@ static bool load_model() {
   bool ok = kws_load_file(voice_model_path());
   snprintf(s_err, sizeof(s_err), "%s", ok ? "" : kws_error());
   s_wake_idx = ok ? kws_class_index("hallo_waage") : -1;
+  s_unk_idx = ok ? kws_class_index("_unbekannt") : -1;
   rebuild_extra();
   printf("Sprache: %s %s\r\n", voice_model_path(), ok ? kws_info() : kws_error());
   return ok;
@@ -503,7 +524,11 @@ static void decide() {
     return;
   }
   if (s_wake_idx >= 0 && p[s_wake_idx] >= kws_wake_threshold() && !s_dec_active) {
-    if (!s_awake) s_ev_wake = true;
+    if (!s_awake) {
+      s_ev_wake = true;
+      s_heard = false;
+    }
+    s_awake_since = now;
     s_awake = true;
     s_awake_until = now + AWAKE_MS;
     s_mute_until = now + AFTER_WAKE_MS;
@@ -512,8 +537,17 @@ static void decide() {
   if (!s_awake) return;
   if (!s_dec_active && now > s_awake_until) {
     s_awake = false;
+    if (s_heard) s_ev_notund = true;  // etwas gesagt, aber nichts verstanden
+    s_heard = false;
     return;
   }
+  // Spricht jemand? (irgendein Wort oder "anderes Wort" wahrscheinlich)
+  // (das Weckwort selbst zählt nicht, das steht noch kurz im Fenster)
+  float cp = 0;
+  for (int k = 0; k < kws_num_classes(); k++)
+    if (is_cmd(k) && p[k] > cp) cp = p[k];
+  bool wake_gone = now - s_awake_since > 1500;  // Rest von "Waage" ist aus dem Fenster
+  if (cp >= 0.25f || (wake_gone && s_unk_idx >= 0 && p[s_unk_idx] >= 0.6f)) s_heard = true;
   if (!s_dec_active) {
     bool hit = false;
     for (int k = 0; k < kws_num_classes(); k++)
@@ -579,7 +613,7 @@ static void rec_save() {
   storage_mkdir(dir);
   int n = 1;
   do {
-    snprintf(path, sizeof(path), "%s/a%03d.wav", dir, n++);
+    snprintf(path, sizeof(path), "%s/%c%03d.wav", dir, s_rec_series ? 's' : 'a', n++);
   } while (storage_exists(path) && n < 1000);
   uint8_t *h = (uint8_t *)s_rec_buf;
   uint32_t bytes = s_rec_len * 2;
@@ -627,7 +661,17 @@ static void process(const int16_t *pcm, int n) {
     s_rec_pos += k;
     if (s_rec_pos >= s_rec_len) s_rec_state = 3;  // speichern übernimmt der Task bzw. gleich unten
   }
-  // Erkennung
+  // Erkennung. Während die Waage selbst spricht oder piept, wird gar nicht
+  // gerechnet: spart Rechenzeit (die Ansage läuft auf demselben Kern) und
+  // die Waage hört sich nicht selbst. Danach kurz warten (Nachhall).
+  if (sound_busy()) {
+    s_snd_busy = true;
+    return;
+  }
+  if (s_snd_busy) {
+    s_snd_busy = false;
+    if (s_mute_until < s_clock + AFTER_SOUND_MS) s_mute_until = s_clock + AFTER_SOUND_MS;
+  }
   if (s_want && kws_ready()) {
     if (s_reset_req) {
       s_reset_req = false;
@@ -639,10 +683,11 @@ static void process(const int16_t *pcm, int n) {
   }
 }
 
-bool voice_rec_start(int word) {
+bool voice_rec_start(int word, bool series) {
   if (word < 0 || word >= voice_words() || !storage_ok()) return false;
   if (s_rec_state == 1 || s_rec_state == 2 || s_rec_state == 3) return false;
-  int ms = voice_rec_ms(word);
+  int ms = series ? SERIES_MS : voice_rec_ms(word);
+  s_rec_series = series;
   s_rec_len = KWS_RATE / 1000 * ms;
   s_rec_buf = (int16_t *)big_alloc((22 + s_rec_len) * sizeof(int16_t));
   if (!s_rec_buf) return false;
@@ -653,6 +698,40 @@ bool voice_rec_start(int word) {
 #ifdef ARDUINO
   ensure_task();
 #endif
+  return true;
+}
+
+// Serie vorzeitig beenden: das bisher Aufgenommene speichern
+void voice_rec_stop() {
+  if (s_rec_state == 1) {  // noch nicht angefangen: verwerfen
+    s_rec_state = 0;
+    free(s_rec_buf);
+    s_rec_buf = NULL;
+    return;
+  }
+  if (s_rec_state != 2) return;
+  if (s_rec_pos < KWS_RATE) {  // weniger als 1 s: verwerfen
+    s_rec_state = 0;
+    free(s_rec_buf);
+    s_rec_buf = NULL;
+    return;
+  }
+  s_rec_len = s_rec_pos;
+  s_rec_state = 3;
+}
+
+bool voice_rec_series() { return s_rec_series; }
+
+// Wecken ohne Weckwort (Doppeltipp auf das Display)
+bool voice_wake() {
+  if (!s_running || s_session) return false;
+  s_awake = true;
+  s_heard = false;
+  s_dec_active = false;
+  s_awake_until = s_clock + AWAKE_MS;
+  s_awake_since = s_clock - 2000;  // kein Weckwort im Fenster
+  s_mute_until = s_clock + 200;
+  s_ev_wake = true;
   return true;
 }
 
@@ -687,9 +766,16 @@ void voice_loop() {
 #endif
   if (s_ev_wake) {
     s_ev_wake = false;
-    sound_play_tone(SND_TEST);  // kurzer Ton: "ich höre zu"
+    if (!sound_say("ja")) sound_play_tone(SND_TEST);  // "Ja?" (ohne Stimme: kurzer Ton)
   }
-  if (s_awake && s_clock > s_awake_until + 200 && !s_dec_active) s_awake = false;
+  if (s_ev_notund) {
+    s_ev_notund = false;
+    if (!sound_say("nicht_verst")) sound_play(SND_WARN);  // "Nicht verstanden. Sag Hilfe."
+  }
+  if (s_awake && s_clock > s_awake_until + 200 && !s_dec_active) {
+    s_awake = false;
+    s_heard = false;
+  }
   int cmd = s_pending;
   if (cmd < 0) return;
   s_pending = -1;
@@ -697,10 +783,13 @@ void voice_loop() {
   printf("Sprache: Befehl %s\r\n", c);
   if (strcmp(c, "tara") == 0) {
     ui_cmd_tara();
+    if (!g_set.speak_ev) sound_say("tara");  // Bestätigung auch ohne Sprüche
   } else if (strcmp(c, "wie_viel") == 0) {
     ui_cmd_speak();
   } else if (strcmp(c, "speichern") == 0) {
-    sound_play(log_add(scale_net(), T("Sprachbefehl")) ? SND_SAVE : SND_WARN);
+    bool ok = log_add(scale_net(), T("Sprachbefehl"));
+    sound_play(ok ? SND_SAVE : SND_WARN);
+    if (ok && !g_set.speak_ev) sound_say("gespeichert");
   } else if (strcmp(c, "weiter") == 0) {
     static const char *const NEXT_LABELS[] = { "Weiter", "Fertig", "Start", "Tippen", "Los",
                                                "Nächste Runde", "Übernehmen", "Mixen" };
@@ -710,14 +799,29 @@ void voice_loop() {
   } else if (strcmp(c, "stopp") == 0) {
     if (ui_target_goal() > 0) {
       ui_target_stop();
-      sound_play(SND_DONE);
+      if (!sound_say("ziel_beendet")) sound_play(SND_DONE);
     } else {
       sound_parking_reset();
       ui_go_home();
     }
   } else if (strncmp(c, "ziel_", 5) == 0) {
     int g = atoi(c + 5);
-    if (g > 0 && !ui_target_start(g)) sound_play(SND_WARN);
+    if (g > 0 && !ui_target_start(g)) sound_play(SND_WARN);  // sagt "Ziel … Gramm. Jetzt einfüllen."
+  } else if (strcmp(c, "hilfe") == 0) {
+    if (!sound_say("hilfe")) sound_play(SND_WARN);
+  } else if (strcmp(c, "nochmal") == 0) {
+    if (!sound_repeat()) sound_play(SND_WARN);
+  } else if (strcmp(c, "lauter") == 0 || strcmp(c, "leiser") == 0) {
+    int v = g_set.volume + (c[1] == 'a' ? 20 : -20);  // lauter / leiser
+    g_set.volume = v > 100 ? 100 : (v < 20 ? 20 : v);
+    settings_save();
+    sound_play_tone(SND_TEST);  // so laut ist es jetzt
+  } else if (strcmp(c, "akku") == 0) {
+    bat_state_t st = hal_battery_state();
+    if (!sound_say_battery(hal_battery_percent(), st == BAT_CHARGING || st == BAT_FULL)) sound_play(SND_WARN);
+  } else if (strcmp(c, "uhrzeit") == 0) {
+    int h, mi;
+    if (!hal_time(&h, &mi) || !sound_say_time(h, mi)) sound_play(SND_WARN);
   }
   s_awake = false;  // Befehl ausgeführt: wieder schlafen, nächstes Mal mit "Hallo Waage"
 }

@@ -1107,9 +1107,13 @@ static void simple_tara_cb(lv_event_t *e) {
 // rechte Fläche: Ziel wählen bzw. Zielwiegen beenden
 static void simple_right_cb(lv_event_t *e) {
   if (simple_was_swipe()) return;
-  sound_play(SND_CLICK);
-  if (s_tgt > 0) ui_target_stop();
-  else ui_open_page(page_ziel_simple_create());
+  if (s_tgt > 0) {
+    ui_target_stop();
+    if (!sound_say("ziel_beendet")) sound_play(SND_CLICK);
+  } else {
+    sound_play(SND_CLICK);
+    ui_open_page(page_ziel_simple_create());
+  }
 }
 
 // Obere Fläche 5 s gedrückt halten: Weboberfläche starten (QR-Code und Adresse).
@@ -1128,8 +1132,19 @@ static void simple_hold_cb(lv_event_t *e) {
   ui_open_page(page_web_quick_create());
 }
 
+#define DOUBLE_TAP_MS 450
 static void simple_speak_cb(lv_event_t *e) {
   if (simple_was_swipe()) return;
+  // Doppeltipp: wie "Hallo Waage" (die Waage hört zu, "Ja?")
+  static uint32_t last_tap = 0;
+  uint32_t now = hal_millis();
+  bool dbl = last_tap && now - last_tap < DOUBLE_TAP_MS;
+  last_tap = dbl ? 0 : now;
+  if (dbl && voice_running()) {
+    sound_speak_stop();
+    voice_wake();
+    return;
+  }
   if (!sound_voice_available() || g_set.volume <= 0) {
     sound_play(SND_WARN);
     show_toast(g_set.volume <= 0 ? "Ton ist aus" : "Keine Stimme auf der SD-Karte", C_WARN);
@@ -1213,7 +1228,8 @@ bool ui_target_start(int grams) {
   sp_done = false;  // gleich die Restmenge ansagen
   sp_stable_since = 0;
   s_tgt_shown = -1;
-  sound_play(SND_CLICK);
+  // für blinde Nutzer: "Ziel 250 Gramm. Jetzt einfüllen." (ohne Stimme nur ein Klick)
+  if (!sound_say_target(grams)) sound_play(SND_CLICK);
   return true;
 }
 

@@ -19,7 +19,7 @@
 #include <stdio.h>
 
 static int r_word = 0;
-static lv_obj_t *r_ring, *r_count, *r_word_lbl, *r_state, *r_btn, *r_ic, *r_level;
+static lv_obj_t *r_ring, *r_count, *r_word_lbl, *r_state, *r_btn, *r_ic, *r_level, *r_stop, *r_series;
 static int r_prev_state = -9;
 
 static lv_obj_t *page_voice_words_create();
@@ -47,12 +47,13 @@ static void r_timer_cb(lv_timer_t *t) {
   if (lv_arc_get_value(r_ring) != v) lv_arc_set_value(r_ring, v);
   if (st == r_prev_state) return;
   r_prev_state = st;
-  bool bg = voice_rec_ms(r_word) > 3000;
+  bool bg = voice_rec_ms(r_word) > 3000 + 500;
+  bool series = voice_rec_series() && st >= 1 && st <= 3;
   const char *txt = bg ? "Tippen, dann 10 s nichts sagen" : "Tippen, nach dem Ton sprechen";
   lv_color_t c = C_MUTED;
   if (st == 1) txt = "gleich …";
   else if (st == 2) {
-    txt = bg ? "Aufnahme läuft …" : "Jetzt sprechen";
+    txt = bg ? "Aufnahme läuft …" : (series ? "Wort mehrmals sagen, mit Pausen" : "Jetzt sprechen");
     c = C_ACCENT;
   } else if (st == 3) txt = "speichert …";
   else if (st == 4) {
@@ -66,14 +67,39 @@ static void r_timer_cb(lv_timer_t *t) {
   ui_label_update(r_state, txt);
   lv_obj_set_style_text_color(r_state, c, 0);
   bool busy = st >= 1 && st <= 3;
-  if (busy) lv_obj_add_state(r_btn, LV_STATE_DISABLED);
+  bool can_stop = series && st == 2;  // Serie: Knopf beendet sie vorzeitig
+  if (busy && !can_stop) lv_obj_add_state(r_btn, LV_STATE_DISABLED);
   else lv_obj_clear_state(r_btn, LV_STATE_DISABLED);
   // während der Aufnahme: Knopf und Mikrofon grau (Ring und "Jetzt sprechen" zeigen die Aufnahme)
   lv_obj_set_style_text_color(r_ic, busy ? C_MUTED : C_ON_PRIMARY, 0);
+  if (can_stop) {
+    lv_obj_add_flag(r_ic, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(r_stop, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_clear_flag(r_ic, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(r_stop, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (busy || bg) lv_obj_add_flag(r_series, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_clear_flag(r_series, LV_OBJ_FLAG_HIDDEN);
   if (st == 0) lv_arc_set_value(r_ring, 0);
 }
 
+static void r_start(bool series);
+
 static void r_rec_cb(lv_event_t *e) {
+  if (voice_rec_series() && voice_rec_state() == 2) {  // Serie vorzeitig beenden
+    sound_play(SND_CLICK);
+    voice_rec_stop();
+    return;
+  }
+  r_start(false);
+}
+
+static void r_series_cb(lv_event_t *e) {
+  r_start(true);
+}
+
+static void r_start(bool series) {
   if (voice_rec_state() >= 1 && voice_rec_state() <= 3) return;
   if (!storage_ok()) {
     sound_play(SND_WARN);
@@ -82,7 +108,7 @@ static void r_rec_cb(lv_event_t *e) {
     return;
   }
   sound_play_tone(SND_PARK);  // Piepton, die Aufnahme beginnt kurz danach
-  if (!voice_rec_start(r_word)) sound_play(SND_WARN);
+  if (!voice_rec_start(r_word, series)) sound_play(SND_WARN);
 }
 
 static void session_del_cb(lv_event_t *e) {
@@ -121,6 +147,14 @@ static lv_obj_t *page_voice_rec_word() {
   lv_obj_align(r_btn, LV_ALIGN_CENTER, 0, 30);
   r_ic = ui_label(r_btn, ICON_MIKRO, &font_icons_36, C_ON_PRIMARY);
   lv_obj_center(r_ic);
+  // Stopp-Zeichen (Quadrat) während einer Serie
+  r_stop = ui_box(r_btn);
+  lv_obj_set_size(r_stop, 30, 30);
+  lv_obj_set_style_radius(r_stop, 5, 0);
+  lv_obj_set_style_bg_opa(r_stop, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(r_stop, C_ON_PRIMARY, 0);
+  lv_obj_center(r_stop);
+  lv_obj_add_flag(r_stop, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_event_cb(r_btn, r_rec_cb, LV_EVENT_CLICKED, NULL);
 
   r_state = ui_label(s, "", &font_sg_18, C_MUTED);
@@ -140,6 +174,14 @@ static lv_obj_t *page_voice_rec_word() {
   lv_obj_set_style_bg_color(r_level, C_TEXT2, 0);
   lv_obj_align(r_level, LV_ALIGN_LEFT_MID, 0, 0);
 
+
+  // Serienaufnahme: 30 s am Stück, das Wort mehrmals sagen (spart viel Tippen)
+  r_series = ui_btn(s, "Serie 30 s", BTN_NORMAL);
+  lv_obj_set_size(r_series, 132, 40);
+  lv_obj_set_ext_click_area(r_series, 4);
+  lv_obj_set_style_text_font(lv_obj_get_child(r_series, 0), &font_sg_18, 0);
+  lv_obj_align(r_series, LV_ALIGN_CENTER, 0, 155);
+  lv_obj_add_event_cb(r_series, r_series_cb, LV_EVENT_CLICKED, NULL);
 
   r_prev_state = -9;
   r_show_count();

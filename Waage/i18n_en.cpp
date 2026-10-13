@@ -877,6 +877,12 @@ const i18n_pair_t I18N_EN[] = {
   { "Automatisch", "Automatic" },
   { "Nur nachfragen", "Ask first" },
   { "Sucht erst, wenn WLAN eingerichtet ist", "Checks once Wi-Fi is set up" },
+  // ---- Sprachsteuerung: neue Wörter, Serienaufnahme ----
+  { "Hilfe", "Help" },
+  { "Lauter", "Louder" },
+  { "Leiser", "Quieter" },
+  { "Serie 30 s", "Series 30 s" },
+  { "Wort mehrmals sagen, mit Pausen", "Say the word several times, with pauses" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

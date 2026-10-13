@@ -20,6 +20,7 @@ bool voice_start_stuck(); // Start dauert ungewöhnlich lange (> 12 s)
 bool voice_lack_memory(); // Start abgelehnt: zu wenig Speicher
 bool voice_running();
 bool voice_awake();    // Weckwort erkannt, wartet auf Befehl
+bool voice_wake();     // wie "Hallo Waage" (Doppeltipp); false = Erkennung läuft nicht
 void voice_loop();     // im UI-Takt aufrufen: führt erkannte Befehle aus
 const char *voice_last();      // zuletzt verstandener Befehl ("" = noch keiner)
 unsigned long voice_last_ms(); // wann (hal_millis)
@@ -40,7 +41,10 @@ const char *voice_word_id(int i);    // Ordnername, z. B. "hallo_waage"
 const char *voice_word_text(int i);  // was man sagen soll, z. B. "Hallo Waage"
 int voice_word_count(int i);         // vorhandene Aufnahmen (zählt auf der SD-Karte)
 // Aufnahme starten (nach dem Piepton sprechen). false = Mikrofon/SD fehlt oder beschäftigt
-bool voice_rec_start(int word);
+// series: 30 s am Stück, das Wort mehrmals mit Pausen sagen (Datei s001.wav …)
+bool voice_rec_start(int word, bool series = false);
+void voice_rec_stop();               // Serie vorzeitig beenden und speichern
+bool voice_rec_series();             // läuft/lief gerade eine Serie?
 void voice_rec_session(bool on);     // Aufnahmeseite offen: Mikrofon bereithalten
 // 0 bereit, 1 gleich geht's los, 2 nimmt auf, 3 speichert, 4 gespeichert, -1 Fehler
 int voice_rec_state();

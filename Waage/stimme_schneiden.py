@@ -11,6 +11,9 @@
 #    python3 stimme_schneiden.py teil1.mp3 teil2.mp3 Rick-EN --lang en  (mehrere Aufnahmen der Reihe nach)
 #    python3 stimme_schneiden.py --liste x x --lang en              (Wortliste zum Vorlesen)
 #    python3 stimme_schneiden.py nachtrag.mp3 Jarvis --nachtrag      (nur "noch", "zu viel" ergänzen)
+#    python3 stimme_schneiden.py ansagen/ Jarvis --ansagen --ordner  (Sätze der Sprachsteuerung:
+#        "Ja?", "Nicht verstanden …", Hilfe … je eine Datei, Reihenfolge: --liste x x --ansagen)
+#    Fehlen sie, nimmt die Waage diese Sätze aus /Waage/Stimme/_Zusatz.
 #
 #  Ergebnis: Ordner "Jarvis" mit 50 Dateien -> auf die SD-Karte nach
 #  /Waage/Stimme/Jarvis/
@@ -146,6 +149,8 @@ def main():
     p.add_argument("--lang", choices=["de", "en"], default="de", help="Sprache des Pakets (Standard: de)")
     p.add_argument("--nachtrag", action="store_true",
                    help="nur die neuen Wörter (noch, zu viel) aufnehmen und zu einem bestehenden Paket hinzufügen")
+    p.add_argument("--ansagen", action="store_true",
+                   help="Sätze der Sprachsteuerung (Ja?, Hilfe …); mehrteilige Sätze besser mit --ordner")
     args = p.parse_args()
     if len(args.dateien) < 2:
         p.error("mindestens eine Aufnahme und der Paketname")
@@ -156,6 +161,11 @@ def main():
         ORDER, TEXTS = ORDER_EN, TEXTS_EN
     if args.nachtrag:  # bestehendes Paket ergänzen: nur die neuen Wörter
         ORDER, TEXTS = ORDER[-NEU:], TEXTS[-NEU:]
+    if args.ansagen:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import stimme_erzeugen as E
+        z = E.ZUSATZ_EN if args.lang == "en" else E.ZUSATZ
+        ORDER, TEXTS = list(z), list(z.values())
 
     if args.liste:
         print("\n".join(TEXTS))

@@ -415,8 +415,9 @@ den I2S-Empfang selbst neu.
 (Weboberfläche: Einstellungen -> Ton). Die Erkennung läuft komplett auf der Waage mit einem kleinen
 eigenen Netz (`kws.cpp`), ohne Internet und ohne ESP-SR, mit dem normalen Partitionsschema. Das Modell
 ist eine Datei auf der SD-Karte, `/Waage/Sprache/kws_de.bin`; fehlt sie, steht in der Zeile
-„kein Modell“. Ablauf: „Hallo Waage“ sagen, die Waage piept und zeigt „Ich höre zu …“, dann innerhalb
-von 6 s einen Befehl:
+„kein Modell“. Ablauf: „Hallo Waage“ sagen (im Profil Einfach geht auch: oben zweimal tippen), die Waage
+sagt „Ja?“ und zeigt „Ich höre zu …“, dann innerhalb von 6 s einen Befehl. Wird nichts erkannt, sagt sie
+„Nicht verstanden. Sag Hilfe.“:
 
 | Sagen | Wirkung |
 |---|---|
@@ -426,7 +427,11 @@ von 6 s einen Befehl:
 | „Weiter“ | Weiter-Knopf der Seite (Rezept, Cocktail, Spiele) |
 | „Zurück“ | zur Wiegeseite |
 | „Stopp“ | Zielwiegen bzw. Modus beenden |
-| „50, 100, 150, 200, 250, 300, 500 Gramm“, „ein Kilo“ | Zielwiegen mit Parkpiepser |
+| „50, 100, 150, 200, 250, 300, 500 Gramm“, „ein Kilo“ | Zielwiegen mit Parkpiepser („Ziel 250 Gramm. Jetzt einfüllen.“) |
+| „Hilfe“ | liest die Befehle vor |
+| „Nochmal“ | letzte Ansage wiederholen |
+| „Lauter“ / „Leiser“ | Lautstärke ändern |
+| „Akku“ / „Uhrzeit“ | Akkustand bzw. Uhrzeit ansagen |
 
 Während die Waage selbst spricht oder piept, hört sie weg. Unter **Setup -> Ton -> Wörter** nimmst du
 mit dem Mikrofon der Waage Beispiele auf (Wort wählen, runden Knopf tippen, nach dem Piepton sprechen).

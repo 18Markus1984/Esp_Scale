@@ -633,6 +633,40 @@ Python `zipfile` und `unzip -t` fehlerfrei; Mock liefert für /zip Testdaten.
   „Letzter Neustart: Absturz“ mit Phase. Die Action legt `Waage.ino.elf` ins Release
   (addr2line, siehe GITHUB.md). Simulator: `CRASH=1`, Mock: `CRASH=1`.
 
+**Etappe 6: Sprachsteuerung für blinde Nutzer (13.10.2026, nach erstem Test am Gerät):** Rückmeldung
+von Markus: Weckwort 1 von 7, „50 Gramm“ 2 von 3, Aufnahmen zu kurz, Sprachausgabe ruckelt.
+- **Ruckeln der Ansage:** Sound-Task lief auf Kern 0 mit Priorität 2, die Spracherkennung (KWS, 50–70 ms
+  je Auswertung) mit 3 → I2S-Puffer lief leer. Sound-Task jetzt Priorität 4; während `sound_busy()`
+  wird das Netz gar nicht gefüttert (`process()` in voice.cpp), danach `AFTER_SOUND_MS` 250 ms Pause.
+- **Rückmeldungen** (`sound_say*` in sound.cpp, immer gesprochen, unterbrechen laufende Ansagen):
+  „Ja?“ nach dem Weckwort (ohne Stimme: Ton), „Nicht verstanden. Sag Hilfe.“ (wach, es wurde etwas
+  gesagt – Befehlsklasse ≥ 0,25 oder `_unbekannt` ≥ 0,6 nach 1,5 s –, aber kein Befehl), „Ziel 250 Gramm.
+  Jetzt einfüllen.“ (`ui_target_start`, auch beim Start über die Kacheln), „Zielwiegen beendet.“ (Stopp,
+  ENDE), Tara/Gespeichert auch ohne Sprüche. Fehlt ein Satz im Paket, kommt er aus
+  `/Waage/Stimme/_Zusatz` (Piper de-eva_k-x-low) bzw. `_Zusatz-EN` (espeak-ng); diese Ordner haben kein
+  gramm.wav und erscheinen nicht in der Paketauswahl. Roboter/Roboter-EN haben die Sätze selbst.
+  Erzeugen: `stimme_erzeugen.py _Zusatz --zusatz --piper de-eva_k-x-low.onnx`; eigene Pakete:
+  `stimme_schneiden.py ansagen/ <Paket> --ansagen --ordner`.
+- **Neue Befehle** (Klassen in kws_common.py, WORDS in voice.cpp): `hilfe`, `nochmal` (`sound_repeat`,
+  letzte Gewichts-/Restansage; Rückmeldungen zählen nicht), `lauter`/`leiser` (±20, 20…100 %, Ton),
+  `akku`, `uhrzeit`; „Null“ = Tara, „Abbrechen“ = Stopp. „Wie spät ist es“ aus OTHER_DE entfernt.
+  Modell v7 (`kws_de.bin`, 22 Klassen). Neu im Training: Befehle zu 40 % mit dem Weckwort davor
+  (`prefix` in `make_example`, Abstand 0,15–0,8 s), `_unbekannt` zu 20 % – vorher (v6) scheiterten kurze
+  Befehle direkt nach dem Weckwort, weil dessen Rest noch im Fenster stand. Prüfsatz (Stimme ramona,
+  60 Dateien „Hallo Waage“ + Befehl, /home/claude/kws/eval_suite.sh): v7 40/60, alte Befehle 32/42
+  (v5: 31/42), neue 8/18, Weckwort verpasst 2/60 (v5: 4). v8 (neue kurze Wörter doppelt gewichtet,
+  50 Epochen) war schlechter (37/60, Weckwort 8× verpasst) und wurde verworfen. Schwach bleiben
+  „Akku“, „Hilfe“, „Stopp“; eigene Aufnahmen helfen hier am meisten.
+- **Doppeltipp** oben auf der Einfach-Startseite (< 450 ms) = Weckwort (`voice_wake()`).
+- **Aufnahmen** 2,5 s (Weckwort, Zielmengen 3 s) statt 1,6/1,8 s; **Serie 30 s** (`voice_rec_start(w, true)`,
+  Datei `s001.wav`, Knopf beendet vorzeitig, `voice_rec_stop`). Training (`kws_train.py`):
+  `find_rec_dir` findet doppelt verschachtelte Ordner, Übersicht je Wort, Serien werden per Energie in
+  Wörter zerschnitten (`split_utterances`), abgeschnittene Aufnahmen (Sprache bis zum Ende) zählen
+  halb, Tipps bei fehlendem `_unbekannt`/`_hintergrund`. `kws_daten.py --nur <klassen>` / `--andere`
+  ergänzt nur, Piper-Warnungen „Missing phoneme“ ausgeblendet.
+- Simulator `KWSTEST=1`: zusätzlich akku, uhrzeit, hilfe, lauter, nochmal, „nicht verstanden“,
+  Doppeltipp + Tara, Serienaufnahme. Testsätze: /home/claude/kws/mk_test.py (Prüfstimme ramona).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

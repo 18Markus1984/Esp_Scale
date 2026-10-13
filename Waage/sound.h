@@ -67,6 +67,17 @@ bool sound_speaking();                             // Ansage läuft oder wartet
 bool sound_busy();                                 // Ton oder Ansage läuft (Spracherkennung pausiert)
 void sound_speak_stop();                           // laufende und wartende Ansagen abbrechen
 
+// ---- Rückmeldungen der Sprachsteuerung ----
+// Werden immer gesprochen (auch wenn die Sprüche aus sind) und unterbrechen
+// eine laufende Ansage. false = keine Stimme oder ein Wort fehlt (dann lieber
+// ein Ton). Fehlt ein Wort im gewählten Paket, nimmt die Waage es aus
+// /Waage/Stimme/_Zusatz (englisch _Zusatz-EN).
+bool sound_say(const char *words);                 // "ja", "nicht_verst", "hilfe", "ziel_beendet" (mit Leerzeichen mehrere)
+bool sound_say_target(int grams);                  // "Ziel 250 Gramm. Jetzt einfüllen."
+bool sound_say_battery(int pct, bool charging);    // "Akku 60 Prozent (wird geladen)"
+bool sound_say_time(int h, int mi);                // "vierzehn Uhr fünf"
+bool sound_repeat();                               // letzte Ansage (Gewicht, Restmenge …) nochmal
+
 // Ansage-Modus: Zahlen = Gewicht/Stückzahl vorlesen (g_set.speak),
 // Sprüche = Ereignisse des Stimmpakets wie "tara", "Überlast" (g_set.speak_ev)
 #define SPEAK_ALL     0
