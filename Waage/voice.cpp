@@ -366,7 +366,16 @@ static const word_t WORDS[] = {
 #define WORDS_MAX 40
 static char s_extra_id[WORDS_MAX][24], s_extra_text[WORDS_MAX][24];
 static int s_nextra = 0;
+// Anzahl Aufnahmen je Wort (-1 = noch nicht gezählt). Erst beim ersten Zugriff
+// auf -1 setzen: ein statisches Feld steht beim Start auf 0, und ohne geladenes
+// Modell (Sprachbefehle aus) blieb es dabei – die Liste zeigte nach jedem
+// Neustart "0 Aufnahmen", obwohl die Dateien da waren.
 static int s_counts[WORDS_MAX + NWORDS_FIX];
+static bool s_counts_ok = false;
+static void counts_reset() {
+  for (int i = 0; i < WORDS_MAX + NWORDS_FIX; i++) s_counts[i] = -1;
+  s_counts_ok = true;
+}
 
 // ---- Zustand ----
 static volatile bool s_want = false;      // Zuhören eingeschaltet
@@ -439,7 +448,7 @@ static void rebuild_extra() {
     else snprintf(s_extra_text[s_nextra], sizeof(s_extra_text[0]), "%s", c);
     s_nextra++;
   }
-  for (int i = 0; i < WORDS_MAX + NWORDS_FIX; i++) s_counts[i] = -1;
+  counts_reset();
 }
 
 int voice_words() { return NWORDS_FIX + s_nextra; }
@@ -457,7 +466,9 @@ int voice_rec_ms(int i) { return (i >= 0 && i < NWORDS_FIX) ? WORDS[i].ms : 1600
 
 int voice_word_count(int i) {
   if (i < 0 || i >= voice_words()) return 0;
+  if (!s_counts_ok) counts_reset();
   if (s_counts[i] >= 0) return s_counts[i];
+  if (!storage_ok()) return 0;  // Karte (noch) nicht da: nicht als 0 merken
   // Namensliste nur kurz vom Heap (statisch wären es 10 KB im knappen internen RAM)
   char(*names)[STORAGE_NAME_LEN] = (char(*)[STORAGE_NAME_LEN])big_alloc(300 * STORAGE_NAME_LEN);
   if (!names) return 0;
@@ -632,7 +643,7 @@ static void rec_save() {
   bool ok = storage_write_bin(path, s_rec_buf, 44 + bytes);
   free(s_rec_buf);
   s_rec_buf = NULL;
-  if (ok && s_counts[s_rec_word] >= 0) s_counts[s_rec_word]++;
+  if (ok && s_counts_ok && s_counts[s_rec_word] >= 0) s_counts[s_rec_word]++;
   printf("Sprache: Aufnahme %s %s\r\n", path, ok ? "gespeichert" : "fehlgeschlagen");
   s_rec_state = ok ? 4 : -1;
   s_rec_done_ms = hal_millis();

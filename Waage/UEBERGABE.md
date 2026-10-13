@@ -667,6 +667,11 @@ von Markus: Weckwort 1 von 7, „50 Gramm“ 2 von 3, Aufnahmen zu kurz, Spracha
 - Simulator `KWSTEST=1`: zusätzlich akku, uhrzeit, hilfe, lauter, nochmal, „nicht verstanden“,
   Doppeltipp + Tara, Serienaufnahme. Testsätze: /home/claude/kws/mk_test.py (Prüfstimme ramona).
 
+**Nachtrag 13.10.2026:** Aufnahmezahlen nach dem Neustart standen auf 0, solange kein Modell geladen war
+(`s_counts` war statisch 0 und wurde nur in `rebuild_extra()` auf -1 gesetzt) – jetzt `counts_reset()` beim
+ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Training:
+`--ohne-abgeschnittene`, Liste `abgeschnitten.txt`.
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner
