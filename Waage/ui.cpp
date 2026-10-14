@@ -788,6 +788,7 @@ static void home_update_cb(lv_timer_t *t) {
   batt_loop();
   tools_tick();  // Küchentimer, Langzeitmessung
   upd_loop();    // Online-Update: Ton, WLAN freigeben, Neustart
+  crash_tick();  // Lebenszeichen für den Absturzbericht
 
   // Uhrzeit regelmäßig im Flash sichern, falls die RTC beim Ausschalten
   // stromlos ist; beim Start wird sie daraus wiederhergestellt

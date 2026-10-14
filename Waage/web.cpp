@@ -1042,7 +1042,7 @@ static void h_ota() {
              ",\"repo\":\"" + esc(upd_repo()) + "\",\"state\":\"" + ST[upd_state()] + "\",\"latest\":\"" +
              esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) +
              "\",\"crash\":\"" + esc(crash_reason()) + "\",\"crash_at\":\"" + esc(crash_where()) +
-             "\",\"crash_pct\":" + crash_pct() + "}";
+             "\",\"crash_pct\":" + crash_pct() + ",\"crash_time\":\"" + esc(crash_when()) + "\"}";
   send_json(s);
 }
 
@@ -1331,6 +1331,7 @@ void web_stop() {
   MDNS.end();
   WiFi.softAPdisconnect(true);
   if (!upd_wants_wifi()) {  // ein laufendes oder anstehendes Online-Update behält seine Verbindung
+    net_sntp_stop();
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
   }

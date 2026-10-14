@@ -321,6 +321,9 @@ static void start(bool install) {
   }
   s_install = install;
   s_error = "";
+  // Zeitabgleich beenden: seine DNS-Anfragen kamen den Update-Anfragen in die
+  // Quere (Absturz "udp_new_ip_type", siehe net.cpp)
+  net_sntp_stop();
   // Spracherkennung ruht: Mikrofon und Netz brauchen Rechenzeit auf Kern 0
   // (dort laufen auch WLAN und TLS), wieder an in upd_loop
   voice_hold(true);

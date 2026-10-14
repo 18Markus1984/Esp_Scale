@@ -672,6 +672,32 @@ von Markus: Weckwort 1 von 7, „50 Gramm“ 2 von 3, Aufnahmen zu kurz, Spracha
 ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Training:
 `--ohne-abgeschnittene`, Liste `abgeschnitten.txt`.
 
+**Absturzbericht überarbeitet (14.10.2026)** nach Markus' `/Waage/Absturz.txt` (1.1.17/1.1.18):
+- Auswertung (addr2line, Bibliotheksadressen stimmen mit dem lokalen Build überein): Zeilen 1–5
+  „assert failed: udp_new_ip_type“ im Task `update` bei der Update-Suche, Rücksprung
+  `udp_new ← dns_enqueue/dns_alloc_random_port ← dns_gethostbyname ← sntp_send_request ←
+  sntp_try_next_server`. SNTP (von `configTzTime`) lief dauerhaft weiter und fragte mitten in der
+  DNS-Anfrage des Updates erneut, die lwIP-Sperrprüfung schlug an. **Abhilfe:** `net_sntp_stop()`
+  (net.cpp, unter `LOCK_TCPIP_CORE`): nach erfolgreichem Abgleich oder Zeitüberschreitung, vor
+  `wifi_off`, in `web_stop` und am Anfang jedes Online-Updates (`start()` in update_online.cpp).
+- Zeilen 6–9 (1.1.18, ohne Tätigkeit): Ausnahme im Task-Wechsel (`vTaskSwitchContext` /
+  `prvSelectHighestPriorityTaskSMP`), einmal Task Driver mit LoadProhibited, zweimal IDLE0 mit Ursache 65
+  (Sonderfall, im Panik-Handler), einmal ganz zerstört. Das spricht für eine zerstörte Task-Liste
+  (Stapelüberlauf oder Speicher überschrieben); Ursache noch offen. Gefunden und behoben: Wettlauf in
+  `voice_rec_stop()` (UI-Task kürzte `s_rec_len`, während der Audio-Task schrieb → möglich negatives
+  `memcpy`; jetzt kürzt nur die Länge, der Audio-Task prüft `k > 0` und setzt die Länge passend).
+- **Neues Format** `/Waage/Absturz.txt` (Spalten mit `;`, erste Zeile Überschrift): Zeitpunkt; Version;
+  Laufzeit; Neustartgrund; Tätigkeit; Task; Fehler (Ursache übersetzt, bei 28/29 mit Adresse, bei
+  assert „Abbruch“); Meldung (bis 200 Zeichen, vorher 64 und abgeschnitten); Rücksprungadressen (bis 12);
+  Speicher intern frei/kleinster Stand/größter Block; Stapel frei der 6 knappsten Tasks.
+  **Zeitpunkt** kommt aus einem Lebenszeichen (`crash_tick()` im UI-Takt, RTC_NOINIT `s_hb`): jede Sekunde
+  Uhrzeit, Laufzeit und Speicher, alle 10 s die Stapelreserve aller Tasks (`uxTaskGetSystemState`).
+  Vorher stand „?“, weil `crash_begin()` vor dem ersten RTC-Lesen lief. Fehlt das Lebenszeichen, wird
+  die Uhrzeit beim Neustart mit „(Neustart)“ eingetragen; geschrieben wird erst, wenn Uhrzeit und SD
+  da sind (spätestens nach 15 s). Alte Datei ohne Überschrift wird zu `Absturz_alt.txt`.
+  Web: Firmware-Karte zeigt Tätigkeit, Zeitpunkt (`crash_time`) und den Pfad. Host-Test des Formats:
+  scratchpad `ct/` (Fake-Header für ESP-IDF).
+
 ## 6. Offene Punkte
 
 1. **Miau-Modus.** Markus erzeugt die Sounds selbst. Geplant: Ordner

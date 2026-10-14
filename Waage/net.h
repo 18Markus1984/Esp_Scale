@@ -40,6 +40,7 @@ void        net_store(const char *ssid, const char *pass);  // nur speichern, Ve
 // keep_ap = eigenes WLAN der Waage dabei weiterlaufen lassen
 void        net_connect_start(bool keep_ap);
 bool        net_connect_busy();
+void        net_sntp_stop();     // Zeitabgleich beenden (vor Update und WLAN aus, siehe net.cpp)
 void        net_wifi_release();  // WLAN aus, wenn niemand es mehr braucht (Uhrzeit, Weboberfläche)     // sucht oder probiert gerade
 uint32_t net_last_sync_ms();      // 0 = noch nie
 

@@ -8,6 +8,8 @@
 #include <Preferences.h>
 #include <time.h>
 #include <string.h>
+#include <esp_sntp.h>
+#include <lwip/tcpip.h>
 
 // Zeitzone Deutschland inkl. Sommerzeit
 #define TZ_DE "CET-1CEST,M3.5.0,M10.5.0/3"
@@ -179,10 +181,39 @@ static void connect_tick() {
   }
 }
 
+// ------------------------------------------------------------
+//  Zeitabgleich (SNTP) nur einmal laufen lassen
+//  configTzTime() startet SNTP dauerhaft: es fragt alle paar Stunden neu
+//  und versucht bei Fehlern den nächsten Server, mit eigener DNS-Anfrage.
+//  Absturzbericht 1.1.17/1.1.18: "assert failed: udp_new_ip_type"
+//  (Required to lock TCPIP core) im Update-Task, Rücksprung über
+//  sntp_try_next_server -> dns_gethostbyname. Die DNS-Anfragen des
+//  Updates drängen die offene SNTP-Anfrage aus der kleinen DNS-Tabelle,
+//  SNTP erfährt das mitten in der Anfrage des Update-Tasks und fragt
+//  sofort neu – dabei schlägt die Sperrprüfung von lwIP an. Deshalb:
+//  nach dem Abgleich (oder Fehlschlag) SNTP sofort stoppen, ebenso bevor
+//  das WLAN aus geht und bevor ein Online-Update startet.
+// ------------------------------------------------------------
+void net_sntp_stop() {
+#ifdef CONFIG_LWIP_TCPIP_CORE_LOCKING
+  bool held = sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER);
+  if (!held) LOCK_TCPIP_CORE();
+#endif
+  if (esp_sntp_enabled()) esp_sntp_stop();
+#ifdef CONFIG_LWIP_TCPIP_CORE_LOCKING
+  if (!held) UNLOCK_TCPIP_CORE();
+#endif
+  if (s_state == NET_SYNCING) {  // Abgleich lief noch: später erneut
+    s_state = NET_FAIL;
+    s_t0 = millis();
+  }
+}
+
 static void wifi_off() {
   if (s_scanning) return;  // Suche läuft noch
   if (upd_wants_wifi()) return;  // Online-Update braucht das WLAN (läuft oder steht gleich an)
   if (web_running()) return;  // Weboberfläche braucht das WLAN noch
+  net_sntp_stop();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
 }
@@ -286,8 +317,10 @@ void net_loop() {
         hal_set_datetime(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
         s_last_sync = now ? now : 1;
         s_state = NET_OK;
+        net_sntp_stop();  // einmal reicht, die RTC hält die Zeit
         wifi_off();
       } else if (now - s_t0 > NTP_TIMEOUT_MS) {
+        net_sntp_stop();
         s_state = NET_FAIL;
         s_t0 = now;
         wifi_off();

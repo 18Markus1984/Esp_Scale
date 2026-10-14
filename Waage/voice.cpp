@@ -666,11 +666,17 @@ static void process(const int16_t *pcm, int n) {
     s_rec_wait -= n;
     if (s_rec_wait <= 0) s_rec_state = 2;
   } else if (s_rec_state == 2 && s_rec_buf) {
-    int k = s_rec_len - s_rec_pos;
+    int len = s_rec_len;  // kann voice_rec_stop() gerade kürzen
+    int k = len - s_rec_pos;
     if (k > n) k = n;
-    memcpy(s_rec_buf + 22 + s_rec_pos, pcm, k * 2);
-    s_rec_pos += k;
-    if (s_rec_pos >= s_rec_len) s_rec_state = 3;  // speichern übernimmt der Task bzw. gleich unten
+    if (k > 0) {
+      memcpy(s_rec_buf + 22 + s_rec_pos, pcm, k * 2);
+      s_rec_pos += k;
+    }
+    if (s_rec_pos >= len) {
+      s_rec_len = s_rec_pos;  // Kopf der WAV-Datei passt dann genau
+      s_rec_state = 3;        // speichern übernimmt der Task bzw. gleich unten
+    }
   }
   // Erkennung. Während die Waage selbst spricht oder piept, wird gar nicht
   // gerechnet: spart Rechenzeit (die Ansage läuft auf demselben Kern) und
@@ -714,21 +720,12 @@ bool voice_rec_start(int word, bool series) {
 
 // Serie vorzeitig beenden: das bisher Aufgenommene speichern
 void voice_rec_stop() {
-  if (s_rec_state == 1) {  // noch nicht angefangen: verwerfen
-    s_rec_state = 0;
-    free(s_rec_buf);
-    s_rec_buf = NULL;
-    return;
-  }
+  // Nur der Audio-Task gibt den Puffer frei (er schreibt gerade hinein):
+  // hier nur die Länge kürzen, speichern übernimmt er
   if (s_rec_state != 2) return;
-  if (s_rec_pos < KWS_RATE) {  // weniger als 1 s: verwerfen
-    s_rec_state = 0;
-    free(s_rec_buf);
-    s_rec_buf = NULL;
-    return;
-  }
-  s_rec_len = s_rec_pos;
-  s_rec_state = 3;
+  int pos = s_rec_pos;
+  s_rec_len = pos > KWS_RATE / 2 ? pos : KWS_RATE / 2;  // mindestens 0,5 s
+  if (s_rec_pos >= s_rec_len) s_rec_state = 3;
 }
 
 bool voice_rec_series() { return s_rec_series; }

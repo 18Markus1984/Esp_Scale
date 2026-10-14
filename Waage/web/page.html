@@ -1308,9 +1308,11 @@ P.firmware={render(){return head("Firmware-Update")+`<div class="col">
    ${busy||st=="done"?"":(st=="available"?`<button class="p" onclick="P.firmware.ota('install=1')">Installieren</button>`
      :`<button onclick="P.firmware.ota('check=1')">Online suchen</button>`)}
    <span class="faint">Die Waage lädt die neueste Version aus den GitHub-Releases und startet danach neu.</span>
-   ${o.crash?`<div class="set"><span>Letzter Neustart</span><span style="color:var(--warn)">${esc(o.crash)}</span></div>
-    ${o.crash_at?`<span class="faint"><span>${esc(o.crash_at)}</span> (${o.crash_pct} %)</span>`:""}
-    <span class="faint">Bericht: Dateien → Waage → Absturz.txt</span>`:""}`;
+   ${o.crash?`<div class="set" style="border-bottom:0;padding-bottom:0"><span>Letzter Neustart</span><span style="color:var(--warn)">${esc(o.crash)}</span></div>
+    <div style="display:flex;flex-direction:column;gap:1px;line-height:1.35;font-size:13px">
+    ${o.crash_at?`<span class="mut"><span>${esc(o.crash_at)}</span> (${o.crash_pct} %)</span>`:""}
+    ${o.crash_time?`<span class="faint" translate="no">${esc(o.crash_time.replace(/^(\d+)-(\d+)-(\d+)/,(m,y,mo,d)=>LANG?`${y}-${mo}-${d}`:`${d}.${mo}.${y}`))}</span>`:""}
+    <span class="faint">Bericht: Dateien → Waage → Absturz.txt</span></div>`:""}`;
   clearTimeout(this.t);if(busy||st=="done"||q)this.t=setTimeout(()=>{if(page===this)this.ota()},busy||q?1000:4000)})},
  leave(){clearTimeout(this.t)},
  enter(){this.ota();const el=$("fum");if(!el)return;

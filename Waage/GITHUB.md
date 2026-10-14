@@ -173,7 +173,9 @@ als neuer. So kommst du mit „Online suchen“ jederzeit auf den offiziellen St
 | Waage: „Update fehlgeschlagen“ | Datei war beschädigt. Die Waage startet mit der alten Version weiter. |
 
 **Absturz melden:** Nach einem Absturz oder Watchdog-Neustart schreibt die Waage eine Zeile nach
-`/Waage/Absturz.txt` (Datum; Version; Grund; Task, PC und Rücksprungadressen). Die Action legt
+`/Waage/Absturz.txt` (Zeitpunkt; Version; Laufzeit; Grund; Tätigkeit; Task; Fehler; Meldung;
+Rücksprungadressen; freier Speicher; Tasks mit dem knappsten Stapel). Die Datei lässt sich als CSV
+(Trennzeichen `;`) in Excel öffnen. Die Action legt
 dafür `Waage.ino.elf` mit ins Release. Die Adressen lassen sich damit einer Code-Zeile zuordnen:
 `xtensa-esp32s3-elf-addr2line -pfiaC -e Waage.ino.elf 0x42001234 0x4037abcd …` (das Programm liegt
 im ESP32-Boardpaket unter `tools/xtensa-esp-elf/…/bin`). Oder die Zeile einfach an Claude schicken.
