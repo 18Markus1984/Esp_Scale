@@ -31,6 +31,11 @@ const char *voice_model_error();   // z. B. "kein Modell auf der SD-Karte"
 const char *voice_model_info();    // Text aus dem Modell (Datum, Beispiele)
 const char *voice_model_path();    // /Waage/Sprache/kws_de.bin bzw. kws_en.bin
 void voice_model_changed();        // neue Modelldatei hochgeladen: beim nächsten Zuhören neu laden
+// Mikrofonseite offen: Weckwort-Versuche (ab 25 %) als WAV nach /Waage/Sprache/Mitschnitt
+// (w…wav = geweckt, k…wav = knapp daneben; Zahl im Namen = höchste Wahrscheinlichkeit)
+void voice_capture(bool on);
+int voice_capture_count();          // seit dem Einschalten gespeichert
+const char *voice_capture_last();   // letzte Datei, z. B. "k003_48.wav"
 int voice_live(float *p);          // Mikrofonseite: beste Klasse gerade (Index in voice_word…)
 float voice_level();               // Pegel 0 … 1 (für Anzeigen)
 

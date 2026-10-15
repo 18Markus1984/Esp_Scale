@@ -294,6 +294,9 @@ int voice_rec_state() { return -1; }
 float voice_rec_progress() { return 0; }
 int voice_rec_ms(int word) { return 0; }
 void voice_sim_feed(const int16_t *pcm, int n) {}
+void voice_capture(bool on) {}
+int voice_capture_count() { return 0; }
+const char *voice_capture_last() { return ""; }
 
 #else  // eigene Schlüsselwort-Erkennung (kws.*)
 #include "kws.h"
@@ -412,6 +415,26 @@ static volatile float s_level = 0;
 static volatile int s_live = -1;
 static volatile float s_live_p = 0;
 static uint32_t s_live_at = 0;  // Spitzenwert 2 s halten, damit man ihn auf der Mikrofonseite lesen kann
+
+// Mitschnitt (nur solange die Mikrofonseite offen ist): die letzten 3 s Audio im
+// Ringpuffer. Steigt die Weckwort-Wahrscheinlichkeit über 25 %, wird nach dem
+// Wort gespeichert – als w…wav, wenn die Waage aufgewacht ist, sonst als k…wav
+// ("knapp"), mit der höchsten Wahrscheinlichkeit im Namen. So lässt sich am PC
+// nachrechnen, was die Waage im Alltag wirklich gehört hat, und die Dateien
+// können als Trainingsdaten unter Aufnahmen/hallo_waage dazu.
+#define CAP_DIR DIR_SPEECH "/Mitschnitt"
+#define CAP_LEN (KWS_RATE * 3)
+#define CAP_START 0.25f   // ab hier beginnt ein "Versuch"
+#define CAP_END 0.12f     // darunter ist er vorbei
+#define CAP_MAX 60        // höchstens so viele Dateien je Einschalten
+static int16_t *s_cap = NULL;
+static int s_cap_pos = 0;
+static volatile bool s_cap_on = false;
+static volatile int s_cap_req = 0;   // 1 = knapp, 2 = geweckt
+static int s_cap_pct = 0, s_cap_n = 0;
+static char s_cap_last[24] = "";
+static bool s_ep_on = false, s_ep_woke = false;
+static float s_ep_peak = 0;
 
 // Aufnahme
 static volatile int s_rec_state = 0;
@@ -534,6 +557,24 @@ static void decide() {
     s_live_p = bp;
     s_live_at = now;
   }
+  // Mitschnitt: ein "Versuch" beginnt ab 25 % Weckwort und endet unter 12 %
+  if (s_cap_on && s_wake_idx >= 0) {
+    float pw = p[s_wake_idx];
+    if (pw >= CAP_START) {
+      if (!s_ep_on) {
+        s_ep_on = true;
+        s_ep_woke = false;
+        s_ep_peak = 0;
+      }
+      if (pw > s_ep_peak) s_ep_peak = pw;
+    } else if (s_ep_on && pw < CAP_END) {
+      s_ep_on = false;
+      if (!s_ep_woke && !s_cap_req) {  // nicht geweckt: knapp daneben
+        s_cap_pct = (int)(s_ep_peak * 100 + 0.5f);
+        s_cap_req = 1;
+      }
+    }
+  }
   if (s_session || sound_busy() || now < s_mute_until || now - s_listen_start < WARMUP_MS) {
     s_dec_active = false;
     return;
@@ -542,6 +583,11 @@ static void decide() {
     if (!s_awake) {
       s_ev_wake = true;
       s_heard = false;
+      if (s_cap_on && !s_ep_woke && !s_cap_req) {  // geweckt: gleich sichern (danach sagt sie "ja")
+        s_ep_woke = true;
+        s_cap_pct = (int)(p[s_wake_idx] * 100 + 0.5f);
+        s_cap_req = 2;
+      }
     }
     s_awake_since = now;
     s_awake = true;
@@ -653,6 +699,56 @@ static void rec_save() {
   s_rec_done_ms = hal_millis();
 }
 
+// Mitschnitt speichern (im Audio-Task bzw. Simulator, wie rec_save)
+static void cap_save() {
+  int kind = s_cap_req;
+  s_cap_req = 0;
+  if (!s_cap || s_cap_n >= CAP_MAX || !storage_ok()) return;
+  uint32_t bytes = CAP_LEN * 2;
+  uint8_t *h = (uint8_t *)big_alloc(44 + bytes);
+  if (!h) return;
+  int16_t *d = (int16_t *)(h + 44);
+  int pos = s_cap_pos;  // ältester Wert
+  memcpy(d, s_cap + pos, (CAP_LEN - pos) * 2);
+  memcpy(d + (CAP_LEN - pos), s_cap, pos * 2);
+  memcpy(h, "RIFF", 4);
+  put32(h + 4, 36 + bytes);
+  memcpy(h + 8, "WAVEfmt ", 8);
+  put32(h + 16, 16);
+  put16(h + 20, 1);
+  put16(h + 22, 1);
+  put32(h + 24, KWS_RATE);
+  put32(h + 28, KWS_RATE * 2);
+  put16(h + 32, 2);
+  put16(h + 34, 16);
+  memcpy(h + 36, "data", 4);
+  put32(h + 40, bytes);
+  storage_mkdir(CAP_DIR);
+  char path[64];
+  int k = 1;
+  do {
+    snprintf(path, sizeof(path), CAP_DIR "/%c%03d_%02d.wav", kind == 2 ? 'w' : 'k', k++, s_cap_pct > 99 ? 99 : s_cap_pct);
+  } while (storage_exists(path) && k < 1000);
+  bool ok = storage_write_bin(path, h, 44 + bytes);
+  free(h);
+  if (ok) {
+    s_cap_n++;
+    snprintf(s_cap_last, sizeof(s_cap_last), "%s", strrchr(path, '/') + 1);
+  }
+  printf("Sprache: Mitschnitt %s %s\r\n", path, ok ? "gespeichert" : "fehlgeschlagen");
+}
+
+void voice_capture(bool on) {
+  if (on && !s_cap) {
+    s_cap = (int16_t *)big_alloc(CAP_LEN * 2);  // bleibt danach liegen (PSRAM), der Audio-Task schreibt hinein
+    if (s_cap) memset(s_cap, 0, CAP_LEN * 2);
+  }
+  s_ep_on = false;
+  s_cap_on = on && s_cap;
+}
+int voice_capture_count() { return s_cap_n; }
+const char *voice_capture_last() { return s_cap_last; }
+
 // Ein Block Audio (16 kHz Mono) aus dem Mikrofon bzw. dem Simulator
 static void process(const int16_t *pcm, int n) {
   // Pegel für Anzeigen (Spitze des Blocks, langsam fallend)
@@ -665,6 +761,13 @@ static void process(const int16_t *pcm, int n) {
   s_level = lv > s_level ? lv : s_level * 0.92f;
   s_samples += n;
   s_clock = s_samples / (KWS_RATE / 1000);
+  // Mitschnitt: Ringpuffer der letzten 3 s (auch während die Waage selbst spricht)
+  if (s_cap_on && s_cap) {
+    for (int i = 0; i < n; i++) {
+      s_cap[s_cap_pos] = pcm[i];
+      if (++s_cap_pos >= CAP_LEN) s_cap_pos = 0;
+    }
+  }
   // Aufnahme
   if (s_rec_state == 1) {
     s_rec_wait -= n;
@@ -887,6 +990,7 @@ static void voice_task(void *arg) {
       rec_save();
       continue;
     }
+    if (s_cap_req) cap_save();
     size_t got = mic_i2s().readBytes((char *)raw, sizeof(raw));
     int frames = (int)got / 4;
     if (frames <= 0) {
@@ -956,6 +1060,7 @@ void voice_sim_feed(const int16_t *pcm, int n) {
     int k = n > 256 ? 256 : n;
     process(pcm, k);
     if (s_rec_state == 3 && s_rec_buf) rec_save();
+    if (s_cap_req) cap_save();
     pcm += k;
     n -= k;
   }

@@ -59,7 +59,7 @@ static void m_timer_cb(lv_timer_t *t) {
       // Beim Weckwort dazu, ab wann es weckt: so sieht man beim Ausprobieren, wie knapp es ist
       if (strcmp(kws_class(li), "hallo_waage") == 0) {
         would_wake = lp >= kws_wake_threshold();
-        snprintf(hb, sizeof(hb), T("hört: Hallo Waage %d %% (weckt ab %d %%)"), (int)(lp * 100),
+        snprintf(hb, sizeof(hb), T("Hallo Waage %d %% · weckt ab %d %%"), (int)(lp * 100),
                  (int)(kws_wake_threshold() * 100 + 0.5f));
       } else
         snprintf(hb, sizeof(hb), T("hört: %s %d %%"), kws_class(li), (int)(lp * 100));
@@ -68,10 +68,13 @@ static void m_timer_cb(lv_timer_t *t) {
     ui_label_update(m_hint, hb);
     lv_obj_set_style_text_color(m_hint, would_wake ? C_ACCENT : C_MUTED, 0);  // grün: hätte geweckt
     char vb[64];
-    if (voice_last()[0] && now - voice_last_ms() < 15000) snprintf(vb, sizeof(vb), "„%s“", voice_last());
+    bool recent = voice_last()[0] && now - voice_last_ms() < 15000;
+    if (recent) snprintf(vb, sizeof(vb), "„%s“", voice_last());
+    else if (voice_capture_count() > 0)  // Mitschnitte: wie viele, und der letzte (k = knapp, w = geweckt)
+      snprintf(vb, sizeof(vb), T("Mitschnitte: %d · %s"), voice_capture_count(), voice_capture_last());
     else snprintf(vb, sizeof(vb), T("noch kein Befehl"));
     ui_label_update(m_cmd, vb);
-    lv_obj_set_style_text_color(m_cmd, voice_last()[0] ? C_ACCENT : C_FAINT, 0);
+    lv_obj_set_style_text_color(m_cmd, recent ? C_ACCENT : C_MUTED, 0);
     return;
   }
 
@@ -114,7 +117,9 @@ static void m_timer_cb(lv_timer_t *t) {
 }
 
 static void m_screen_del_cb(lv_event_t *e) {
-  mic_listen(false);  // Pegelmessung wieder ausschalten
+  if (lv_event_get_target(e) != lv_event_get_current_target(e)) return;
+  mic_listen(false);    // Pegelmessung wieder ausschalten
+  voice_capture(false);  // Mitschnitt nur, solange diese Seite offen ist
 }
 
 lv_obj_t *page_mic_create() {
@@ -150,6 +155,7 @@ lv_obj_t *page_mic_create() {
     lv_obj_set_style_text_color(m_state, C_DANGER, 0);
   }
   if (!mic_exclusive()) mic_listen(true);
+  voice_capture(true);  // Weckwort-Versuche mitschneiden (/Waage/Sprache/Mitschnitt)
   ui_page_timer(s, m_timer_cb, 100);
   m_timer_cb(NULL);
   return s;

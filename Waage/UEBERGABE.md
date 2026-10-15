@@ -815,3 +815,27 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   `window.onerror` hat in der Vergangenheit mehrere eigene Fehler gefunden).
 - Beim Ersetzen großer Codeblöcke aufpassen: Es sind schon zweimal ganze Seiten
   versehentlich mitgelöscht worden (Dateiseite, Cocktailkarte).
+
+### Stand 15.10.2026 (mittags): Training mit neuem Skript, Doppelzählung behoben
+- Markus' Lauf: eigene Prüf-Aufnahmen weckten 100 % (nah) / 81–88 % (20 dB leiser), Schwelle 0,50,
+  2 Fehlalarme; kws_pruefen: Modell vom 14./15.10. und neues Modell wecken beide 66/66 eigene
+  Aufnahmen (82–98 %). Das alte Modell hat live aber nie geweckt → Ursache eher Abstand/Pegel im
+  Alltag als das Netz selbst. Nächster Schritt: neue Firmware + Modell, Mikrofonseite (Live-%) aus
+  normalem Abstand prüfen; Aufnahmen aus 1 m Abstand ergänzen.
+- **Fehler behoben:** `glob("*.wav") + glob("*.WAV")` fand unter Windows jede Datei doppelt (Training
+  zählte alle eigenen Aufnahmen doppelt, kws_pruefen listete doppelt). Jetzt `K.wav_files()`.
+- Prüfmenge der eigenen Aufnahmen jetzt je Datei (crc32 von Name+Klasse < 15 %), nicht je Wort:
+  vorher landeten Teile derselben Serie (und durch die Doppelzählung dieselbe Datei) in Training UND
+  Prüfung → zu optimistische Werte.
+- Kalibrier-Tabelle zusätzlich „30 dB leiser“; kws_pruefen `--leiser <dB>`.
+- Markus: Aufnahmen schon aus verschiedenen Abständen/Lautstärken gemacht – meine Abstands-Erklärung
+  passt also nicht. Beide Modelle erkennen alle eigenen Aufnahmen (≥ 82 %), live weckte das alte nie.
+  Firmware-Pfad geprüft: Aufnahme und Erkennung bekommen dasselbe `pcm`, `voice_rec_session` wird
+  beim Verlassen korrekt zurückgezählt (Sim `SESSTEST`). Ursache weiter offen → Daten aus dem Alltag:
+- **Mitschnitt (voice.cpp):** solange die Mikrofonseite offen ist (`voice_capture(true/false)`), Ringpuffer
+  3 s (PSRAM, `s_cap`), „Versuch“ ab 25 % Weckwort bis < 12 %; gespeichert im Audio-Task
+  (`cap_save`) als `/Waage/Sprache/Mitschnitt/wNNN_PP.wav` (geweckt, sofort beim Wecken) bzw.
+  `kNNN_PP.wav` (knapp), max. 60 je Einschalten. Mikrofonseite: „Hallo Waage 93 % · weckt ab 65 %“,
+  darunter „Mitschnitte: n · letzte Datei“. Sim `MICTEST=<wav>` (`MICMODEL=` anderes Modell): kws.cpp
+  94 % ↔ kws_pruefen 93 % auf derselben Datei – PC und Waage rechnen gleich.
+
