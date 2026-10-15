@@ -1795,6 +1795,7 @@ static bool st_done = false;
 
 static void start_finish() {
   s_start_done = true;
+  if (g_set.speak_ev) sound_say("bereit");  // "Waage bereit." (für blinde Nutzer: sie ist an)
   if (st_timer) {
     lv_timer_del(st_timer);
     st_timer = NULL;

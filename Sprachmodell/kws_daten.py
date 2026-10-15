@@ -23,6 +23,11 @@
 import argparse, glob, os, random, shutil, subprocess, sys, tempfile, wave
 import numpy as np
 from multiprocessing import Pool
+import logging
+
+# Piper meldet bei manchen Wörtern "Missing phoneme from id map" (ein Zeichen ohne
+# Laut, z. B. ein Akzent). Harmlos, das Zeichen fällt weg; die Meldung nur ausblenden.
+logging.getLogger("piper").setLevel(logging.ERROR)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kws_common as K
@@ -169,10 +174,20 @@ def main():
     ap.add_argument("--pakete", default=os.path.join(HERE, "..", "SD-Karte", "Waage", "Stimme"))
     ap.add_argument("--schnell", action="store_true", help="weniger Varianten")
     ap.add_argument("--prozesse", type=int, default=max(1, os.cpu_count() or 1))
+    ap.add_argument("--nur", default="", help="nur diese Klassen neu sprechen (Komma), der Rest bleibt")
+    ap.add_argument("--andere", default="", help="zusätzliche 'andere Wörter' (mit | getrennt) nach _unbekannt")
     args = ap.parse_args()
 
     random.seed(7)
-    if os.path.exists(args.ziel):
+    nur = [c for c in args.nur.split(",") if c]
+    for c in nur:
+        if c not in K.CLASSES_DE:
+            sys.exit("Unbekannte Klasse: %s" % c)
+    teil = bool(nur or args.andere)
+    if teil:  # nur ergänzen: vorhandene Daten bleiben, die genannten Klassen werden neu gesprochen
+        for c in nur:
+            shutil.rmtree(os.path.join(args.ziel, c), ignore_errors=True)
+    elif os.path.exists(args.ziel):
         shutil.rmtree(args.ziel)
     voices = sorted(glob.glob(os.path.join(args.stimmen, "*.onnx")))
     nvar = 3 if args.schnell else 8      # Varianten je Satz und Piper-Stimme
@@ -180,22 +195,30 @@ def main():
     jobs_p, jobs_e = [], []
     mbrola = [v for v in MBROLA_VOICES if shutil.which("espeak-ng") and mbrola_ok(v)]
     print("MBROLA-Stimmen:", ", ".join(mbrola) if mbrola else "keine (optional)")
-    for cls, phrases in K.CLASSES_DE.items():
+    todo = list(K.CLASSES_DE.items())
+    if teil:
+        todo = [(c, p) for c, p in todo if c in nur]
+        if args.andere:
+            todo.append(("_unbekannt+", [t for t in args.andere.split("|") if t]))
+    for cls, phrases in todo:
         texts = K.OTHER_DE if cls == "_unbekannt" else phrases
+        pre = ""
+        if cls == "_unbekannt+":  # Nachtrag: eigener Dateiname, damit nichts überschrieben wird
+            cls, pre = "_unbekannt", "neu-"
         for ti, text in enumerate(texts):
             for v in voices:
                 vn = os.path.basename(v).replace(".onnx", "")
                 for k in range(nvar_other if cls == "_unbekannt" else nvar):
-                    out = os.path.join(args.ziel, cls, "%s_%d_%d.wav" % (vn, ti, k))
+                    out = os.path.join(args.ziel, cls, "%s%s_%d_%d.wav" % (pre, vn, ti, k))
                     jobs_p.append((v, text, out, random.uniform(0.8, 1.35), random.uniform(0.3, 0.9),
                                    random.uniform(0.4, 1.0)))
             if not args.schnell or cls != "_unbekannt":
                 for ev in ESPEAK_VOICES:
-                    out = os.path.join(args.ziel, cls, "espeak-%s_%d.wav" % (ev.replace("+", "-"), ti))
+                    out = os.path.join(args.ziel, cls, "%sespeak-%s_%d.wav" % (pre, ev.replace("+", "-"), ti))
                     jobs_e.append((ev, text, out, random.randint(130, 185), random.randint(25, 75)))
                 for mv in mbrola:
                     for k in range(1 if cls == "_unbekannt" else (2 if args.schnell else 4)):
-                        out = os.path.join(args.ziel, cls, "mbrola-%s_%d_%d.wav" % (mv, ti, k))
+                        out = os.path.join(args.ziel, cls, "%smbrola-%s_%d_%d.wav" % (pre, mv, ti, k))
                         jobs_e.append((mv, text, out, random.randint(120, 190), random.randint(30, 70)))
     print("Piper: %d Stimmen, %d Aufnahmen" % (len(voices), len(jobs_p)))
     if not voices:
@@ -210,7 +233,7 @@ def main():
             list(pool.imap_unordered(espeak_job, jobs_e, chunksize=8))
     else:
         print("espeak-ng nicht gefunden, übersprungen")
-    if os.path.isdir(args.pakete):
+    if os.path.isdir(args.pakete) and not teil:
         print("Stimmpakete: %d Aufnahmen" % pack_clips(args.pakete, args.ziel))
     for cls in K.CLASSES_DE:
         n = len(glob.glob(os.path.join(args.ziel, cls, "*.wav")))

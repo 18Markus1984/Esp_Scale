@@ -79,6 +79,7 @@ jobs:
           path: |
             build/Waage.ino.bin
             build/Waage.ino.merged.bin
+            build/Waage.ino.elf
 
       - name: Release anlegen
         if: github.ref_type == 'tag'
@@ -87,6 +88,9 @@ jobs:
           name: Waage ${{ github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: false
+          # .elf: ordnet die Adressen aus /Waage/Absturz.txt Code-Zeilen zu
+          # (xtensa-esp32s3-elf-addr2line -pfiaC -e Waage.ino.elf 0x4200…)
           files: |
             build/Waage.ino.bin
             build/Waage.ino.merged.bin
+            build/Waage.ino.elf

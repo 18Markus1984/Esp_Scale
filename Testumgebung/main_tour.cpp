@@ -1,3 +1,4 @@
+#include "refcheck.h"
 #include "update_online.h"
 #include <lvgl.h>
 #include <stdio.h>
@@ -60,14 +61,14 @@ int main(int argc,char**argv){
   static lv_disp_drv_t dd; lv_disp_drv_init(&dd); dd.hor_res=W; dd.ver_res=W; dd.flush_cb=flush; dd.rounder_cb=rounder; dd.draw_buf=&db; lv_disp_drv_register(&dd);
   static lv_indev_drv_t id; lv_indev_drv_init(&id); id.type=LV_INDEV_TYPE_POINTER; id.read_cb=rd; lv_indev_drv_register(&id);
   g_set.lang = en ? LANG_EN : LANG_DE;
-  ui_init(); run(300); S("lagecheck"); run(4000);
+  ui_init(); run(1400); S("startbild"); run(1900); S("lagecheck");  // erst das Startbild (ui_splash.cpp) run(4000);
   S("wiegen");
   for(int uu=1;uu<4;uu++){ g_set.unit=uu; run(400); char nb[32]; snprintf(nb,sizeof nb,"wiegen_unit%d",uu); S(nb);} g_set.unit=0; run(300);
   scale_tare(); run(2500); S("wiegen_null");
   tile(1); S("modi"); tile(2); S("system"); tile(0);
   openp(page_setup_create(),"setup");
   const char*cats[]={"Wiegen","Zeit & Funk","Ton","Waage"};
-  for(int c=0;c<4;c++){ home(); ui_open_page(page_setup_create()); run(600); tt(cats[c]); run(700); S(cats[c]); if(c==3){ drag(206,280,206,150,300); S("waage_unten"); } }
+  for(int c=0;c<4;c++){ home(); ui_open_page(page_setup_create()); run(600); tt(cats[c]); run(700); S(cats[c]); if(c==2){ drag(206,280,206,150,300); S("ton_unten"); } }
   home(); ui_open_page(page_setup_create()); run(600); tt("Zeit & Funk"); run(600); tt("WLAN"); run(900); S("wlan");
   tap(206,236); run(900); S("wlan_liste"); drag(206,300,206,200,300); run(900); S("wlan_liste2"); tap(206,206); run(700); S("wlan_entf");
   tt("Zurück"); run(700); S("wlan_liste3");
@@ -79,6 +80,10 @@ int main(int argc,char**argv){
   home(); ui_open_page(page_setup_create()); run(600); tt("Zeit & Funk"); run(600); tt("Uhrzeit"); run(900); S("uhrzeit");
   home(); ui_open_page(page_setup_create()); run(600); tt("Zeit & Funk"); run(600); tt("Datum"); run(900); S("datum");
   home(); ui_open_page(page_setup_create()); run(600); tt("Ton"); run(600); tt("Lautstärke"); run(900); S("lautst");
+  { const char*de[]={"Drachenlord","Lena","Roboter","KI-Stimme-2","Jarvis"}; const char*en[]={"Rick-EN","Morty-EN","Optimus-EN","Indy-EN","Patrick-EN","Deadpool-EN","Homer-EN","Peter-EN","Sheldon-EN","Roboter-EN"};
+    char b[160]; for(auto n:de){ snprintf(b,sizeof b,"mkdir -p 'sdcard/Waage/Stimme/%s' && touch 'sdcard/Waage/Stimme/%s/gramm.wav'",n,n); system(b);} 
+    for(auto n:en){ snprintf(b,sizeof b,"mkdir -p 'sdcard/Waage/Stimme/%s' && touch 'sdcard/Waage/Stimme/%s/grams.wav'",n,n); system(b);} 
+    home(); ui_open_page(page_setup_create()); run(600); tt("Ton"); run(900); S("ton_stimmen"); tt("Stimme"); run(900); S("stimme_liste"); drag(206,300,206,120,300); run(900); S("stimme_liste2"); }
   home(); ui_open_page(page_setup_create()); run(600); tt("Wiegen"); run(600); tt("Auto-Tara"); run(900); S("autotara");
   openp(page_rezept_create(),"rezept"); tap(206,206); run(800); S("rezept_vorschau"); tt("Starten"); run(900); S("rezept_schritt");
   openp(page_rezept_create(),"rezept2"); tt("+ Neues Rezept"); run(900); S("rezept_neu");
@@ -108,6 +113,13 @@ int main(int argc,char**argv){
   { extern float sim_force_g;
   auto FW=[&](float g,int ms){ sim_force_g=g; run(ms); };
   home(); FW(0,4000); scale_tare(); run(300);
+  { g_set.ref_g=500; g_set.ref_days=30; g_set.ref_tol=0.5f; g_set.ref_last=refchk_today()-40; g_set.ref_meas=500.3f; g_set.ref_ok=true;
+    home(); ui_open_page(page_setup_create()); run(600); tt("Waage"); run(900); S("waage_pruefgewicht");
+    home(); ui_open_page(page_refdue_create()); run(700); S("pruef_faellig");
+    home(); ui_open_page(page_refset_create()); run(700); S("pruef_einst");
+    tt("Prüfen"); FW(0,2500); S("pruef_leeren"); FW(500.4f,1200); S("pruef_misst"); FW(500.4f,7000); S("pruef_ok");
+    home(); FW(0,3000); ui_open_page(page_refcheck_create()); FW(0,2500); FW(501.2f,9000); S("pruef_fehler");
+    home(); ui_open_page(page_refset_create()); run(700); S("pruef_einst2"); home(); FW(0,3000); scale_tare(); run(300); }
   ui_open_page(page_portion_create()); FW(1234.5f,4500); S("portion1");
   tt("Weiter"); run(600); S("portion2_leeren");
   FW(0,4000); S("portion2b_bereit");
@@ -172,7 +184,7 @@ int main(int argc,char**argv){
   home(); tile(1); drag(206,300,206,190,300); run(400); tap(206,206); run(600); for(int k=0;k<4;k++) drag(206,300,206,190,300); run(500); S("gruppe_werkstatt_unten");
   // Sprachwechsel über das Setup
   { FILE*f=fopen(en?"shown_en.txt":"shown_de.txt","w"); for(auto&x:g_shown) fprintf(f,"%s\n---\n",x.c_str()); fclose(f);} g_shown.clear();
-  home(); ui_open_page(page_setup_create()); run(600); tt("Waage"); run(700); drag(206,280,206,150,300); tt("Sprache"); run(900); S("nach_wechsel");
+  home(); ui_open_page(page_setup_create()); run(600); tt("Ton"); run(700); tt("Sprache"); run(900); S("nach_wechsel");
   ui_go_home(); run(800); S("home_nach_wechsel");
   printf("---- MISS %zu ----\n", g_miss.size());
   for(auto&s:g_miss){ bool letters=false; for(char c: s) if((c>='A'&&c<='Z')||(c>='a'&&c<='z')) letters=true; if(letters) printf("MISS: %s\n", s.c_str()); }

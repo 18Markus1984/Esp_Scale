@@ -1,5 +1,0 @@
-name=Cuba Libre
-portionen=1
-Rum braun;50
-Cola;120
-Limettensaft;10

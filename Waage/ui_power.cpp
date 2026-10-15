@@ -184,9 +184,10 @@ static void battery_guard() {
     low_since = 0;
     return;
   }
-  if (now - warn_at > 60000) {  // einmal pro Minute hörbar warnen
+  if (now - warn_at > 60000) {  // einmal pro Minute hörbar warnen, alle 5 min mit Ansage
+    static int warn_n = 0;
     warn_at = now;
-    sound_play(SND_WARN);
+    if (!(g_set.speak_ev && warn_n++ % 5 == 0 && sound_say("akku_leer"))) sound_play(SND_WARN);
   }
   if (v > BAT_CUTOFF_V) {
     low_since = 0;
@@ -274,7 +275,7 @@ void ui_power_tick() {
         if (lv_obj_has_flag(o_warn, LV_OBJ_FLAG_HIDDEN)) {
           hal_backlight(BRIGHT_ON);  // auch aus dem Standby heraus sichtbar machen
           show(o_warn, true);
-          sound_play(SND_WARN);
+          if (!(g_set.speak_ev && sound_say("schaltet_aus"))) sound_play(SND_WARN);  // "… schaltet sich gleich aus"
         }
         char b[8];
         snprintf(b, sizeof(b), "%lu", (unsigned long)left);

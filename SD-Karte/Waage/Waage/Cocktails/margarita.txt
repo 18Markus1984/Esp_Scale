@@ -1,5 +1,0 @@
-name=Margarita
-portionen=1
-Tequila;50
-Triple Sec;25
-Limettensaft;25

@@ -167,10 +167,21 @@ als neuer. So kommst du mit „Online suchen“ jederzeit auf den offiziellen St
 | Action rot bei „Release anlegen“: `Resource not accessible` | Repository → Settings → Actions → General → Workflow permissions → **Read and write permissions** → Save. Danach den Lauf mit „Re-run jobs“ wiederholen. |
 | Waage: „Repository in config.h eintragen“ | Schritt 3, danach neu flashen. |
 | Waage: „Kein WLAN“ | Kein gespeichertes Netz in Reichweite (Setup → Zeit & Funk → WLAN). |
+| Waage: „Repository nicht gefunden (privat?)“ | GitHub kennt das Repository nicht – für Fremde. Meist steht es auf **Private** (Settings → General → ganz unten „Change visibility“ → Public), oder der Name in `config.h` (`OTA_REPO`, Groß-/Kleinschreibung) stimmt nicht. |
+| Waage: „Noch kein Release veröffentlicht“ | Das Repository ist da, aber es gibt kein Release: Tag `v…` pushen (Schritt 6) und warten, bis die Action grün ist. |
+| Waage: „GitHub nicht erreichbar“ | Keine Verbindung zu GitHub. Darunter steht der Grund, z. B. „HTTP -1 · Block 15 KB“: negative Zahl = Verbindung/Verschlüsselung gescheitert, Block = größter freier interner Speicher. Bis 1.1.20 fehlte nach längerer Laufzeit der Speicher für die Verschlüsselung (nach einem Neustart klappte es); ab 1.1.21 nutzt sie den PSRAM. |
 | Waage: „Kein Release gefunden“ | Es gibt noch kein Release, das Repository ist privat, oder der Name in `config.h` stimmt nicht. |
 | Waage: „Keine Firmware im Release“ | Die Action läuft noch, oder ist fehlgeschlagen. |
-| Waage: „Download fehlgeschlagen“ | WLAN zu schwach oder abgebrochen. Einfach nochmal versuchen. Die alte Firmware bleibt erhalten. |
+| Waage: „Download fehlgeschlagen“ | WLAN zu schwach. Die Waage setzt einen abgerissenen Download bis zu fünfmal an derselben Stelle fort; klappt es trotzdem nicht, einfach nochmal versuchen. Die alte Firmware bleibt erhalten. |
 | Waage: „Update fehlgeschlagen“ | Datei war beschädigt. Die Waage startet mit der alten Version weiter. |
+
+**Absturz melden:** Nach einem Absturz oder Watchdog-Neustart schreibt die Waage eine Zeile nach
+`/Waage/Absturz.txt` (Zeitpunkt; Version; Laufzeit; Grund; Tätigkeit; Task; Fehler; Meldung;
+Rücksprungadressen; freier Speicher; Tasks mit dem knappsten Stapel). Die Datei lässt sich als CSV
+(Trennzeichen `;`) in Excel öffnen. Die Action legt
+dafür `Waage.ino.elf` mit ins Release. Die Adressen lassen sich damit einer Code-Zeile zuordnen:
+`xtensa-esp32s3-elf-addr2line -pfiaC -e Waage.ino.elf 0x42001234 0x4037abcd …` (das Programm liegt
+im ESP32-Boardpaket unter `tools/xtensa-esp-elf/…/bin`). Oder die Zeile einfach an Claude schicken.
 
 Ein abgebrochenes Update ist ungefährlich. Der ESP32 schreibt in den zweiten
 Programmbereich und schaltet erst um, wenn die neue Datei vollständig und geprüft ist.

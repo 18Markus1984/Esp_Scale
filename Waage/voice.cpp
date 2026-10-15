@@ -419,7 +419,8 @@ static uint32_t s_live_at = 0;  // Spitzenwert 2 s halten, damit man ihn auf der
 // Mitschnitt (nur solange die Mikrofonseite offen ist): die letzten 3 s Audio im
 // Ringpuffer. Steigt die Weckwort-Wahrscheinlichkeit über 25 %, wird nach dem
 // Wort gespeichert – als w…wav, wenn die Waage aufgewacht ist, sonst als k…wav
-// ("knapp"), mit der höchsten Wahrscheinlichkeit im Namen. So lässt sich am PC
+// ("knapp"), mit der höchsten Wahrscheinlichkeit im Namen. Nach dem Wecken
+// außerdem der Befehl (b…_tara_87.wav) bzw. "nicht verstanden" (n…wav). So lässt sich am PC
 // nachrechnen, was die Waage im Alltag wirklich gehört hat, und die Dateien
 // können als Trainingsdaten unter Aufnahmen/hallo_waage dazu.
 #define CAP_DIR DIR_SPEECH "/Mitschnitt"
@@ -430,7 +431,8 @@ static uint32_t s_live_at = 0;  // Spitzenwert 2 s halten, damit man ihn auf der
 static int16_t *s_cap = NULL;
 static int s_cap_pos = 0;
 static volatile bool s_cap_on = false;
-static volatile int s_cap_req = 0;   // 1 = knapp, 2 = geweckt
+static volatile int s_cap_req = 0;   // 1 = knapp, 2 = geweckt, 3 = Befehl, 4 = nicht verstanden
+static int s_cap_cls = -1;           // Befehl: erkannte Klasse
 static int s_cap_pct = 0, s_cap_n = 0;
 static char s_cap_last[24] = "";
 static bool s_ep_on = false, s_ep_woke = false;
@@ -598,7 +600,13 @@ static void decide() {
   if (!s_awake) return;
   if (!s_dec_active && now > s_awake_until) {
     s_awake = false;
-    if (s_heard) s_ev_notund = true;  // etwas gesagt, aber nichts verstanden
+    if (s_heard) {
+      s_ev_notund = true;  // etwas gesagt, aber nichts verstanden
+      if (s_cap_on && !s_cap_req) {  // mitschneiden: n…wav
+        s_cap_pct = 0;
+        s_cap_req = 4;
+      }
+    }
     s_heard = false;
     return;
   }
@@ -656,6 +664,11 @@ static void decide() {
   s_dec_active = false;
   if (best < 0) return;
   s_pending = best;
+  if (s_cap_on && !s_cap_req) {  // mitschneiden: b…_<befehl>_<prozent>.wav
+    s_cap_cls = best;
+    s_cap_pct = (int)(pk * 100 + 0.5f);
+    s_cap_req = 3;
+  }
   snprintf(s_last, sizeof(s_last), "%s", kws_class(best));
   s_last_ms = hal_millis();
   s_awake_until = now + AWAKE_MS;  // gleich noch ein Befehl möglich ("weiter", "weiter")
@@ -726,8 +739,14 @@ static void cap_save() {
   storage_mkdir(CAP_DIR);
   char path[64];
   int k = 1;
+  int pct = s_cap_pct > 99 ? 99 : s_cap_pct;
   do {
-    snprintf(path, sizeof(path), CAP_DIR "/%c%03d_%02d.wav", kind == 2 ? 'w' : 'k', k++, s_cap_pct > 99 ? 99 : s_cap_pct);
+    if (kind == 3)  // Befehl: Klasse im Namen
+      snprintf(path, sizeof(path), CAP_DIR "/b%03d_%s_%02d.wav", k++, s_cap_cls >= 0 ? kws_class(s_cap_cls) : "x", pct);
+    else if (kind == 4)  // wach, gesprochen, nicht verstanden
+      snprintf(path, sizeof(path), CAP_DIR "/n%03d.wav", k++);
+    else
+      snprintf(path, sizeof(path), CAP_DIR "/%c%03d_%02d.wav", kind == 2 ? 'w' : 'k', k++, pct);
   } while (storage_exists(path) && k < 1000);
   bool ok = storage_write_bin(path, h, 44 + bytes);
   free(h);
@@ -905,12 +924,18 @@ void voice_loop() {
     bool ok = log_add(scale_net(), T("Sprachbefehl"));
     sound_play(ok ? SND_SAVE : SND_WARN);
     if (ok && !g_set.speak_ev) sound_say("gespeichert");
+    if (!ok) sound_say("geht_nicht");
   } else if (strcmp(c, "weiter") == 0) {
     static const char *const NEXT_LABELS[] = { "Weiter", "Fertig", "Start", "Tippen", "Los",
                                                "Nächste Runde", "Übernehmen", "Mixen" };
-    if (!ui_click_button(NEXT_LABELS, sizeof(NEXT_LABELS) / sizeof(NEXT_LABELS[0]))) sound_play(SND_WARN);
+    if (!ui_click_button(NEXT_LABELS, sizeof(NEXT_LABELS) / sizeof(NEXT_LABELS[0]))) {
+      if (!sound_say("geht_nicht")) sound_play(SND_WARN);  // "Das geht hier gerade nicht."
+    } else {
+      sound_say("weiter");
+    }
   } else if (strcmp(c, "zurueck") == 0) {
     ui_go_home();
+    sound_say("zurueck");  // "Zurück zur Startseite."
   } else if (strcmp(c, "stopp") == 0) {
     if (ui_target_goal() > 0) {
       ui_target_stop();
@@ -918,6 +943,7 @@ void voice_loop() {
     } else {
       sound_parking_reset();
       ui_go_home();
+      sound_say("zurueck");
     }
   } else if (strncmp(c, "ziel_", 5) == 0) {
     int g = atoi(c + 5);
@@ -925,18 +951,22 @@ void voice_loop() {
   } else if (strcmp(c, "hilfe") == 0) {
     if (!sound_say("hilfe")) sound_play(SND_WARN);
   } else if (strcmp(c, "nochmal") == 0) {
-    if (!sound_repeat()) sound_play(SND_WARN);
+    if (!sound_repeat() && !sound_say("geht_nicht")) sound_play(SND_WARN);
   } else if (strcmp(c, "lauter") == 0 || strcmp(c, "leiser") == 0) {
     int v = g_set.volume + (c[1] == 'a' ? 20 : -20);  // lauter / leiser
     g_set.volume = v > 100 ? 100 : (v < 20 ? 20 : v);
     settings_save();
-    sound_play_tone(SND_TEST);  // so laut ist es jetzt
+    if (!sound_say_volume(g_set.volume)) sound_play_tone(SND_TEST);  // "Lautstärke 80 Prozent" – so laut ist es jetzt
   } else if (strcmp(c, "akku") == 0) {
     bat_state_t st = hal_battery_state();
     if (!sound_say_battery(hal_battery_percent(), st == BAT_CHARGING || st == BAT_FULL)) sound_play(SND_WARN);
   } else if (strcmp(c, "uhrzeit") == 0) {
     int h, mi;
-    if (!hal_time(&h, &mi) || !sound_say_time(h, mi)) sound_play(SND_WARN);
+    if (!hal_time(&h, &mi)) {
+      if (!sound_say("zeit_unbek")) sound_play(SND_WARN);  // Uhr nicht gestellt
+    } else if (!sound_say_time(h, mi)) {
+      sound_play(SND_WARN);
+    }
   }
   s_awake = false;  // Befehl ausgeführt: wieder schlafen, nächstes Mal mit "Hallo Waage"
 }

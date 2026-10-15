@@ -7,12 +7,30 @@ T0=time.time()
 st={"pots":[{"name":"Großer Topf","grams":1840.2,"color":0},{"name":"Pfanne","grams":1210.0,"color":1},{"name":"Glass","grams":537.0,"color":2}],
     "spools":[{"name":"Bambu Lab","grams":247.0}],
     "cocktails":[{"file":"cuba_libre.txt","name":"Cuba Libre","portions":1,"ing":[{"name":"Rum braun","grams":50},{"name":"Cola","grams":120},{"name":"Limettensaft","grams":10}]},{"file":"gin_tonic.txt","name":"Gin Tonic","portions":1,"ing":[{"name":"Gin","grams":50},{"name":"Tonic Water","grams":150}]}],
-    "recipes":[{"file":"pfannkuchen.txt","name":"Pfannkuchen","portions":2,"ing":[{"name":"Mehl","grams":250},{"name":"Milch","grams":500},{"name":"Eier","grams":110},{"name":"Zucker","grams":20},{"name":"Salz","grams":2}]}],
+    "recipes":[{"file":"pfannkuchen.txt","name":"Pfannkuchen","portions":2,"ing":[{"name":"Mehl","grams":250},{"name":"Zucker","grams":20},{"name":"Salz","grams":2},{"name":"Milch","grams":500},{"k":1,"icon":"ruehren","text":"Mit dem Schneebesen klumpenfrei verrühren","sec":0},{"name":"Eier","grams":110},{"k":1,"icon":"ruehren","text":"Eier unterrühren, bis der Teig glatt ist","sec":0},{"k":1,"icon":"ruhen","text":"Teig quellen lassen","sec":600},{"k":1,"icon":"braten","text":"Etwas Butter erhitzen, Teig dünn ausbacken","sec":0},{"k":1,"icon":"servieren","text":"Mit Zucker und Zimt oder Apfelmus servieren","sec":0}]}],
     "tare":0,"hide":False}
 WL=["FRITZ!Box 7590","Makerspace THM"]
-SET={"unit":0,"autosave":False,"autonext":True,"autooff":30,"idle":5,"autotara":True,"cd":3,"tol":5,"vol":60,"scheme":0,"speak":True,"voice":"Lena","voices":["Lena","KI-Stimme-2","Roboter"],
-     "lang":int(os.environ.get("WAAGE_LANG","0")),"time":"14:32","ssid":"FRITZ!Box 7590","factor":-21.73,"porto":[{"name":"Standardbrief","max":20,"ct":95},{"name":"Kompaktbrief","max":50,"ct":110},{"name":"Großbrief","max":500,"ct":180},{"name":"Maxibrief","max":1000,"ct":290}]}
+SET={"unit":0,"whole":False,"autosave":False,"cal_date":os.environ.get("MOCK_CALDATE","2026-10-10 18:22"),"cal_pts":[200,500,1000,2000],"autonext":True,"autooff":30,"idle":5,"autotara":True,"cd":3,"tol":5,"vol":60,"scheme":0,"speak":True,"speak_ev":True,"voice_on":False,"voice_ok":True,"voice_missing":os.environ.get("MOCK_MISSING","akku_leer, timer_ab"),"voice":"Lena","voices":["Lena","KI-Stimme-2","Roboter"],
+     "lang":int(os.environ.get("WAAGE_LANG","0")),"profile":0,"cats":7,"modes_off":0,"setup_done":not os.environ.get("MOCK_FIRSTRUN"),"voice_model":True,"voice_info":"trainiert 2026-10-12, 31000 Beispiele, Prüfung 93 %","voice_err":"","upd_auto":True,"fw_local":False,"theme":int(os.environ.get("WAAGE_THEME","0")),"ref_g":500,"ref_days":30,"ref_tol":0.5,"ref_last":"12.09.2026","ref_meas":500.3,"ref_ok":True,"ref_next":"12.10.2026","ref_due":False,"time":"14:32","ssid":"" if os.environ.get("MOCK_NOWLAN") else "FRITZ!Box 7590","factor":-21.73,"porto":[{"name":"Standardbrief","max":20,"ct":95},{"name":"Kompaktbrief","max":50,"ct":110},{"name":"Großbrief","max":500,"ct":180},{"name":"Maxibrief","max":1000,"ct":290}]}
 DAYS=[{"day":"2026-09-20","count":4},{"day":"2026-09-19","count":9},{"day":"2026-09-17","count":3},{"day":"2026-09-15","count":6}]
+TH=[int(os.environ.get("WAAGE_THEME","0"))]
+# Messmittelprüfungen in /Waage/Pruefung (Format wie msa_store.cpp, ältere Datei im Browser-Format)
+def msa_csv(nom,tol,v,src,date,cal="2026-10-10 18:22",pts=(200,500,1000,2000)):
+    import statistics as stt
+    m=sum(v)/len(v); s=stt.stdev(v); b=m-nom; cg=0.2*tol/(6*s); cgk=(0.1*tol-abs(b))/(3*s)
+    c=lambda x,d: ("%.*f"%(d,x)).replace(".",",")
+    t="Messmittelfaehigkeit Verfahren 1\nDatum;%s\nQuelle;%s\nFirmware;1.4.2\nSollwert;%s;g\nToleranz T;%s;g\nn;%d\n"%(date,src,c(nom,0),c(tol,0),len(v))
+    t+="Mittelwert;%s;g\nBias;%s;g\ns;%s;g\nCg;%s\nCgk;%s\nErgebnis;%s\nT_min;%s;g\n"%(c(m,3),c(b,3),c(s,4),c(cg,3),c(cgk,3),"faehig" if cg>=1.33 and cgk>=1.33 else "nicht faehig",c(40*s+10*abs(b),2))
+    t+="Kalibriert;%s\nKalibrierpunkte;%s\n\nNr;Messwert_g\n"%(cal,";".join(str(p) for p in pts))
+    return t+"\n".join("%d;%s"%(i+1,c(x,2)) for i,x in enumerate(v))+"\n"
+_V155=[154.60,154.80,154.70,154.60,154.70,154.70,154.60,154.60,154.60,154.70,154.70,154.70,154.70,154.70,154.60,154.70,154.60,154.60,154.60,154.70,154.70,154.70,154.60,154.70,154.60]
+_V1352=[1352.10,1352.20,1352.10,1352.30,1352.20,1352.30,1352.20,1352.20,1352.30,1352.20,1352.20,1352.20,1352.20,1352.20,1352.20,1352.30,1352.30,1352.20,1352.20,1352.10,1352.30,1352.20,1352.20,1352.20,1352.20]
+_V500=[500.11,500.19,500.16,500.08,500.16,499.99,500.13,500.21,500.10,500.05,500.14,500.18,500.12,500.09,500.16,500.20,500.11,500.07,500.13,500.15,500.10,500.12,500.17,500.08,500.14]
+MSA_FILES={"2026-10-15_0905.csv":msa_csv(155,3,_V155,"Browser","2026-10-15 09:05"),
+            "2026-10-15_0850.csv":msa_csv(1352,10,_V1352,"Browser","2026-10-15 08:50"),
+            "2026-10-14_1920.csv":msa_csv(500,10,_V500,"Waage","2026-10-14 19:20"),
+            "messmittelpruefung.csv":"Messmittelfaehigkeit Verfahren 1\nSollwert;2000;g\nToleranz T;10;g\nn;25\nMittelwert;2000.4\n\nNr;Messwert_g\n"+"\n".join("%d;%.2f"%(i+1,2000.3+(i%3)*0.1) for i in range(25))+"\n"}  # Farbschema
+TGT=[0]  # Zielwiegen an der Waage (/api/target)
 FORCE=[None]  # /mock/w?g=… setzt das Bruttogewicht fest (für Testabläufe), ohne g wieder automatisch
 def gross(): return FORCE[0] if FORCE[0] is not None else (1234.5 if (time.time()-T0)%20>4 else 0.2)
 # Timer und Langzeitmessung wie auf der Waage
@@ -32,9 +50,17 @@ class H(http.server.BaseHTTPRequestHandler):
         u=urllib.parse.urlparse(self.path); q=dict(urllib.parse.parse_qsl(u.query)); p=u.path
         if p=="/" : self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8"); self.end_headers(); self.wfile.write(PAGE_()); return
         if p=="/api/state":
-            g=gross()-st["tare"]; return self.j({"g":round(g,1),"gross":gross(),"disp":("%.1f"%g).replace(".",","),"unit":"g","stable":True,"over":False,"pot":"","off":583,"time":"14:32","bat":87,"ble":True,"max":3000,
-                "tm":min([tm_left(t) for t in TM if t["run"] and tm_left(t)>0] or [-1]),"ring":any(t["run"] and tm_left(t)==0 for t in TM),"lt":LT["run"]})
+            g=gross()-st["tare"]; return self.j({"g":round(g,1),"gp":round(g,2),"gross":gross(),"disp":("%.1f"%g).replace(".",","),"unit":"g","stable":True,"over":False,"pot":"","off":583,"time":"14:32","bat":87,"ble":True,"max":3000,"th":TH[0],
+                "tm":min([tm_left(t) for t in TM if t["run"] and tm_left(t)>0] or [-1]),"ring":any(t["run"] and tm_left(t)==0 for t in TM),"lt":LT["run"],"tgt":TGT[0]})
         if p=="/mock/w": FORCE[0]=float(q["g"]) if "g" in q else None; return self.j({"ok":1})
+        if p=="/zip":  # Ordner als ZIP (Testdaten: ein paar kurze WAV-Dateien)
+            import io, zipfile
+            d=q.get("dir","/Waage"); top=d.rstrip("/").split("/")[-1]; b=io.BytesIO()
+            with zipfile.ZipFile(b,"w",zipfile.ZIP_STORED) as z:
+                for w in ["hallo_waage","tara","ziel_250"]:
+                    for i in range(1,4): z.writestr("%s/%s/a%03d.wav"%(top,w,i), b"RIFF"+bytes(40))
+            data=b.getvalue(); self.send_response(200); self.send_header("Content-Type","application/zip")
+            self.send_header("Content-Disposition","attachment; filename=%s.zip"%top); self.end_headers(); self.wfile.write(data); return
         if p=="/api/tools": return self.j(tools())
         if p=="/api/ota":  # Online-Update: suchen dauert 1 s, laden 4 s
             if "check" in q: OTA.update(t=time.time(),mode="check")
@@ -42,7 +68,8 @@ class H(http.server.BaseHTTPRequestHandler):
             dt=time.time()-OTA["t"]; ost="idle"; pr=0
             if OTA["mode"]=="check": ost="check" if dt<1 else "available"
             if OTA["mode"]=="install": pr=min(100,int(dt*25)); ost="download" if pr<100 else "done"
-            return self.j({"ver":"1.4.2","local":False,"repo":"18Markus1984/Esp_Scale","state":ost,"latest":"1.5.0","progress":pr,"error":""})
+            return self.j({"ver":"1.4.2","local":False,"repo":"18Markus1984/Esp_Scale","state":ost,"latest":"1.5.0","progress":pr,"error":"",
+                **({"crash":"Absturz","crash_at":"Beim Laden des Updates","crash_pct":37,"crash_time":"2026-10-14 08:31:05"} if os.environ.get("CRASH") else {"crash":"","crash_at":"","crash_pct":0,"crash_time":""})})
         if p=="/api/timer":
             if "ringoff" in q:
                 for t in TM:
@@ -57,6 +84,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if q.get("on")=="1": LT.update(run=True,iv=int(q.get("iv","60")),t0=time.time()-3600)
             else: LT["run"]=False
             return self.j({"ok":1})
+        if p=="/api/target": TGT[0]=max(0,int(q.get("g","0"))); print("ZIEL:",TGT[0],flush=True); st["tare"]=gross() if TGT[0] else st["tare"]; return self.j({"ok":1})
         if p=="/api/tara": st["tare"]=gross(); return self.j({"ok":1})
         if p=="/api/wlan": return self.j({"cur":WL[0] if WL else "","max":5,"nets":WL})
         if p=="/api/wlan/del":
@@ -64,6 +92,11 @@ class H(http.server.BaseHTTPRequestHandler):
             if 0<=i<len(WL): WL.pop(i)
             return self.j({"ok":1})
         if p=="/api/lang": SET["lang"]=int(q.get("l","0")); return self.j({"ok":1})
+        if p=="/api/profile":  # Voreinstellungen wie settings_profile.cpp
+            pr=int(q.get("p","0")); SET.update(profile=pr,modes_off=0,cats=[7,1,2,0][pr])
+            if pr==1: SET["autotara"]=True
+            if pr==3: SET.update(speak=True,speak_ev=True,vol=max(SET["vol"],80),autotara=False,unit=0,precise=False,whole=False,autosave=False)
+            return self.j({"ok":1})
         if p=="/api/log_add": print("NOTIZ:",q.get("note",""),flush=True); return self.j({"ok":1})
         if p in("/api/save","/api/log_add","/api/park","/api/sound","/api/hide","/api/sync","/api/level_reset","/api/speak_test","/api/ble_send","/api/tick","/api/battery/test","/api/player_add"): return self.j({"ok":1})
         if p=="/api/recipes":
@@ -77,13 +110,19 @@ class H(http.server.BaseHTTPRequestHandler):
         if p=="/api/log/days": return self.j(DAYS)
         if p=="/api/log": return self.j([{"time":"14:32:05","value":"1234,5","unit":"g","note":"Großer Topf"},{"time":"12:40:13","value":"980,0","unit":"g","note":""},{"time":"08:12:01","value":"456,2","unit":"g","note":"Rezept: Pfannkuchen"},{"time":"21:13:40","value":"124,6","unit":"g","note":"Schätzspiel: Sieger Spieler 1"},{"time":"21:08:02","value":"1625,9","unit":"g","note":""},{"time":"13:44:10","value":"2000,0","unit":"g","note":"Porto: Großbrief 1,80 €"}])
         if p=="/api/battery": return self.j({"pct":72,"volts":3.88,"state":"akku","per":8.4,"left":8.6,"interval":5,"test":False,"test_h":0,"test_v0":0,"test_n":0,"history":[100,98,96,95,93,91,90,88,86,85,83,81,80,78,77,75,74,73,72]})
+        if p=="/file" and q.get("path","").startswith("/Waage/Pruefung/"):  # Messmittelprüfungen
+            nm=q["path"].split("/")[-1]; b=MSA_FILES.get(nm,"").encode()
+            self.send_response(200); self.send_header("Content-Type","text/csv"); self.end_headers(); self.wfile.write(b); return
         if p=="/file":  # Langzeitmessung: Filament trocknen (fällt langsam)
             rows=["Uhrzeit;Minuten;Gewicht_g"]+["%02d:%02d:00;%s;%s"%(20+(i//60),i%60,("%.2f"%i).replace(".",","),("%.2f"%(1000-30*(1-math.exp(-i/180))+math.sin(i)/5)).replace(".",",")) for i in range(0,360,2)]
             b="\n".join(rows).encode(); self.send_response(200); self.send_header("Content-Type","text/csv"); self.end_headers(); self.wfile.write(b); return
         if p=="/api/files":
             d=q.get("dir","/Waage")
+            if d=="/Waage/Pruefung": return self.j({"dir":d,"dirs":[],"files":[{"name":k,"size":len(v)} for k,v in MSA_FILES.items()],"total":7841796,"used":5520})
             if d=="/Waage/Messung": return self.j({"dir":d,"dirs":[],"files":[{"name":"2026-09-26_2010.csv","size":4200},{"name":"2026-09-25_0900.csv","size":900}],"total":7841796,"used":5520})
-            if d=="/Waage": return self.j({"dir":d,"dirs":["Rezepte","Cocktails","Stimme","Protokoll","Akku","Spiel","Toepfe"],"files":[],"total":7841796,"used":5520})
+            if d=="/Waage": return self.j({"dir":d,"dirs":["Rezepte","Cocktails","Stimme","Sprache","Protokoll","Akku","Spiel","Toepfe"],"files":[],"total":7841796,"used":5520})
+            if d=="/Waage/Sprache": return self.j({"dir":d,"dirs":["Aufnahmen"],"files":[{"name":"kws_de.bin","size":108996}],"total":7841796,"used":5520})
+            if d=="/Waage/Sprache/Aufnahmen": return self.j({"dir":d,"dirs":["hallo_waage","tara","ziel_250"],"files":[],"total":7841796,"used":5520})
             return self.j({"dir":d,"dirs":[],"files":[{"name":"pfannkuchen.txt","size":118},{"name":"waffeln.txt","size":142},{"name":"pizzateig.txt","size":131}],"total":31000000,"used":2400000})
         if p=="/api/scores": return self.j([
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Lena","value":38.0,"unit":"g"},
@@ -97,7 +136,23 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         n=int(self.headers.get("Content-Length",0)); body=json.loads(self.rfile.read(n) or b"{}"); p=self.path
         if p=="/api/pots": st["pots"]=body["pots"]; st["spools"]=body["spools"]
+        if p=="/api/msa":  # wie msa_store.cpp (vereinfacht)
+            nm=time.strftime("%Y-%m-%d_%H%M")+".csv"; v=body.get("vals",[])
+            MSA_FILES[nm]=msa_csv(body.get("nom",0),body.get("tol",0),v,"Browser",time.strftime("%Y-%m-%d %H:%M"))
+            return self.j({"ok":1,"file":nm})
         if p=="/api/players": st["names"]=body["names"]
+        if p=="/api/setup":  # Einrichtung abgeschlossen (wie h_setup in web.cpp)
+            pr=int(body.get("profile",SET["profile"])); SET.update(profile=pr,modes_off=0,cats=[7,1,2,0][pr])
+            if pr==3: SET.update(speak=True,speak_ev=True,autotara=False,unit=0,precise=False,whole=False,autosave=False)
+            if pr!=3 and "cats" in body: SET["cats"]=int(body["cats"])&7
+            if "theme" in body: SET["theme"]=TH[0]=int(body["theme"])
+            if "vol" in body: SET["vol"]=int(body["vol"])
+            if "speak" in body: SET["speak"]=SET["speak_ev"]=bool(body["speak"])
+            if "upd_auto" in body: SET["upd_auto"]=bool(body["upd_auto"])
+            SET["setup_done"]=True
+            if os.environ.get("MOCK_SAVE"): open(os.environ["MOCK_SAVE"],"w").write(json.dumps(body))
+        if p=="/api/modes": SET.update(cats=int(body.get("cats",SET["cats"]))&7,modes_off=int(body.get("modes_off",SET["modes_off"])))
+        if p=="/api/recipe" and os.environ.get("MOCK_SAVE"): open(os.environ["MOCK_SAVE"],"w").write(json.dumps(body,ensure_ascii=False))
         if p=="/api/wlan":
             if not body.get("ssid"): return self.j({"ok":0,"msg":"Name oder Passwort ungültig"})
             if body["ssid"] in WL: WL.remove(body["ssid"])

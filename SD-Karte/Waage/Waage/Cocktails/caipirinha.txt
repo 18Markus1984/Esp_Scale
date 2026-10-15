@@ -1,5 +1,0 @@
-name=Caipirinha
-portionen=1
-Cachaca;60
-Limettensaft;30
-Zuckersirup;20

@@ -1,12 +1,8 @@
+# Beispielrezept - Zeilen: Zutat;Gramm
 name=Pfannkuchen
 portionen=2
 Mehl;250
+Milch;500
+Eier;110
 Zucker;20
 Salz;2
-Milch;500
->ruehren;Mit dem Schneebesen klumpenfrei verrühren
-Eier;110
->ruehren;Eier unterrühren, bis der Teig glatt ist
->ruhen;Teig quellen lassen;10
->braten;Etwas Butter erhitzen, Teig dünn ausbacken
->servieren;Mit Zucker und Zimt oder Apfelmus servieren

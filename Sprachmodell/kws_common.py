@@ -33,12 +33,12 @@ CLASSES_DE = {
     "_stille": [],     # nur Hintergrund
     "_unbekannt": [],  # andere Wörter (siehe OTHER_DE)
     "hallo_waage": ["Hallo Waage", "Hallo, Waage!", "Hallo Waage."],
-    "tara": ["Tara", "Tarieren", "Auf null"],
+    "tara": ["Tara", "Tarieren", "Auf null", "Null"],
     "wie_viel": ["Wie viel?", "Wie viel ist das?", "Wie schwer?"],
     "speichern": ["Speichern", "Speichern bitte"],
     "weiter": ["Weiter", "Weiter bitte"],
     "zurueck": ["Zurück", "Zurück bitte"],
-    "stopp": ["Stopp", "Ende", "Beenden"],
+    "stopp": ["Stopp", "Ende", "Beenden", "Abbrechen"],
     "ziel_50": ["fünfzig Gramm", "fünfzig"],
     "ziel_100": ["hundert Gramm", "hundert", "einhundert Gramm"],
     "ziel_150": ["hundertfünfzig Gramm", "hundertfünfzig"],
@@ -47,6 +47,13 @@ CLASSES_DE = {
     "ziel_300": ["dreihundert Gramm", "dreihundert"],
     "ziel_500": ["fünfhundert Gramm", "fünfhundert", "ein Pfund"],
     "ziel_1000": ["tausend Gramm", "ein Kilo", "eintausend Gramm"],
+    # Hilfe für blinde Nutzer: Befehle vorlesen, letzte Ansage wiederholen
+    "hilfe": ["Hilfe", "Was kann ich sagen?", "Hilfe bitte"],
+    "nochmal": ["Nochmal", "Noch einmal", "Wiederholen"],
+    "lauter": ["Lauter", "Lauter bitte"],
+    "leiser": ["Leiser", "Leiser bitte"],
+    "akku": ["Akku", "Wie voll ist der Akku?", "Akkustand"],
+    "uhrzeit": ["Uhrzeit", "Wie spät ist es?", "Wie viel Uhr ist es?"],
 }
 
 # Andere Wörter: ähnlich klingende, andere Zahlen, Küchenwörter, Alltagssätze
@@ -54,7 +61,7 @@ OTHER_DE = [
     "Hallo", "Waage", "Wagen", "Hallo Wagen", "Hallo Mama", "Hallo zusammen", "Na hallo", "Wage es",
     "Tante", "Tafel", "Karte", "Tasse", "Sahne", "Paar", "Tarif", "Speicher", "Speiche", "Weit",
     "Weiß", "Leiter", "Zucker", "Rücken", "Stoppen", "Topf", "Tropfen", "Ende gut", "Wie bitte",
-    "Wie spät ist es", "Wieso", "viel Spaß", "Kilo", "Pfund", "Gramm",
+    "Wieso", "viel Spaß", "Kilo", "Pfund", "Gramm",
     "eins", "zwei", "drei", "vier", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf",
     "zwanzig", "dreißig", "vierzig", "sechzig", "siebzig", "achtzig", "neunzig",
     "vierhundert", "sechshundert", "siebenhundert", "achthundert", "neunhundert",
@@ -66,7 +73,7 @@ OTHER_DE = [
     "Hast du Hunger", "Das Wasser kocht", "Mach mal Pause", "Heute ist schönes Wetter",
     "Wo ist der Schlüssel", "Ich gehe einkaufen", "Das schmeckt gut", "Noch ein bisschen",
     "Ein bisschen mehr", "Das reicht", "Zu viel", "Genau richtig", "Moment mal", "Schau mal",
-    "Gib mir mal den Zucker", "Wir brauchen noch Eier", "Der Kuchen ist fertig", "Wann kommst du",
+    "Gib mir mal den Zucker", "Hilfst du mir", "Laut", "Leise", "Lauch", "Uhr", "Acker", "Nachher", "Wir brauchen noch Eier", "Der Kuchen ist fertig", "Wann kommst du",
     "Ich habe keine Zeit", "Das Telefon klingelt", "Mach das Fenster zu", "Gute Nacht",
 ]
 
@@ -142,6 +149,22 @@ def cmn(lm):
     m_after = lfilter([a], [1.0, -(1 - a)], lm, axis=0, zi=zi)[0]
     m_before = np.vstack([lm[:1], m_after[:-1]])
     return (lm - m_before).astype(np.float32)
+
+
+def is_holdout(path, cls):
+    """Eigene Aufnahme in der Prüfmenge? Fest nach Datei und Klasse (etwa 15 %), damit
+    Training und kws_pruefen dieselben Dateien als "nicht trainiert" kennen."""
+    import os, zlib
+    return zlib.crc32(os.path.basename(path).encode() + cls.encode()) % 100 < 15
+
+
+def wav_files(d):
+    """WAV-Dateien eines Ordners, jede genau einmal. (glob mit *.wav und *.WAV fand unter
+    Windows jede Datei doppelt, weil dort Groß-/Kleinschreibung egal ist.)"""
+    import os
+    if not os.path.isdir(d):
+        return []
+    return sorted(os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(".wav"))
 
 
 def features(pcm, mean=None, istd=None, warp=1.0):

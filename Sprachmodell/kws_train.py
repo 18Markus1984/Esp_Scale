@@ -21,7 +21,7 @@
 #  zählen beim Training vierfach, weil sie genau das Mikrofon und
 #  den Raum der Waage zeigen.
 # ============================================================
-import argparse, datetime, glob, os, random, sys, time
+import argparse, datetime, glob, os, random, sys, time, zlib
 import numpy as np
 from multiprocessing import Pool
 
@@ -71,7 +71,7 @@ class Background:
     def __init__(self, rec_dirs, babble_clips):
         self.recs = []
         for d in rec_dirs:
-            for p in glob.glob(os.path.join(d, "*.wav")):
+            for p in K.wav_files(d):
                 a = load(p)
                 if len(a) > K.RATE // 2:
                     self.recs.append(a / (np.abs(a).max() + 1e-9))
@@ -133,7 +133,8 @@ def coloring(x, rng):
 #  Ein Trainingsbeispiel: Vorlauf + Fenster, Wort am Ende des Fensters
 # ------------------------------------------------------------
 def make_example(args):
-    clip, label, seed, bg = args
+    clip, label, seed, bg = args[:4]
+    prefix = args[4] if len(args) > 4 else None
     rng = np.random.default_rng(seed)
     pre = int(rng.uniform(1.0, 3.0) * K.RATE)
     n = pre + WIN_S
@@ -156,6 +157,17 @@ def make_example(args):
             start = ws
             c = c[:end - ws]
         x[start:start + len(c)] = c
+        # Davor das Weckwort (so kommt ein Befehl an der Waage immer an): das Netz sieht dann
+        # das Ende von "Hallo Waage" und danach den Befehl im selben Fenster
+        if prefix is not None:
+            pc = coloring(prefix.copy(), rng)
+            pc = pc / (np.abs(pc).max() + 1e-9) * rng.uniform(0.5, 1.4)
+            pe = start - int(rng.uniform(0.15, 0.8) * K.RATE)
+            ps = pe - len(pc)
+            if pe > 0:
+                if ps < 0:
+                    pc, ps = pc[-ps:], 0
+                x[ps:pe] += pc[:pe - ps]
         speech_peak = 10 ** (rng.uniform(-45, -3) / 20)  # sehr leise bis laut
         x *= speech_peak
         snr = rng.uniform(8, 65)  # bis fast still (leise Küche, lauter Sprecher)
@@ -169,7 +181,11 @@ def make_example(args):
     if rng.random() < 0.5:
         noise[:pre] *= 10 ** (rng.uniform(-25, 10) / 20)
     x += noise
-    x += rng.standard_normal(n).astype(np.float32) * 10 ** (-85 / 20)  # Mikrofon-Eigenrauschen
+    # Rauschboden des Waagen-Mikrofons: in den Aufnahmen etwa -61 dBFS (rms 29 von 32768),
+    # unabhängig davon, wie laut gesprochen wird. Vorher stand hier -85 dB, und das Rauschen
+    # war sonst immer relativ zur Sprache: leise (weit entfernte) Sprache war im Training
+    # damit viel sauberer als an der echten Waage.
+    x += rng.standard_normal(n).astype(np.float32) * 10 ** (rng.uniform(-64, -57) / 20)
     pcm = np.clip(x * 32767, -32768, 32767).astype(np.int16)
     # andere Stimmlagen: Frequenzachse leicht stauchen/dehnen (VTLP)
     warp = float(rng.uniform(0.86, 1.14)) if clip is not None and rng.random() < 0.7 else 1.0
@@ -186,17 +202,24 @@ def _init(bg):
 
 
 def _job(a):
-    clip, label, seed = a
-    return make_example((clip, label, seed, _BG))
+    clip, label, seed, prefix = a
+    return make_example((clip, label, seed, _BG, prefix))
 
 
 def build_set(items, copies, bg, procs, seed0):
     """items: Liste (clip oder None, label). copies: Anzahl Varianten je Eintrag."""
     jobs = []
     s = seed0
+    wake = CLASSES.index("hallo_waage")
+    wakes = [c for c, l, w in items if l == wake and c is not None]
+    rng = random.Random(seed0)
     for clip, label, w in items:
+        cls = CLASSES[label]
+        # Befehle oft mit dem Weckwort davor, "andere Wörter" manchmal (-> "nicht verstanden")
+        p_pre = 0.4 if not cls.startswith("_") and label != wake else (0.2 if cls == "_unbekannt" else 0)
         for _ in range(copies * w):
-            jobs.append((clip, label, s))
+            pre = wakes[rng.randrange(len(wakes))] if wakes and clip is not None and rng.random() < p_pre else None
+            jobs.append((clip, label, s, pre))
             s += 1
     with Pool(procs, initializer=_init, initargs=(bg,)) as pool:
         X = pool.map(_job, jobs, chunksize=32)
@@ -204,32 +227,156 @@ def build_set(items, copies, bg, procs, seed0):
     return np.stack(X).astype(np.float32), y
 
 
-def collect(data_dir, rec_dir):
+# ------------------------------------------------------------
+#  Eigene Aufnahmen von der Waage
+# ------------------------------------------------------------
+REC_EXTRA = ("_hintergrund", "_stille")
+MULTI = ("hallo_waage", "wie_viel") + tuple(c for c in CLASSES if c.startswith("ziel_"))
+OWN_VAL = []   # eigene Aufnahmen in der Prüfmenge: (audio, klasse) – Prüfung "wie an der Waage"
+FRAG = set()   # id() der Weckwort-Anfänge ("Hallo Wa…" als unbekannt): keine fremde Sprache
+
+
+def find_rec_dir(path):
+    """Ordner mit den Wort-Unterordnern finden (auch wenn das ZIP ihn doppelt verschachtelt hat)."""
+    if not path:
+        return None
+    names = set(CLASSES) | set(REC_EXTRA)
+    cand = [path] + sorted(glob.glob(os.path.join(path, "*"))) + sorted(glob.glob(os.path.join(path, "*", "*")))
+    for c in cand:
+        if os.path.isdir(c) and any(os.path.isdir(os.path.join(c, n)) for n in names):
+            if os.path.normpath(c) != os.path.normpath(path):
+                print("Aufnahmen gefunden in", c)
+            return c
+    print("WARNUNG: In %s liegen keine Wort-Ordner (hallo_waage, tara …). Ohne eigene Aufnahmen weiter." % path)
+    return None
+
+
+def envelope(a, win=320, hop=160):
+    n = max(1, (len(a) - win) // hop + 1)
+    return np.array([np.sqrt(np.mean(a[i * hop:i * hop + win] ** 2) + 1e-9) for i in range(n)], np.float32)
+
+
+def split_utterances(a, min_s=0.2, max_s=2.6, gap_s=0.35, pad_s=0.12, bounds=False):
+    """Serienaufnahme (dasselbe Wort mehrmals mit Pausen) in einzelne Wörter zerschneiden.
+    bounds=True: [(anfang, ende)] in Abtastwerten statt der Stücke."""
+    hop = 160
+    env = envelope(a, hop=hop)
+    floor = np.percentile(env, 10)
+    thr = max(floor * 4.0, env.max() * 0.05)
+    act = env > thr
+    segs, i, n = [], 0, len(act)
+    gap = int(gap_s * K.RATE / hop)
+    while i < n:
+        if not act[i]:
+            i += 1
+            continue
+        j = i
+        quiet = 0
+        while j < n and quiet <= gap:
+            quiet = 0 if act[j] else quiet + 1
+            j += 1
+        e = j - quiet
+        segs.append((i, e))
+        i = j
+    out = []
+    pad = int(pad_s * K.RATE)
+    for b, e in segs:
+        d = (e - b) * hop / K.RATE
+        if min_s <= d <= max_s:
+            r = (max(0, b * hop - pad), min(len(a), e * hop + 160 + pad))
+            out.append(r if bounds else a[r[0]:r[1]])
+    return out
+
+
+def cut_off(a):
+    """Endet die Aufnahme mitten im Wort (Sprache bis ganz zum Schluss)?"""
+    env = envelope(a)
+    if len(env) < 20:
+        return False
+    return env[-4:].mean() > env.max() * 0.25 and env[-4:].mean() > np.percentile(env, 20) * 4
+
+
+def load_recordings(rec_dir, drop_cut=False):
+    """{klasse: [(audio, gewicht)]} und eine Übersicht je Wort."""
+    from kws_daten import trim
+    out = {}
+    cut_files = []
+    print("Eigene Aufnahmen:  Dateien  Wörter  abgeschnitten  Länge (Median)")
+    total = 0
+    for cls in CLASSES:
+        files = K.wav_files(os.path.join(rec_dir, cls))
+        if not files:
+            continue
+        clips, cut = [], 0
+        for p in files:
+            a = load(p)
+            if len(a) < 800:
+                continue
+            if len(a) > 4 * K.RATE:  # Serie: in einzelne Wörter zerschneiden
+                # "Hallo … Waage", "Ziel … fünfzig": die Pause im Wort ist oft länger als
+                # zwischen einsilbigen Wiederholungen – sonst entstehen halbe Wörter
+                gap = 0.6 if cls in MULTI else 0.35
+                clips += [(trim(x), 4, p) for x in split_utterances(a, gap_s=gap)]
+            elif cut_off(a):
+                cut += 1
+                cut_files.append(p)
+                if not drop_cut:
+                    clips.append((trim(a), 2, p))  # unvollständig: zählt weniger
+            else:
+                clips.append((trim(a), 4, p))
+        out[cls] = clips
+        total += len(clips)
+        dur = np.median([len(c) / K.RATE for c, w, f in clips]) if clips else 0
+        print("  %-14s %5d  %6d  %6d  %4.1f s%s" % (cls, len(files), len(clips), cut, dur,
+                                          "  <- Aufnahme länger machen" if cut > len(files) // 3 else ""))
+    for extra in REC_EXTRA:
+        n = len(K.wav_files(os.path.join(rec_dir, extra)))
+        if n:
+            print("  %-14s %5d  (Hintergrund)" % (extra, n))
+    if "_unbekannt" not in out:
+        print("  Tipp: unter \"ein anderes Wort\" (_unbekannt) aufnehmen senkt Fehlauslösungen.")
+    if not any(os.path.isdir(os.path.join(rec_dir, e)) for e in REC_EXTRA):
+        print("  Tipp: unter \"Küchengeräusche\" (_hintergrund) die Küche aufnehmen.")
+    print("  zusammen %d eigene Wörter" % total)
+    if cut_files:
+        liste = os.path.join(HERE, "abgeschnitten.txt")
+        with open(liste, "w", encoding="utf-8") as f:
+            f.write("\n".join(cut_files) + "\n")
+        print("  %d Aufnahmen enden mitten im Wort (%s): Liste in %s" %
+              (len(cut_files), "weggelassen" if drop_cut else "zählen halb, --ohne-abgeschnittene lässt sie weg", liste))
+    return out
+
+
+def collect(data_dir, rec_dir, drop_cut=False):
     train, val = [], []
+    recs = load_recordings(rec_dir, drop_cut) if rec_dir else {}
     for ci, cls in enumerate(CLASSES):
         for p in glob.glob(os.path.join(data_dir, cls, "*.wav")):
             a = load(p)
             if len(a) < 800:
                 continue
             (val if os.path.basename(p).startswith(HOLDOUT) else train).append((a, ci, 1))
-        if rec_dir:
-            for p in glob.glob(os.path.join(rec_dir, cls, "*.wav")):
-                a = load(p)
-                if len(a) < 800:
-                    continue
-                # eigene Aufnahmen: Stille vorn/hinten weg, vierfach gewichtet
-                from kws_daten import trim
-                a = trim(a)
-                (val if random.random() < 0.15 else train).append((a, ci, 4))
+        # eigene Aufnahmen: Stille vorn/hinten weg, vierfach gewichtet (abgeschnittene doppelt).
+        # Prüfmenge je DATEI (fest nach dem Namen): die Wörter einer Serie landen alle auf
+        # derselben Seite, sonst prüft man mit fast denselben Aufnahmen, mit denen trainiert wurde
+        for a, w, f in recs.get(cls, []):
+            if K.is_holdout(f, cls):
+                val.append((a, ci, w))
+                OWN_VAL.append((a, ci))
+            else:
+                train.append((a, ci, w))
     # Weckwort-Anfänge ("Hallo…") als unbekannt, damit es nicht zu früh auslöst
     hw, unk = CLASSES.index("hallo_waage"), CLASSES.index("_unbekannt")
     # das Weckwort ist am wichtigsten: dreifach so viele Varianten; kurze Einzelwörter
     # ("Tara", "Stopp", "Weiter", "Speichern") sind schwerer zu erkennen: doppelt
+    # (auch die neuen kurzen Wörter doppelt zu gewichten hat im Test nicht geholfen)
     short = [CLASSES.index(c) for c in ("tara", "stopp", "weiter", "speichern")]
     train = [(a, ci, w * 3 if ci == hw else (w * 2 if ci in short else w)) for a, ci, w in train]
     for a, ci, w in list(train):
         if ci == hw:
-            train.append((a[:int(len(a) * random.uniform(0.3, 0.5))], unk, 1))
+            frag = a[:int(len(a) * random.uniform(0.3, 0.5))]
+            FRAG.add(id(frag))
+            train.append((frag, unk, 1))
     # Hintergrund ohne Sprache
     st = CLASSES.index("_stille")
     n_st = max(150, len(train) // len(CLASSES))
@@ -238,9 +385,8 @@ def collect(data_dir, rec_dir):
     return train, val
 
 
-def stream_false_alarms(model, mean, istd, bg, clips_unk, minutes, rng):
-    """Langer Strom aus anderen Sätzen und Geräuschen: wie oft löst etwas aus?"""
-    import torch
+def foreign_stream(bg, clips_unk, minutes, rng):
+    """Langer Strom aus anderen Sätzen und Geräuschen (Abtastwerte wie 16 Bit)."""
     n = int(minutes * 60 * K.RATE)
     x = bg.get(n, rng) * 0.002
     p = 0
@@ -250,31 +396,91 @@ def stream_false_alarms(model, mean, istd, bg, clips_unk, minutes, rng):
         L = min(len(c), n - p)
         x[p:p + L] += c[:L]
         p += L + int(rng.uniform(0.3, 2.5) * K.RATE)
-    pcm = np.clip(x * 32767, -32768, 32767).astype(np.int16)
-    f = K.features(pcm, mean, istd)
-    idx = list(range(K.FRAMES, len(f), K.INFER_HOPS))
-    probs = []
-    with torch.no_grad():
-        for i in range(0, len(idx), 256):
-            b = np.stack([f[j - K.FRAMES:j] for j in idx[i:i + 256]])
-            probs.append(torch.softmax(model(torch.tensor(b)), 1).numpy())
-    pr = np.concatenate(probs)
-    sm = np.stack([pr[max(0, i - 2):i + 1].mean(0) for i in range(len(pr))])  # wie SMOOTH 3
-    wake = CLASSES.index("hallo_waage")
-    fa_wake = int(((sm[1:, wake] >= K.WAKE_THRESHOLD) & (sm[:-1, wake] < K.WAKE_THRESHOLD)).sum())
-    cmd = [i for i, c in enumerate(CLASSES) if not c.startswith("_") and c != "hallo_waage"]
-    mx = sm[:, cmd].max(1)
-    fa_cmd = int(((mx[1:] >= K.THRESHOLD) & (mx[:-1] < K.THRESHOLD)).sum())
-    return fa_wake, fa_cmd
+    return x * 32767
+
+
+FA_MAX = 3  # höchstens so viele Fehl-Weckungen in 10 min Dauergerede
+
+
+def calibrate(path, bg, clips_unk, val, forced=None):
+    """Mit der fertigen Modelldatei rechnen wie die Waage (kws_pruefen.py):
+    1. eigene Prüf-Aufnahmen – würde "Hallo Waage" wecken, werden Befehle erkannt?
+    2. 10 min fremde Sprache – wie oft weckt sie die Waage?
+    Daraus die Weckwort-Schwelle wählen und in die Datei schreiben."""
+    import kws_pruefen as P
+    m = P.read_model(path)
+    hw = CLASSES.index("hallo_waage")
+    cmd = [i for i, c in enumerate(CLASSES) if not c.startswith("_") and i != hw]
+    rng = np.random.default_rng(5)
+    t0 = time.time()
+    # Fremde Sprache
+    ts, sp = P.stream(m, foreign_stream(bg, clips_unk, 10, rng))
+    ok = ts >= 2000
+    def cross(v, thr):
+        return int(((v[1:] >= thr) & (v[:-1] < thr)).sum())
+    grid = [round(0.40 + 0.05 * i, 2) for i in range(9)]  # 0,40 … 0,80
+    fa = {t: cross(sp[ok, hw], t) for t in grid}
+    fa_cmd = cross(sp[ok][:, cmd].max(1), m["thr"])
+    # Weckwort: eigene Prüf-Aufnahmen (sonst die Prüfstimme), nah und 20 dB leiser
+    wake = [a for a, ci in OWN_VAL if ci == hw]
+    src = "eigene Prüf-Aufnahmen"
+    if len(wake) < 5:
+        wake = [a for a, ci, w in val if ci == hw and a is not None][:40]
+        src = "Prüfstimme " + HOLDOUT
+    near = [P.wake_peak(m, a, rng, 0, 30) for a in wake]
+    far = [P.wake_peak(m, a, rng, -20, 30) for a in wake]
+    far2 = [P.wake_peak(m, a, rng, -30, 30) for a in wake]  # etwa 1 bis 2 m weg
+    print("\nWie an der Waage gerechnet (geglättet, nach dem Einschwingen), %d x Hallo Waage (%s):" % (len(wake), src))
+    print("  Schwelle   weckt (wie aufgenommen)  (20 dB leiser)  (30 dB leiser)  Fehlalarme in 10 min fremder Sprache")
+    for t in grid:
+        print("    %.2f          %3.0f %%               %3.0f %%          %3.0f %%          %d" %
+              (t, np.mean([v >= t for v in near]) * 100, np.mean([v >= t for v in far]) * 100,
+               np.mean([v >= t for v in far2]) * 100, fa[t]))
+    if forced:
+        thr = forced
+        why = "vorgegeben (--weckschwelle)"
+    else:
+        # erlaubt: höchstens FA_MAX Fehlalarme; davon die höchste Schwelle, die (fast) so oft
+        # weckt wie die niedrigste – tiefer bringt dann nichts, nur mehr Fehlalarme im Alltag
+        cand = [t for t in grid if fa[t] <= FA_MAX and 0.45 <= t <= 0.70] or [0.70]
+        det = {t: np.mean([v >= t for v in near + far + far2]) for t in cand}  # auch weiter weg zählt
+        top = max(det.values())
+        thr = max(t for t in cand if det[t] >= top - 0.03)
+        why = "weckt %.0f %%, höchstens %d Fehlalarme" % (det[thr] * 100, FA_MAX)
+    P.set_thresholds(path, wake=thr)
+    print("  -> Weckwort-Schwelle %.2f (%s), im Modell gespeichert" % (thr, why))
+    # Befehle auf eigenen Prüf-Aufnahmen
+    own_cmd = [(a, ci) for a, ci in OWN_VAL if ci in cmd]
+    if own_cmd:
+        right, wrong = 0, {}
+        for a, ci in own_cmd:
+            tt, s2 = P.stream(m, P.embed(a, rng))
+            s2 = s2[tt >= 2000]
+            j = int(np.argmax(s2[:, cmd].max(1)))
+            best = cmd[int(np.argmax(s2[j, cmd]))]
+            if best == ci and s2[j, ci] >= m["thr"]:
+                right += 1
+            else:
+                wrong[CLASSES[ci]] = wrong.get(CLASSES[ci], 0) + 1
+        worst = sorted(wrong.items(), key=lambda kv: -kv[1])[:4]
+        print("  Befehle (eigene Prüf-Aufnahmen): %d von %d erkannt%s" %
+              (right, len(own_cmd), ("; daneben am häufigsten: " + ", ".join("%s %d" % kv for kv in worst)) if worst else ""))
+    print("\nFehlalarme in 10 min fremder Sprache: Weckwort %d, Befehle %d  (%.0f s)" %
+          (cross(sp[ok, hw], thr), fa_cmd, time.time() - t0))
+    return thr
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--daten", default=os.path.join(HERE, "daten"))
     ap.add_argument("--aufnahmen", default=None, help="Ordner Aufnahmen von der SD-Karte")
+    ap.add_argument("--ohne-abgeschnittene", action="store_true",
+                    help="eigene Aufnahmen, die mitten im Wort enden, ganz weglassen")
     ap.add_argument("--epochen", type=int, default=40)
     ap.add_argument("--varianten", type=int, default=6, help="Varianten je Aufnahme")
     ap.add_argument("--aus", default=os.path.join(HERE, "kws_de.bin"))
+    ap.add_argument("--weckschwelle", type=float, help="Weckwort-Schwelle fest vorgeben (sonst automatisch)")
+    ap.add_argument("--kein-vergleich", action="store_true", help="am Ende nicht alle Modelle vergleichen")
     ap.add_argument("--prozesse", type=int, default=max(1, os.cpu_count() or 1))
     args = ap.parse_args()
 
@@ -284,8 +490,9 @@ def main():
     random.seed(3)
     torch.set_num_threads(max(1, os.cpu_count() or 1))
 
-    train, val = collect(args.daten, args.aufnahmen)
-    rec_bg = [os.path.join(args.aufnahmen, d) for d in ("_hintergrund", "_stille")] if args.aufnahmen else []
+    args.aufnahmen = find_rec_dir(args.aufnahmen)
+    train, val = collect(args.daten, args.aufnahmen, args.ohne_abgeschnittene)
+    rec_bg = [os.path.join(args.aufnahmen, d) for d in REC_EXTRA] if args.aufnahmen else []
     unk = CLASSES.index("_unbekannt")
     babble = [a for a, ci, w in train if ci == unk and a is not None][:300]
     bg = Background(rec_bg, babble)
@@ -353,13 +560,29 @@ def main():
             wrong[ci] = 0
             top = CLASSES[wrong.argmax()] if wrong.sum() else ""
             print("  %-12s %5.1f %%  %s" % (c, (pv[m] == ci).mean() * 100, ("meist verwechselt mit " + top) if top else ""))
-    rng = np.random.default_rng(5)
-    unk_clips = [a for a, ci, w in val + train if ci == unk and a is not None]
-    fw, fc = stream_false_alarms(model, mean, istd, bg, unk_clips, 10, rng)
-    print("\nFehlalarme in 10 min fremder Sprache: Weckwort %d, Befehle %d" % (fw, fc))
     info = "trainiert %s, %d Beispiele, Prüfung %.0f %%" % (datetime.date.today().isoformat(), len(ytr), best * 100)
+    # Das bisherige Modell nicht überschreiben, sondern in modelle\ aufheben (zum Vergleichen)
+    if os.path.exists(args.aus):
+        import shutil
+        keep = os.path.join(HERE, "modelle")
+        os.makedirs(keep, exist_ok=True)
+        stamp = datetime.datetime.fromtimestamp(os.path.getmtime(args.aus)).strftime("%Y-%m-%d_%H%M")
+        dst = os.path.join(keep, "modell_%s.bin" % stamp)
+        if not os.path.exists(dst):
+            shutil.copy2(args.aus, dst)
+            print("\nBisheriges Modell aufgehoben: %s" % dst)
     size = K.export(model, CLASSES, mean, istd, args.aus, info)
+    # Fremde Sprache ohne die abgeschnittenen Weckwörter ("Hallo Wa…"), die sind zu nah dran
+    unk_clips = [a for a, ci, w in val + train if ci == unk and a is not None and id(a) not in FRAG]
+    calibrate(args.aus, bg, unk_clips, val, args.weckschwelle)
     print("\nGespeichert: %s (%d KB) – %s" % (args.aus, size // 1024, info))
+    # Zum Schluss alle Modelle mit ALLEN eigenen Wörtern vergleichen (Weckwort, Befehle, anderes
+    # Wort), und zwar nur mit den Prüf-Dateien, die das neue Modell nicht gelernt hat, 20 dB leiser
+    if not args.kein_vergleich and args.aufnahmen:
+        import kws_pruefen as P
+        models = [m for m in P.all_models() if os.path.abspath(m) != os.path.abspath(args.aus)] + [args.aus]
+        print("\n==== Vergleich aller Modelle: alle Wörter, Prüf-Dateien, 20 dB leiser (wie aus etwa 1 m) ====")
+        P.check_all_words(models, args.aufnahmen, level_db=-20, holdout_only=True)
 
 
 if __name__ == "__main__":

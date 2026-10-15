@@ -860,4 +860,31 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   vorhanden (`mbedtls_calloc` ruft über `mbedtls_calloc_func`).
 - Fehlergrund sichtbar: `upd_detail()` „HTTP <Code> · Block <KB>“ (Firmware-Seite statt Repo-Zeile,
   Web-Firmware-Karte hinter dem Repo, JSON `detail`).
+- Lauf mit festem Rauschboden (15.10. abends): Prüfung 76 %, Schwelle 0,60; bei −25 dB weckt das neue
+  Modell 29/33 (vorher 27–28), leise a030/a031 deutlich besser; a023 (−60 dBFS = Rauschboden) unmöglich.
+- kws_train legt das bisherige kws_de.bin vor dem Überschreiben als `modelle/modell_<mtime>.bin` ab und
+  vergleicht am Ende alle Modelle (`kws_pruefen.all_models()`: *.bin + modelle/*.bin) auf
+  Aufnahmen/hallo_waage (+ Mitschnitt/) bei −25 dB, nur Übersicht; `--kein-vergleich`.
+  kws_pruefen `--ordner` ohne `--modell` = alle Modelle; Übersicht (Treffer, mittlere Sicherheit,
+  Serien-Weckungen, Schwelle, * = bestes); `--nur-uebersicht`.
 
+
+### Stand 15.10.2026 (spät): Ansagen für alle Sprachfunktionen, alle Wörter prüfen, Mitschnitte sortieren
+- Waage „stumm“ bei ja/akku/uhr: `sound_say` spricht nur, wenn ALLE Wörter im Paket oder in
+  `/Waage/Stimme/_Zusatz` (EN `_Zusatz-EN`) liegen, sonst Piep. Wahrscheinlich fehlte _Zusatz auf der Karte.
+  Neu: `sound_missing()` → Settings-JSON `voice_missing` → Hinweis-Kasten unter „Stimme“ (Web).
+- Neue Sätze (stimme_erzeugen.py ZUSATZ/ZUSATZ_EN, WORD_EN in sound.cpp): bereit, weiter, zurueck,
+  geht_nicht, lautstaerke (+Zahl+prozent, `sound_say_volume`), akku_leer, timer_ab, zeit_unbek,
+  schaltet_aus. Verwendet: voice.cpp (weiter/zurück/stopp ohne Ziel/speichern+nochmal fehlgeschlagen/
+  lauter/leiser/Uhrzeit unbekannt), ui.cpp start_finish „bereit“, tools.cpp Timer, ui_power.cpp Akku leer
+  (jede 5. Warnung) und Auto-Aus-Warnung. Alle nur mit `speak_ev`. Generiert: _Zusatz (piper eva_k),
+  Roboter, _Zusatz-EN, Roboter-EN (espeak). Lena/KI-Packs nehmen _Zusatz. `stimme_erzeugen.py --liste / --nur`.
+- Mitschnitt jetzt auch Befehle: `bNNN_<cls>_PP.wav` und nicht verstanden `nNNN.wav` (voice.cpp s_cap_req 3/4).
+- kws_pruefen `--alle-woerter AUFNAHMEN [--nur-pruefdateien] [--leiser N]`: `check_all_words()` je Klasse
+  Treffer je Modell (Gerätelogik `decide_command`, Befehle ohne Weckwort davor), schlechteste zuerst,
+  „verstand stattdessen“. Trainingsende ruft es mit −20 dB, nur Holdout (statt nur hallo_waage).
+- Neu `kws_mitschnitt.py`: holen (`/zip?dir=/Waage/Sprache/Mitschnitt`, Dedupe per SHA1 gegen Mitschnitt/,
+  erledigt/, Aufnahmen/ und mitschnitt_bekannt.csv) + sortieren (alle Modelle, zwei Sichten: roh und mit
+  2,6 s Vorlauf; Kandidaten nach Präfix; sicher = Weckschwelle / Befehl ≥0,6 / _unbekannt ≥0,7; einig →
+  auto; sonst abspielen + fragen). Speichert nur das gemeinte Wort (`cut_word`, kws_train
+  `split_utterances(bounds=True)`, Segment, das vor dem Modell-Peak endet) als Aufnahmen/<cls>/m_<name>.wav.

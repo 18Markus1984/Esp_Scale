@@ -818,6 +818,13 @@ static void h_scores() {
 
 // Messmittelprüfung aus dem Browser auf der SD-Karte ablegen (wie an der Waage)
 // {"nom":155,"tol":3,"vals":[154.62,154.71,…]}
+// fehlende Ansagen des gewählten Stimmpakets (auch nicht in _Zusatz), für die Einstellungen
+static const char *voice_missing_list() {
+  static char b[160];
+  if (sound_missing(b, sizeof(b)) <= 0) b[0] = 0;
+  return b;
+}
+
 static void h_msa_save() {
   String b = s_server.arg("plain");
   float nom = jval(b, "nom").toFloat(), tol = jval(b, "tol").toFloat();
@@ -879,7 +886,7 @@ static void h_settings() {
              ",\"voice_on\":" + (g_set.voice_on ? "true" : "false") + ",\"voice_ok\":" + (voice_available() ? "true" : "false") +
              ",\"voice_model\":" + (voice_model_ok() ? "true" : "false") + ",\"voice_info\":\"" + esc(voice_model_info()) +
              "\",\"voice_err\":\"" + esc(voice_model_error()) + "\"" +
-             ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
+             ",\"voice\":\"" + esc(g_set.voice) + "\",\"voice_missing\":\"" + esc(voice_missing_list()) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"whole\":" + (g_set.whole ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
              ",\"modes_off\":" + g_set.modes_off + ",\"setup_done\":" + (g_set.setup_done ? "true" : "false") +

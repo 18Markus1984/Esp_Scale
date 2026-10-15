@@ -61,7 +61,7 @@ The whole UI is available in **English and German** (display, web interface and 
 | **Built-in web app** | One tap from the *System* list on the scale. Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
 | **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. After switching on, the scale finds the release and installs it by itself (only when empty and charged enough, or it asks), with automatic rollback if the new firmware does not start cleanly. |
 | **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
-| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, offline voice commands in German: say "Hallo Waage", then "Tara", "Wie viel?" or "zweihundertfünfzig Gramm". A small keyword-spotting network runs on the scale itself; the model is a file on the SD card and can be retrained with your own recordings (folder `Sprachmodell`). |
+| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, offline voice commands in German: say "Hallo Waage" (or double-tap the top in the simple profile), then "Tara", "Wie viel?", "zweihundertfünfzig Gramm", "Hilfe", "Akku" or "Uhrzeit"; the scale answers with short spoken feedback, made for blind users. A small keyword-spotting network runs on the scale itself; the model is a file on the SD card and can be retrained with your own recordings (folder `Sprachmodell`). |
 | **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
 | **First-start setup** | A short wizard on the display (or on your phone) asks for language, profile, categories, colour, sound and Wi-Fi, then lets you try the gestures once. Repeat it any time under *Setup → Scale → Setup*. |
 | **Profiles** | *Standard*, *Kitchen* and *Workshop* show only the modes you need (each mode can also be hidden on its own). *Simple* turns the scale into a plain kitchen scale for poor eyesight: whole grams in large digits, tap the top half to hear the weight, the bottom half is tare. Leaving *Simple* is only possible in the web app (hold the top half for 5 s to start it). A second button next to tare starts target weighing: pick 100, 200, 250 or 500 g, then the scale shows the remaining amount in large digits and a filling ring, beeps like a parking sensor and announces "70 grams to go". |
@@ -315,7 +315,7 @@ Recipes with eggs (`Ei`/`Eier`/`Egg`/`Eggs`) scale by whole eggs instead of serv
 ingredients follow the real egg weight, whether the eggs are small or large.
 
 All files use `;` as separator and a comma as decimal mark, so they open directly in Excel.
-Everything can be managed in the browser under **Files** without taking the card out.
+Everything can be managed in the browser under **Files** without taking the card out. Whole folders download as a ZIP.
 
 ---
 

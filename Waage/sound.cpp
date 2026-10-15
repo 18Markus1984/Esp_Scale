@@ -668,7 +668,18 @@ static const char *const WORD_EN[][2] = {
   { "ziel", "target" },        { "einfuellen", "fill_now" },     { "ziel_beendet", "target_off" },
   { "akku", "battery" },       { "prozent", "percent" },         { "laedt", "charging" },
   { "uhr", "oclock" },         { "gramm", "grams" },
+  // seit 1.1.21: Rückmeldungen für alle Sprachbefehle und Hinweise für blinde Nutzer
+  { "bereit", "ready" },       { "weiter", "next" },            { "zurueck", "back" },
+  { "geht_nicht", "cannot" },  { "lautstaerke", "volume" },     { "akku_leer", "batt_low" },
+  { "timer_ab", "timer_done" }, { "zeit_unbek", "time_unknown" }, { "schaltet_aus", "power_off" },
 };
+
+// Sätze, die nur die Sprachsteuerung und die Hinweise brauchen (stehen in _Zusatz,
+// wenn das Paket sie nicht hat). Für sound_missing(): was fehlt der Waage?
+static const char *const SAY_WORDS[] = { "ja", "nicht_verst", "hilfe", "ziel", "einfuellen", "ziel_beendet",
+                                         "akku", "prozent", "laedt", "uhr", "bereit", "weiter", "zurueck",
+                                         "geht_nicht", "lautstaerke", "akku_leer", "timer_ab", "zeit_unbek",
+                                         "schaltet_aus" };
 
 static const char *word_file(const char *file) {
   if (g_set.lang == LANG_EN)
@@ -742,6 +753,28 @@ bool sound_say_time(int h, int mi) {
   return say_msg(&m, true);
 }
 
+bool sound_say_volume(int pct) {
+  static msg_t m;
+  m.type = 1;
+  m.count = 0;
+  add_word(&m, word_file("lautstaerke"));
+  add_number(&m, pct);
+  add_word(&m, word_file("prozent"));
+  return say_msg(&m, true);
+}
+
+int sound_missing(char *out, int len) {
+  if (len) out[0] = 0;
+  if (!sound_voice_available()) return -1;
+  int n = 0, L = 0;
+  for (unsigned i = 0; i < sizeof(SAY_WORDS) / sizeof(SAY_WORDS[0]); i++) {
+    if (have_word(word_file(SAY_WORDS[i]))) continue;
+    n++;
+    if (out && L < len - 16) L += snprintf(out + L, len - L, "%s%s", L ? ", " : "", word_file(SAY_WORDS[i]));
+  }
+  return n;
+}
+
 bool sound_repeat() {
   if (!s_have_last) return false;
   static msg_t m;
@@ -807,6 +840,8 @@ bool sound_say_target(int grams) { char b[48]; snprintf(b, sizeof(b), "ziel %d g
 bool sound_say_battery(int pct, bool charging) { char b[48]; snprintf(b, sizeof(b), "akku %d prozent%s", pct, charging ? " laedt" : ""); return sim_say(b); }
 bool sound_say_time(int h, int mi) { char b[48]; snprintf(b, sizeof(b), "%d uhr %d", h, mi); return sim_say(b); }
 bool sound_repeat() { return sim_say("(nochmal)"); }
+bool sound_say_volume(int pct) { char b[32]; snprintf(b, sizeof(b), "lautstaerke %d prozent", pct); return sim_say(b); }
+int sound_missing(char *out, int len) { if (len) out[0] = 0; return getenv("SIM_MISSING") ? (snprintf(out, len, "%s", getenv("SIM_MISSING")), 1) : 0; }
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
 bool sound_speaking() { return false; } bool sound_busy() { return false; }

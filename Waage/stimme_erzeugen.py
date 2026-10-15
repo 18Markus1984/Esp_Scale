@@ -11,6 +11,8 @@
 #    python3 stimme_erzeugen.py _Zusatz --zusatz          (nur die Ansagen der Sprachsteuerung)
 #    python3 stimme_erzeugen.py _Zusatz --zusatz --piper de-eva_k-x-low.onnx
 #                                       (Piper statt espeak-ng, pip install piper-tts)
+#    python3 stimme_erzeugen.py Roboter --zusatz --nur bereit,weiter   (nur diese Dateien)
+#    python3 stimme_erzeugen.py --liste   (alle Sätze als Text, z. B. zum Einsprechen)
 #
 #  Der Ordner /Waage/Stimme/_Zusatz (englisch _Zusatz-EN) springt ein, wenn
 #  dem gewählten Paket ein Satz der Sprachsteuerung fehlt ("Ja?", Hilfe …).
@@ -51,6 +53,16 @@ ZUSATZ = {
     "prozent": "Prozent",
     "laedt": "wird geladen",
     "uhr": "Uhr",
+    # seit 1.1.21: Rückmeldung für jeden Sprachbefehl und Hinweise für blinde Nutzer
+    "bereit": "Waage bereit.",
+    "weiter": "Weiter.",
+    "zurueck": "Zurück zur Startseite.",
+    "geht_nicht": "Das geht hier gerade nicht.",
+    "lautstaerke": "Lautstärke",
+    "akku_leer": "Akku fast leer. Bitte laden.",
+    "timer_ab": "Timer abgelaufen.",
+    "zeit_unbek": "Uhrzeit unbekannt.",
+    "schaltet_aus": "Die Waage schaltet sich gleich aus.",
 }
 ZUSATZ_EN = {
     "yes": "Yes?",
@@ -64,6 +76,15 @@ ZUSATZ_EN = {
     "percent": "percent",
     "charging": "charging",
     "oclock": "o'clock",
+    "ready": "Scale ready.",
+    "next": "Next.",
+    "back": "Back to the start page.",
+    "cannot": "That is not possible right now.",
+    "volume": "Volume",
+    "batt_low": "Battery low. Please charge.",
+    "timer_done": "Timer finished.",
+    "time_unknown": "Time unknown.",
+    "power_off": "The scale will switch off soon.",
 }
 WORDS.update(ZUSATZ)
 
@@ -121,12 +142,14 @@ def speak_piper(onnx, text, raw):
 _piper = {}
 
 
-def main(out_dir, lang="de", zusatz=False, piper=None):
+def main(out_dir, lang="de", zusatz=False, piper=None, only=None):
     os.makedirs(out_dir, exist_ok=True)
     if zusatz:
         words = ZUSATZ_EN if lang == "en" else ZUSATZ
     else:
         words = WORDS_EN if lang == "en" else WORDS
+    if only:
+        words = {k: v for k, v in words.items() if k in only}
     for name, text in words.items():
         raw = os.path.join(out_dir, "_tmp.wav")
         if piper:
@@ -157,6 +180,15 @@ if __name__ == "__main__":
         i = argv.index("--piper")
         piper = argv[i + 1]
         del argv[i:i + 2]
+    only = None
+    if "--nur" in argv:
+        i = argv.index("--nur")
+        only = set(argv[i + 1].split(","))
+        del argv[i:i + 2]
     lang = "en" if "--lang" in argv and argv[argv.index("--lang") + 1:][:1] == ["en"] else "de"
+    if "--liste" in argv:  # Text zum Einsprechen (stimme_schneiden.py --ansagen)
+        for k, v in (ZUSATZ_EN if lang == "en" else ZUSATZ).items():
+            print("%-14s %s" % (k, v))
+        sys.exit(0)
     args = [a for a in argv if not a.startswith("--") and a != "en"]
-    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang, "--zusatz" in argv, piper)
+    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang, "--zusatz" in argv, piper, only)

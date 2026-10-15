@@ -4,6 +4,7 @@
 #include "hal.h"
 #include "scale.h"
 #include "sound.h"
+#include "settings.h"
 #include "storage.h"
 #include "data.h"
 #include "update_online.h"
@@ -148,6 +149,9 @@ static void timers_tick() {
       t.ring_since = now;
       a_last_sound = 0;
       alarm_show(i);
+      // einmal sagen, was los ist (danach nur noch der Weckton); a_last_sound = jetzt,
+      // damit der erste Ton nicht in die Ansage fällt
+      if (g_set.speak_ev && sound_say("timer_ab")) a_last_sound = now;
       char note[32];
       snprintf(note, sizeof(note), T("%s abgelaufen"), timer_name(i));
       log_add(scale_net(), note);

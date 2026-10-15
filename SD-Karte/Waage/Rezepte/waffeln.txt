@@ -1,14 +1,8 @@
 name=Waffeln
 portionen=4
+Mehl;250
 Butter;125
 Zucker;100
->mixen;Weiche Butter und Zucker cremig rühren;3
 Eier;165
->mixen;Eier einzeln unterrühren
-Mehl;250
-Backpulver;8
 Milch;125
->ruehren;Mehl, Backpulver und Milch kurz unterrühren
->erhitzen;Waffeleisen vorheizen und leicht einfetten
->backen;Je Waffel ca. 3 min goldbraun backen;3
->servieren;Mit Puderzucker oder heißen Kirschen servieren
+Backpulver;8

@@ -4,8 +4,10 @@ LV=lvgl
 CFL=-O1 -g -I. -I$(LV) -I$(SRC) -DLV_CONF_INCLUDE_SIMPLE -DSIM_WAAGE=1 -DUSE_BLE_KBD=0 -w
 LVSRC=$(shell find $(LV)/src -name '*.c')
 LVOBJ=$(patsubst $(LV)/src/%.c,obj/lvgl/%.o,$(LVSRC))
-APPC=$(filter-out hal_board.cpp net.cpp web.cpp update_online.cpp settings.cpp storage.cpp voice.cpp mic.cpp,$(notdir $(wildcard $(SRC)/*.cpp)))
-APPO=$(patsubst %.cpp,obj/%.o,$(APPC)) $(patsubst $(SRC)/%.c,obj/%.o,$(wildcard $(SRC)/font_*.c))
+# Waveshare-Treiber (liegen im Sketch-Ordner, laufen nur auf dem Gerät)
+WAVESHARE=BAT_Driver.cpp Display_SPD2010.cpp Gyro_QMI8658.cpp I2C_Driver.cpp LVGL_Driver.cpp PWR_Key.cpp RTC_PCF85063.cpp SD_Card.cpp TCA9554PWR.cpp Touch_SPD2010.cpp
+APPC=$(filter-out hal_board.cpp net.cpp web.cpp update_online.cpp settings.cpp storage.cpp mic.cpp $(WAVESHARE),$(notdir $(wildcard $(SRC)/*.cpp)))
+APPO=$(patsubst %.cpp,obj/%.o,$(APPC)) $(patsubst $(SRC)/%.c,obj/%.o,$(wildcard $(SRC)/font_*.c) $(wildcard $(SRC)/img_*.c))
 all: sim
 obj/lvgl/%.o: $(LV)/src/%.c lv_conf.h
 	@mkdir -p $(dir $@); gcc $(CFL) -c $< -o $@

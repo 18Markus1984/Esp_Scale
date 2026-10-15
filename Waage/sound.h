@@ -76,6 +76,10 @@ bool sound_say(const char *words);                 // "ja", "nicht_verst", "hilf
 bool sound_say_target(int grams);                  // "Ziel 250 Gramm. Jetzt einfüllen."
 bool sound_say_battery(int pct, bool charging);    // "Akku 60 Prozent (wird geladen)"
 bool sound_say_time(int h, int mi);                // "vierzehn Uhr fünf"
+bool sound_say_volume(int pct);                    // "Lautstärke 80 Prozent"
+// Welche Sätze der Sprachsteuerung fehlen dem gewählten Paket (auch in _Zusatz)?
+// Anzahl (-1 = keine Stimme), Namen mit Komma in out
+int sound_missing(char *out, int len);
 bool sound_repeat();                               // letzte Ansage (Gewicht, Restmenge …) nochmal
 
 // Ansage-Modus: Zahlen = Gewicht/Stückzahl vorlesen (g_set.speak),

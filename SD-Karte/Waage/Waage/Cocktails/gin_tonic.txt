@@ -1,5 +1,0 @@
-name=Gin Tonic
-portionen=1
-Gin;50
-Tonic Water;150
-Limettensaft;10

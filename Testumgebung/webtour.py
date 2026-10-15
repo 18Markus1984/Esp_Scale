@@ -73,6 +73,7 @@ async def main():
         await go("spieler"); await pg.wait_for_timeout(800); await snap("spieler")
         await go("firmware"); await pg.wait_for_timeout(800); await snap("firmware"); await js("P.firmware.ota('check=1')"); await pg.wait_for_timeout(2500); await snap("firmware_neu")
         await js("P.firmware.ota('install=1')"); await pg.wait_for_timeout(1800); await snap("firmware_laden")
+        await go("einrichtung"); await pg.wait_for_timeout(1000); await js("P.einrichtung.st=P.einrichtung.steps().length-1;P.einrichtung.draw()"); await snap("einrichtung_updates")
         await go("messung"); await pg.wait_for_timeout(1500); await snap("messung")
         await go("einstellungen"); await pg.wait_for_timeout(1000); await snap("einstellungen")
         await js("$('w_ssid').value='Ferienhaus';$('w_pass').value='geheim123';P.einstellungen.wadd()"); await pg.wait_for_timeout(800); await js("P.einstellungen.wdel(1)"); await js("P.einstellungen.wadd()")
