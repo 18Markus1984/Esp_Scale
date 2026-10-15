@@ -271,6 +271,7 @@ static void tara_cb(lv_event_t *e) {
 static uint32_t sp_stable_since = 0;
 static bool sp_done = false;  // aktuelles Gewicht schon angesagt/eingereiht
 static float sp_spoken_g = 0;  // zuletzt angesagtes Gewicht
+static bool sp_changed = false;  // neu wegen Gewichtsänderung (nicht wegen leerer Waage)
 // Ab dieser Änderung gilt das Gewicht als neu und wird wieder angesagt
 // (z. B. Nachfüllen in einen erkannten Topf). Mindestens 1 g bzw. 0,5 %.
 static float speak_change_g(float g) {
@@ -580,6 +581,7 @@ static void speak_check() {
   if (fabsf(net) < EMPTY_G) {
     if (sp_done) sp_was_on = true;
     sp_done = false;
+    sp_changed = false;
     sp_stable_since = 0;
     // Null nur durch Tara (Topf/Ware steht noch drauf): nicht "Waage leer"
     if (fabsf(scale_get_tare()) > 20.0f) sp_was_on = false;
@@ -601,6 +603,7 @@ static void speak_check() {
   // nachgefüllt, etwas entnommen)? Dann das neue Gewicht wieder ansagen.
   if (sp_done && fabsf(net - sp_spoken_g) > speak_change_g(sp_spoken_g)) {
     sp_done = false;
+    sp_changed = true;
     sp_stable_since = 0;
   }
   if (!g_set.speak || sp_done || cd_active || fabsf(net) < 2.0f) return;
@@ -618,6 +621,11 @@ static void speak_check() {
   if (sp_stable_since == 0) sp_stable_since = now;
   if (now - sp_stable_since < 1500) return;
   sp_done = true;
+  // Nur kurz ausgeschlagen (Stoß, Störung) und wieder beim angesagten Gewicht?
+  // Dann nicht noch einmal ansagen – auf dem Display hat sich ja nichts geändert.
+  bool back = sp_changed && fabsf(net - sp_spoken_g) <= speak_change_g(sp_spoken_g);
+  sp_changed = false;
+  if (back) return;
   sp_spoken_g = net;
   // Einfach: angezeigt werden ganze Gramm, also auch nur ganze Gramm ansagen
   if (ui_simple() && s_tgt > 0) {
@@ -626,6 +634,8 @@ static void speak_check() {
     if (sound_speak_rest(s_tgt - net, false)) return;
   }
   if (ui_simple()) sound_speak_weight(roundf(net), 0);
+  else if (g_set.whole && (g_set.unit == 0 || g_set.unit == UNIT_ML))
+    sound_speak_weight(roundf(unit_from_g(net, g_set.unit)) / unit_from_g(1.0f, g_set.unit), g_set.unit);
   else sound_speak_weight(net, g_set.unit);
 }
 
@@ -849,6 +859,10 @@ static void home_update_cb(lv_timer_t *t) {
     u = 0;
     long gr = lroundf(over ? gross : scale_net());
     snprintf(buf, sizeof(buf), "%ld", gr);
+  } else if (g_set.whole && (u == 0 || u == UNIT_ML)) {
+    // Anzeige "ganze Gramm" (langes Drücken auf die Zahl): ohne Nachkommastelle
+    long gr = lroundf(unit_from_g(over ? gross : scale_net(), u));
+    snprintf(buf, sizeof(buf), "%ld", gr == 0 ? 0L : gr);
   }
   if (precise) {
     snprintf(buf, sizeof(buf), "%.2f", (p_net > -0.005f && p_net < 0.005f) ? 0.0f : p_net);
@@ -1157,6 +1171,15 @@ static void simple_speak_cb(lv_event_t *e) {
   sound_speak_weight_now(roundf(net), 0);
 }
 
+// Anzeige der Nachkommastellen reihum (Wiegeseite lange drücken, Setup, Web)
+int ui_digits_mode() { return g_set.precise ? 1 : (g_set.whole ? 2 : 0); }
+void ui_digits_set(int m) {
+  g_set.precise = m == 1;
+  g_set.whole = m == 2;
+  settings_save();
+}
+void ui_digits_next() { ui_digits_set((ui_digits_mode() + 1) % 3); }
+
 // ---------- Sprachbefehle (voice.cpp) ----------
 void ui_cmd_tara() {
   if (ui_simple() && s_tgt > 0) {  // Zielwiegen: nächste Portion
@@ -1227,6 +1250,7 @@ bool ui_target_start(int grams) {
   s_tgt = grams;
   tgt_new_round();
   sp_done = false;  // gleich die Restmenge ansagen
+  sp_changed = false;
   sp_stable_since = 0;
   s_tgt_shown = -1;
   // für blinde Nutzer: "Ziel 250 Gramm. Jetzt einfüllen." (ohne Stimme nur ein Klick)
@@ -1502,13 +1526,14 @@ static void build_weigh_tile(lv_obj_t *tile) {
   // Gewicht lange drücken: Präzisionsmodus an/aus
   lv_obj_add_flag(wrow, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_ext_click_area(wrow, 20);
+  // Reihum: eine Nachkommastelle -> präzise (zwei) -> ganze Gramm -> eine …
   lv_obj_add_event_cb(wrow, [](lv_event_t *e) {
     if (ui_simple()) return;
-    g_set.precise = !g_set.precise;
-    settings_save();
+    ui_digits_next();
     sound_play(SND_CLICK);
     h_prev_state = -1;
-    show_toast(g_set.precise ? "Präzision an" : "Präzision aus", C_ACCENT);
+    show_toast(g_set.precise ? "Präzise · 0,00 g" : (g_set.whole ? "Ganze Gramm · 0 g" : "Normal · 0,0 g"),
+               C_ACCENT);
   }, LV_EVENT_LONG_PRESSED, NULL);
   weight_font = NULL;
   weight_show("0,0", "g");

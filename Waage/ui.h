@@ -49,6 +49,10 @@ bool ui_simple();           // Profil Einfach aktiv (nur Wiegen, große Flächen
 // Zielwiegen mit Parkpiepser (Weboberfläche, später Sprache). Im Profil Einfach
 // auf der Wiegeseite (Ziel, Restmenge, Ring), sonst öffnet es den Modus Ziel.
 // grams <= 0 beendet. false = gerade nicht möglich (Start/Assistent läuft)
+// Nachkommastellen der Gewichtsanzeige: 0 = eine, 1 = präzise (zwei), 2 = ganze Gramm
+int  ui_digits_mode();
+void ui_digits_set(int mode);
+void ui_digits_next();             // reihum (Wiegeseite: Zahl lange drücken)
 bool ui_target_start(int grams);
 void ui_target_stop();
 int ui_target_goal();       // laufendes Zielgewicht in g, 0 = keins

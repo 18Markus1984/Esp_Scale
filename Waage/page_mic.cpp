@@ -15,6 +15,7 @@
 #include "hal.h"
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 #if USE_VOICE
 #define WAKE_HINT "Weckwort: „Hi ESP“"
@@ -53,9 +54,19 @@ static void m_timer_cb(lv_timer_t *t) {
     float lp;
     int li = voice_live(&lp);
     char hb[64];
-    if (!voice_starting() && li >= 0 && lp > 0.3f) snprintf(hb, sizeof(hb), T("hört: %s %d %%"), kws_class(li), (int)(lp * 100));
+    bool would_wake = false;
+    if (!voice_starting() && li >= 0 && lp > 0.3f) {
+      // Beim Weckwort dazu, ab wann es weckt: so sieht man beim Ausprobieren, wie knapp es ist
+      if (strcmp(kws_class(li), "hallo_waage") == 0) {
+        would_wake = lp >= kws_wake_threshold();
+        snprintf(hb, sizeof(hb), T("hört: Hallo Waage %d %% (weckt ab %d %%)"), (int)(lp * 100),
+                 (int)(kws_wake_threshold() * 100 + 0.5f));
+      } else
+        snprintf(hb, sizeof(hb), T("hört: %s %d %%"), kws_class(li), (int)(lp * 100));
+    }
     else snprintf(hb, sizeof(hb), "%s", T(voice_starting() ? "Sprachmodell wird geladen" : WAKE_HINT));
     ui_label_update(m_hint, hb);
+    lv_obj_set_style_text_color(m_hint, would_wake ? C_ACCENT : C_MUTED, 0);  // grün: hätte geweckt
     char vb[64];
     if (voice_last()[0] && now - voice_last_ms() < 15000) snprintf(vb, sizeof(vb), "„%s“", voice_last());
     else snprintf(vb, sizeof(vb), T("noch kein Befehl"));
@@ -71,6 +82,7 @@ static void m_timer_cb(lv_timer_t *t) {
   lv_obj_set_style_text_color(m_icon, c, 0);
   lv_obj_set_style_text_color(m_state, alive ? C_TEXT : C_DANGER, 0);
 
+  lv_obj_set_style_text_color(m_hint, C_MUTED, 0);
   if (!alive) {
     ui_label_update(m_state, "kein Signal");
     ui_label_update(m_hint, "Mikrofon antwortet nicht");

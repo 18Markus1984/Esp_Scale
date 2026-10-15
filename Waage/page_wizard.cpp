@@ -26,6 +26,7 @@
 #include "data.h"   // fmt_num
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 enum { WZ_LANG, WZ_PROFILE, WZ_CATS, WZ_COLOR, WZ_SOUND, WZ_WLAN, WZ_UPDATES,
        WZ_TUT1, WZ_TUT2, WZ_TUT3,  // Bedienung ausprobieren (Einfach: nur 1 und 2)
@@ -699,24 +700,25 @@ static lv_obj_t *page_tut_right() {
   return s;
 }
 
-// Übung 3: die Zahl zeigt das echte Gewicht. Langes Drücken schaltet hier
-// zwischen einer und zwei Nachkommastellen um, so wie auf der Wiegeseite
-// (nur zum Ausprobieren, die Einstellung Präzision bleibt unverändert).
+// Übung 3: die Zahl zeigt das echte Gewicht. Langes Drücken wechselt hier
+// reihum eine Nachkommastelle -> zwei (präzise) -> ganze Gramm, so wie auf der
+// Wiegeseite (nur zum Ausprobieren, die Einstellung bleibt unverändert).
 static lv_obj_t *th_num, *th_chip;
-static bool th_prec = false;
+static int th_mode = 0;
 
 static void th_show(lv_timer_t *t) {
   if (!th_num) return;
   char b[16];
   float v = scale_net();
   if (v > -0.005f && v < 0.005f) v = 0;
-  fmt_num(b, sizeof(b), v, th_prec ? 2 : 1);
+  if (th_mode == 2) snprintf(b, sizeof(b), "%ld", lroundf(v));
+  else fmt_num(b, sizeof(b), v, th_mode == 1 ? 2 : 1);
   ui_label_update(th_num, b);
 }
 
 static lv_obj_t *page_tut_hold() {
-  th_prec = false;
-  lv_obj_t *s = tut_page("Halte die Zahl gedrückt", "Lange drücken schaltet die Präzision um");
+  th_mode = 0;
+  lv_obj_t *s = tut_page("Halte die Zahl gedrückt", "Lange drücken wechselt die Kommastellen");
   lv_obj_t *box = ui_box(s);
   lv_obj_set_size(box, 330, 112);
   lv_obj_set_style_radius(box, 56, 0);
@@ -739,14 +741,20 @@ static lv_obj_t *page_tut_hold() {
     lv_obj_t *b = lv_event_get_target(e);
     lv_anim_del(b, anim_border_opa);
     lv_obj_set_style_border_opa(b, LV_OPA_COVER, 0);
-    th_prec = !th_prec;
+    th_mode = (th_mode + 1) % 3;
     th_show(NULL);
     if (th_chip) {
-      if (th_prec) lv_obj_clear_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
-      else lv_obj_add_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
+      if (th_mode) {
+        ui_chip_set(th_chip, th_mode == 1 ? "präzise" : "ganze Gramm", C_ACCENT, false);
+        lv_obj_clear_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
+      } else {
+        lv_obj_add_flag(th_chip, LV_OBJ_FLAG_HIDDEN);
+      }
     }
-    tut_done(th_prec ? "Präzision an: zwei Nachkommastellen. Nochmal halten schaltet sie aus."
-                     : "Präzision aus: eine Nachkommastelle.");
+    static const char *const MSG[3] = { "Eine Nachkommastelle, wie am Anfang.",
+                                        "Präzise: zwei Nachkommastellen. Nochmal halten: ganze Gramm.",
+                                        "Ganze Gramm. Nochmal halten: wieder eine Nachkommastelle." };
+    tut_done(MSG[th_mode]);
   }, LV_EVENT_LONG_PRESSED, NULL);
   ui_page_timer(s, th_show, 200);
   th_show(NULL);

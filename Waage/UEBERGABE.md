@@ -33,7 +33,9 @@ Die **Treiber von Waveshare** aus dem Demo-Projekt liegen unverändert im selben
 Sketch-Ordner und werden vorausgesetzt:
 `Display_SPD2010.*`, `Touch_SPD2010.*`, `LVGL_Driver.*`, `SD_Card.*`, `PWR_Key.*`,
 `BAT_Driver.*`, `RTC_PCF85063.*`, `Gyro_QMI8658.*`, `TCA9554PWR.*`, `I2C_Driver.*`.
-Angefasst wurde davon nichts; alles Eigene liegt in den unten genannten Dateien.
+Angefasst wurde davon nur **`Touch_SPD2010.cpp`** (seit 14.10.2026, liegt im ZIP unter `Waage/` und
+ersetzt die Waveshare-Fassung; Längenprüfungen, siehe Abschnitt 5 „Absturz 14.10.2026“). Die
+Testumgebung lässt alle Waveshare-Dateien beim Bauen weg (`WAVESHARE` im Makefile).
 
 ## 3. Aufbau des Codes
 
@@ -697,6 +699,62 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   da sind (spätestens nach 15 s). Alte Datei ohne Überschrift wird zu `Absturz_alt.txt`.
   Web: Firmware-Karte zeigt Tätigkeit, Zeitpunkt (`crash_time`) und den Pfad. Host-Test des Formats:
   scratchpad `ct/` (Fake-Header für ESP-IDF).
+
+### Stand 14.10.2026 (abends): Touch-Absturz, Ausreißer, Kommastellen, Update-Suche
+- **Absturz 14.10.2026 23:39 (1.1.19, Langzeitmessung, 1 h 12 min):** `assert failed: xQueueGenericSend`
+  im loopTask. Rücksprungadressen (addr2line mit derselben Quelle) → `i2c_master_cmd_begin` ←
+  `TwoWire::requestFrom` ← `I2C_Read_Touch` (Touch_SPD2010.cpp) ← `read_tp_hdp` ← `tp_read_data`.
+  Der Waveshare-Touchtreiber vertraut den Längen vom Chip: `I2C_Read_Touch` kopierte alles aus dem
+  I2C-Puffer (bis 128 Byte) in 8/32/64-Byte-Stapelpuffer, `read_len` bis 65535 ergab bis zu 169
+  `rpt[]`-Einträge (Feld hat 10), `next_packet_len` ungeprüft, die `goto hdp_done_check`-Schleife ohne
+  Ende, bei I2C-Fehlern uninitialisierte Puffer. Ein einziger Störimpuls überschreibt so den Stapel →
+  zerstörte Semaphore (genau dieser assert) und vermutlich auch die rätselhaften Task-Wechsel-Abstürze
+  von 1.1.18. **Gepatcht** in `Touch_SPD2010.cpp`: höchstens `Length` Byte, Rest verwerfen, Puffer
+  nullen, Längen auf die Puffer begrenzen, < 4 Byte = keine Berührung, Restdaten höchstens 8-mal.
+  `/home/claude/ardu/drivers/Touch_SPD2010.cpp` (für check.sh) und `src/Waage/` sind identisch.
+- **Ausreißer 122,14 g statt 239,6 g** (CSV der Langzeitmessung 23:32:11, ein einzelner Wert) und
+  die Ansage dazu: `median3` bekam in `scale_update()` denselben alten HX711-Wert mehrfach (UI-Takt
+  schneller als 10 Hz), dadurch rutschte ein einzelner Fehlwert durch. Jetzt nur neue Werte in den
+  Median (`s_fresh`). Zusätzlich `sp_changed` in ui.cpp: schlägt das Gewicht nur kurz aus und landet
+  wieder beim angesagten Wert (innerhalb `speak_change_g`), wird nicht noch einmal angesagt.
+  Sim-Test `SPIKETEST` (ohne die Änderung: zweite Ansage 239,0 g).
+- **Kommastellen reihum** (Gewicht lange drücken, Einstellungen „Kommastellen“, Web-Auswahl,
+  Tutorial-Übung 3): 0,0 g → 0,00 g (präzise) → 0 g (ganze Gramm) → … Neue Einstellung
+  `g_set.whole` (NVS `whole`, schließt `precise` aus), `ui_digits_mode()/set()/next()` in ui.cpp.
+  Ganze Gramm gilt für g und ml, andere Einheiten bleiben wie gehabt; Ansage dann auch gerundet.
+  Profil Einfach setzt `whole=false` (zeigt ohnehin ganze Gramm). Web-JSON: `whole`.
+  Sim-Tests: `LPTEST` (3 Stufen), `DIGITSHOT` (Einstellungszeile).
+- **Update-Suche „Repository nicht gefunden“:** heißt HTTP 404 auf
+  `github.com/<repo>/releases/latest`. Jetzt zweiter Weg über
+  `api.github.com/repos/<repo>/releases?per_page=1` (findet auch Vorabversionen); Meldungen
+  „Repository nicht gefunden (privat?)“ (API auch 404 → Repository privat oder Name in config.h falsch)
+  bzw. „Noch kein Release veröffentlicht“. Die Online-Suche braucht ein **öffentliches** Repository.
+
+### Stand 15.10.2026: Weckwort weckt nicht (Modell vom 15.10.)
+- Markus: mit dem neu trainierten Modell (73326 Beispiele, Prüfung 84 %, hallo_waage 96,7 % auf der
+  Prüfstimme, 6 Fehl-Weckungen/10 min) ließ sich die Waage **kein einziges Mal** mit „Hallo Waage“ wecken
+  (mit v7 1 von 7). Befehle nach Doppeltipp gingen vorher 2 von 3. Firmware-Erkennung ist unverändert
+  (geprüft: decide(), Schwellen aus der Modelldatei, sound_busy, voice_hold).
+- Die Prozentwerte des Trainings stammen von einer **künstlichen Prüfstimme** und sagen über seine
+  Stimme am Waagen-Mikrofon wenig. Mit v7 und seinen zwei alten Aufnahmen (scratchpad `rec/`):
+  geglättet 0,93 bzw. 0,66 (Schwelle 0,65) – knapp.
+- **Neu in kws_train.py:** nach dem Speichern rechnet `calibrate()` mit der fertigen Datei genau wie die
+  Waage (kws_pruefen.stream: alle 200 ms, 3 gemittelt, 2 s Einschwingen) auf den **eigenen
+  Prüf-Aufnahmen** (OWN_VAL, 15 %), nah und 20 dB leiser, dazu 10 min fremde Sprache (ohne die
+  abgeschnittenen „Hallo Wa…“-Stücke, FRAG). Tabelle Schwelle/weckt/Fehlalarme; gewählt wird die
+  höchste Schwelle zwischen 0,45 und 0,70 mit ≤ 3 Fehlalarmen, die fast so oft weckt wie die niedrigste;
+  in die Datei geschrieben (`--weckschwelle` gibt sie fest vor). Befehle auf eigenen Prüf-Aufnahmen
+  werden auch gezählt. `stream_false_alarms` (torch) entfernt.
+- Serien: bei Mehrwort-Klassen (MULTI: hallo_waage, wie_viel, ziel_*) trennt `split_utterances` erst ab
+  0,6 s Pause (vorher 0,35 s → „Hallo“ und „Waage“ konnten als zwei Weckwörter zählen). Übersicht zeigt
+  die mittlere Länge je Klasse.
+- **kws_pruefen.py:** `--ordner` (alle WAVs, Einzelaufnahmen: Spitzenwert + „weckt“, Serien: Anzahl
+  Weckungen), `--modell` mehrfach (Modelle vergleichen), `--setze-weckschwelle/--setze-schwelle`
+  (Schwelle in fertiger Datei ändern). Kurze WAVs bekommen automatisch 2,6 s Vorlauf.
+- **Firmware:** Mikrofonseite zeigt beim Weckwort „hört: Hallo Waage 92 % (weckt ab 65 %)“, grün wenn
+  es geweckt hätte; Spitzenwert 2 s gehalten (voice.cpp `s_live_at`). Sim-Test `MICTEST=<wav>`.
+- Nächster Schritt: Markus' neue `kws_de.bin` und Aufnahmen-Ordner mit `kws_pruefen.py --ordner`
+  prüfen (alt gegen neu) bzw. neu trainieren und die neue Tabelle ansehen.
 
 ## 6. Offene Punkte
 

@@ -167,6 +167,8 @@ als neuer. So kommst du mit „Online suchen“ jederzeit auf den offiziellen St
 | Action rot bei „Release anlegen“: `Resource not accessible` | Repository → Settings → Actions → General → Workflow permissions → **Read and write permissions** → Save. Danach den Lauf mit „Re-run jobs“ wiederholen. |
 | Waage: „Repository in config.h eintragen“ | Schritt 3, danach neu flashen. |
 | Waage: „Kein WLAN“ | Kein gespeichertes Netz in Reichweite (Setup → Zeit & Funk → WLAN). |
+| Waage: „Repository nicht gefunden (privat?)“ | GitHub kennt das Repository nicht – für Fremde. Meist steht es auf **Private** (Settings → General → ganz unten „Change visibility“ → Public), oder der Name in `config.h` (`OTA_REPO`, Groß-/Kleinschreibung) stimmt nicht. |
+| Waage: „Noch kein Release veröffentlicht“ | Das Repository ist da, aber es gibt kein Release: Tag `v…` pushen (Schritt 6) und warten, bis die Action grün ist. |
 | Waage: „Kein Release gefunden“ | Es gibt noch kein Release, das Repository ist privat, oder der Name in `config.h` stimmt nicht. |
 | Waage: „Keine Firmware im Release“ | Die Action läuft noch, oder ist fehlgeschlagen. |
 | Waage: „Download fehlgeschlagen“ | WLAN zu schwach. Die Waage setzt einen abgerissenen Download bis zu fünfmal an derselben Stelle fort; klappt es trotzdem nicht, einfach nochmal versuchen. Die alte Firmware bleibt erhalten. |

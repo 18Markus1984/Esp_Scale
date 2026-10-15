@@ -411,6 +411,7 @@ static volatile unsigned long s_last_ms = 0;
 static volatile float s_level = 0;
 static volatile int s_live = -1;
 static volatile float s_live_p = 0;
+static uint32_t s_live_at = 0;  // Spitzenwert 2 s halten, damit man ihn auf der Mikrofonseite lesen kann
 
 // Aufnahme
 static volatile int s_rec_state = 0;
@@ -528,8 +529,11 @@ static void decide() {
   // bester Befehl (für die Mikrofonseite)
   float bp;
   int b = kws_best(&bp);
-  s_live = b;
-  s_live_p = bp;
+  if (bp >= s_live_p || now - s_live_at > 2000) {
+    s_live = b;
+    s_live_p = bp;
+    s_live_at = now;
+  }
   if (s_session || sound_busy() || now < s_mute_until || now - s_listen_start < WARMUP_MS) {
     s_dec_active = false;
     return;

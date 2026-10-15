@@ -34,6 +34,7 @@ void settings_load() {
   g_set.lvl_off_x = p.getFloat("lvl_x4", -p.getFloat("lvl_x3", -p.getFloat("lvl_x2", p.getFloat("lvl_y", 0.0f))));
   g_set.lvl_off_y = p.getFloat("lvl_y4", -p.getFloat("lvl_y3", -p.getFloat("lvl_y2", p.getFloat("lvl_x", 0.0f))));
   g_set.precise = p.getBool("precise", false);
+  g_set.whole = p.getBool("whole", false) && !g_set.precise;
   g_set.azt = p.getBool("azt", true);
   g_set.disp_rot = p.getInt("disp_rot", 0);
   g_set.theme = p.getInt("theme", 0);
@@ -78,6 +79,7 @@ void settings_save() {
   p.putFloat("lvl_x4", g_set.lvl_off_x);
   p.putFloat("lvl_y4", g_set.lvl_off_y);
   p.putBool("precise", g_set.precise);
+  p.putBool("whole", g_set.whole);
   p.putBool("azt", g_set.azt);
   p.putInt("disp_rot", g_set.disp_rot);
   p.putInt("theme", g_set.theme);

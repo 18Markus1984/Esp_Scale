@@ -847,7 +847,7 @@ static void h_settings() {
              ",\"voice_model\":" + (voice_model_ok() ? "true" : "false") + ",\"voice_info\":\"" + esc(voice_model_info()) +
              "\",\"voice_err\":\"" + esc(voice_model_error()) + "\"" +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
-             "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
+             "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"whole\":" + (g_set.whole ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
              ",\"liquid\":" + g_set.liquid + ",\"profile\":" + g_set.profile + ",\"cats\":" + g_set.cats +
              ",\"modes_off\":" + g_set.modes_off + ",\"setup_done\":" + (g_set.setup_done ? "true" : "false") +
              ",\"upd_auto\":" + (g_set.upd_auto ? "true" : "false") + ",\"fw_local\":" + (fw_is_local() ? "true" : "false") +
@@ -891,6 +891,7 @@ static void h_settings_save() {
   g_set.idle_min = constrain((int)jval(b, "idle").toInt(), 0, 60);
   if (jval(b, "liquid").length()) g_set.liquid = constrain((int)jval(b, "liquid").toInt(), 0, liquid_count() - 1);
   if (jval(b, "precise").length()) g_set.precise = jval(b, "precise") == "true";
+  if (jval(b, "whole").length()) g_set.whole = jval(b, "whole") == "true" && !g_set.precise;
   if (jval(b, "ref_g").length()) g_set.ref_g = constrain(jval(b, "ref_g").toFloat(), 0.0f, 3000.0f);
   if (jval(b, "ref_days").length()) g_set.ref_days = constrain((int)jval(b, "ref_days").toInt(), 0, 365);
   if (jval(b, "ref_tol").length()) g_set.ref_tol = constrain(jval(b, "ref_tol").toFloat(), 0.05f, 50.0f);

@@ -124,6 +124,37 @@ static bool wait_wifi() {
 // JSON-Antwort), sondern nur die Weiterleitung von .../releases/latest:
 // GitHub antwortet mit "Location: .../releases/tag/v1.2.3". Das kostet
 // fast keinen Speicher und unterliegt keinem API-Limit.
+// Zweiter Weg über die GitHub-API, wenn /releases/latest nichts liefert
+// (404 gibt es z. B., wenn noch kein Release veröffentlicht ist oder nur
+// Vorabversionen existieren). Antwort: 0 = Tag gefunden, 404 = Repository
+// unbekannt oder privat, 1 = Repository da, aber kein Release, <0 = Netzfehler.
+static int api_latest_tag(String &tag) {
+  WiFiClientSecure cli;
+  cli.setInsecure();
+  HTTPClient http;
+  String url = String("https://api.github.com/repos/") + OTA_REPO + "/releases?per_page=1";
+  if (!http.begin(cli, url)) return -1;
+  http.setTimeout(HTTP_TIMEOUT_MS);
+  http.setUserAgent(String("Waage/") + FW_VERSION);
+  http.addHeader("Accept", "application/vnd.github+json");
+  int code = http.GET();
+  printf("Update: GitHub-API %d\r\n", code);
+  int res = code;
+  if (code == 200) {
+    // Nur bis zum ersten "tag_name" lesen, die Release-Notizen interessieren nicht
+    WiFiClient *s = http.getStreamPtr();
+    res = 1;
+    if (s && s->find("\"tag_name\":\"")) {
+      tag = s->readStringUntil('"');
+      if (tag.length() && tag.length() < 24) res = 0;
+    }
+  } else if (code > 0 && code != 404) {
+    res = 2;  // z. B. 403 = zu viele Anfragen
+  }
+  http.end();
+  return res;
+}
+
 static void do_check() {
   s_state = UPD_CHECK;
   printf("Update: frei intern %u (Block %u)\r\n", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
@@ -159,13 +190,29 @@ static void do_check() {
   }
   printf("Update: GitHub %d -> %s\r\n", code, loc.c_str());
   int t = loc.indexOf("/releases/tag/");
-  if ((code != 301 && code != 302) || t < 0) {
-    fail(code == 404 ? "Repository nicht gefunden" : "Kein Release gefunden");
-    return;
+  String tag;
+  if ((code == 301 || code == 302) && t >= 0) {
+    tag = loc.substring(t + 14);
+    int q = tag.indexOf('?');
+    if (q >= 0) tag = tag.substring(0, q);
+  } else {
+    // /releases/latest ging nicht: über die API nachsehen, warum
+    int r = api_latest_tag(tag);
+    if (r == 404) {
+      // Repository gibt es für Fremde nicht: falscher Name oder auf "Private" gestellt
+      fail("Repository nicht gefunden (privat?)");
+      return;
+    }
+    if (r == 1) {
+      fail("Noch kein Release veröffentlicht");
+      return;
+    }
+    if (r != 0) {
+      fail(code == 404 ? "Repository nicht gefunden (privat?)" : "Kein Release gefunden");
+      return;
+    }
+    printf("Update: Release über die API gefunden: %s\r\n", tag.c_str());
   }
-  String tag = loc.substring(t + 14);
-  int q = tag.indexOf('?');
-  if (q >= 0) tag = tag.substring(0, q);
   const char *v = tag.c_str();
   if (*v == 'v' || *v == 'V') v++;
   snprintf(s_latest, sizeof(s_latest), "%s", v);

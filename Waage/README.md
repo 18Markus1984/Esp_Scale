@@ -32,7 +32,8 @@ Für den QR-Code (System → Weboberfläche) in derselben Datei außerdem:
    - RTC_PCF85063
    - SD_Card
    - TCA9554PWR
-   - Touch_SPD2010
+   - Touch_SPD2010 (nur die `.h` – die `Touch_SPD2010.cpp` liegt schon hier, mit
+     Längenprüfungen gegen Abstürze; nicht mit der Waveshare-Fassung überschreiben)
 3. Nicht kopieren: `LVGL_Arduino.ino`, `LVGL_Example.*`, `LVGL_Music.*`,
    `MIC_MSM.*`, `Audio_PCM5101.*`, `Wireless.*`
 4. `Waage.ino` öffnen, Board-Einstellungen wie bei der Demo, hochladen.

@@ -26,6 +26,7 @@ void settings_profile_apply(int profile) {
       g_set.autotara = false;   // kein Countdown, der überrascht
       g_set.unit = 0;           // Gramm
       g_set.precise = false;
+      g_set.whole = false;
       g_set.autosave = false;
       if (g_set.auto_off_min && g_set.auto_off_min < 60) g_set.auto_off_min = 60;
       break;

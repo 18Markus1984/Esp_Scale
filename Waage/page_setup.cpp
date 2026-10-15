@@ -200,7 +200,11 @@ static void row_value(int cat, int row, char *b, int len) {
       if (g_set.auto_off_min > 0) snprintf(b, len, T("nach %d min"), g_set.auto_off_min);
       else snprintf(b, len, T("nie"));
       break;
-    case 6: snprintf(b, len, "%s", g_set.precise ? T("an") : T("aus")); break;
+    case 6: {  // Nachkommastellen: 0,0 g / 0,00 g (präzise) / 0 g
+      static const char *const D[3] = { "0,0 g", "0,00 g", "0 g" };
+      snprintf(b, len, "%s", D[ui_digits_mode()]);
+      break;
+    }
     case 7: snprintf(b, len, "%s", g_set.azt ? T("an") : T("aus")); break;
     case 10: hal_now(&y, &mo, &d, &h, &mi, &sec); snprintf(b, len, "%02d:%02d ›", h, mi); break;
     case 11:
@@ -310,7 +314,7 @@ static void row_cb(lv_event_t *e) {
       g_set.auto_off_min = OFF[(k + 1) % 5];
       break;
     }
-    case 6: g_set.precise = !g_set.precise; break;  // Präzisionsmodus
+    case 6: ui_digits_next(); break;  // Nachkommastellen reihum
     case 7:  // Nullpunkt-Nachführung
       g_set.azt = !g_set.azt;
       scale_set_autozero(g_set.azt);
@@ -398,7 +402,7 @@ static void cat_timer_cb(lv_timer_t *t) {
 
 static lv_obj_t *page_cat_create(int cat) {
   static const char *const ROWS[4][10] = {
-    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Präzision", "Auto-Null", NULL, NULL },
+    { "Einheit", "Auto-Speichern", "Auto-Weiter", "Zur Wiegeseite", "Auto-Tara", "Auto-Aus", "Kommastellen", "Auto-Null", NULL, NULL },
     { "Uhrzeit", "Datum", "WLAN", "Bluetooth", "Akku", NULL, NULL, NULL, NULL, NULL },  // Weboberfläche: Systemliste
     { "Lautstärke", "Tonschema", "Ansage", "Stimme", "Sprache", "Sprachbefehle", "Mikrofon", "Wörter", NULL, NULL },
     { "Profil", "Kalibrierung", "Prüfgewicht", "Messmittelprüfung", "Libelle", "Display", "Farbe", "Dateien", "Firmware", "Einrichtung" },

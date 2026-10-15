@@ -5,20 +5,29 @@ uint8_t Touch_interrupts=0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Geändert für die Waage (Absturz 14.10.2026, assert in xQueueGenericSend beim
+// Touch-Lesen): Der Original-Treiber schrieb so viele Bytes in Reg_data, wie der
+// I2C-Puffer hergab (bis 128), auch wenn der Zielpuffer nur 8 oder 64 Bytes
+// groß ist; die Längen kommen ungeprüft vom Touch-Chip. Ein Störimpuls lieferte
+// so irgendwann zu viele Bytes, die den Stapel überschrieben. Jetzt: höchstens
+// Length Bytes, Rest des Puffers mit 0 gefüllt, Längen begrenzt (siehe unten).
 bool I2C_Read_Touch(uint8_t Driver_addr, uint16_t Reg_addr, uint8_t *Reg_data, uint32_t Length)
 {
+  if (Length == 0) return true;
   Wire.beginTransmission(Driver_addr);
   Wire.write((uint8_t)(Reg_addr >> 8)); 
   Wire.write((uint8_t)Reg_addr);        
   if (Wire.endTransmission(true)){
     printf("The I2C transmission fails. - I2C Read Touch\r\n");
+    memset(Reg_data, 0, Length);
     return false;
   }
-  Wire.requestFrom(Driver_addr, Length);
-  while (Wire.available()) {
-    *Reg_data++ =Wire.read();
-  }
-  return true;
+  size_t got = Wire.requestFrom(Driver_addr, (size_t)Length);
+  uint32_t n = 0;
+  while (Wire.available() && n < Length) Reg_data[n++] = Wire.read();
+  while (Wire.available()) Wire.read();   // Überzähliges verwerfen
+  if (n < Length) memset(Reg_data + n, 0, Length - n);
+  return got == Length && n == Length;
 }
 bool I2C_Write_Touch(uint8_t Driver_addr, uint16_t Reg_addr, const uint8_t *Reg_data, uint32_t Length)
 {
@@ -189,17 +198,27 @@ esp_err_t read_tp_status_length(tp_status_t *tp_status)
 
 esp_err_t read_tp_hdp(tp_status_t *tp_status, SPD2010_Touch *touch)
 {
-  uint8_t sample_data[4+(10*6)]; // 4 Bytes Header + 10 Finger * 6 Bytes
+  uint8_t sample_data[4+(10*6)] = {0}; // 4 Bytes Header + 10 Finger * 6 Bytes
   uint8_t i, offset;
   uint8_t check_id;
-  sample_data[0] = 0x00;
-  sample_data[1] = 0x03;
-  I2C_Read_Touch(SPD2010_ADDR, (((uint16_t)sample_data[0] << 8) | (sample_data[1])),sample_data, tp_status->read_len);
+  // Länge vom Chip auf den Puffer begrenzen (sonst Stapel-Überlauf)
+  uint16_t len = tp_status->read_len;
+  if (len > sizeof(sample_data)) len = sizeof(sample_data);
+  if (len < 4) {  // nicht einmal der Kopf: nichts auswerten
+    touch->touch_num = 0x00;
+    touch->gesture = 0x00;
+    return ESP_OK;
+  }
+  if (!I2C_Read_Touch(SPD2010_ADDR, 0x0003, sample_data, len)) {
+    touch->touch_num = 0x00;
+    touch->gesture = 0x00;
+    return ESP_OK;
+  }
 
 
   check_id = sample_data[4];
   if ((check_id <= 0x0A) && tp_status->status_low.pt_exist) {
-    touch->touch_num = ((tp_status->read_len - 4)/6);
+    touch->touch_num = (len - 4) / 6;  // höchstens 10 (Puffergröße)
     touch->gesture = 0x00;
     for (i = 0; i < touch->touch_num; i++) {
       offset = i*6;
@@ -243,10 +262,12 @@ esp_err_t read_tp_hdp(tp_status_t *tp_status, SPD2010_Touch *touch)
 
 esp_err_t read_tp_hdp_status(tp_hdp_status_t *tp_hdp_status)
 {
-  uint8_t sample_data[8];
-  sample_data[0] = 0xFC;
-  sample_data[1] = 0x02;
-  I2C_Read_Touch(SPD2010_ADDR, (((uint16_t)sample_data[0] << 8) | (sample_data[1])),sample_data, 8);
+  uint8_t sample_data[8] = {0};
+  if (!I2C_Read_Touch(SPD2010_ADDR, 0xFC02, sample_data, 8)) {
+    tp_hdp_status->status = 0xFF;  // unbekannt: Schleife in tp_read_data beenden
+    tp_hdp_status->next_packet_len = 0;
+    return ESP_OK;
+  }
   tp_hdp_status->status = sample_data[5];
   tp_hdp_status->next_packet_len = (sample_data[2] | sample_data[3] << 8);
   return ESP_OK;
@@ -255,9 +276,9 @@ esp_err_t read_tp_hdp_status(tp_hdp_status_t *tp_hdp_status)
 esp_err_t Read_HDP_REMAIN_DATA(tp_hdp_status_t *tp_hdp_status)
 {
   uint8_t sample_data[32];
-  sample_data[0] = 0x00;
-  sample_data[1] = 0x03;
-  I2C_Read_Touch(SPD2010_ADDR,  (((uint16_t)sample_data[0] << 8) | (sample_data[1])),sample_data, tp_hdp_status->next_packet_len);
+  uint16_t len = tp_hdp_status->next_packet_len;
+  if (len > sizeof(sample_data)) len = sizeof(sample_data);  // Rest wird verworfen
+  I2C_Read_Touch(SPD2010_ADDR, 0x0003, sample_data, len);
   return ESP_OK;
 }
 
@@ -282,6 +303,7 @@ esp_err_t tp_read_data(SPD2010_Touch *touch)
 {
   tp_status_t tp_status = {0};
   tp_hdp_status_t tp_hdp_status = {0};
+  int remain_rounds = 0;  // Restdaten höchstens 8-mal nachlesen (vorher endlos möglich)
   read_tp_status_length(&tp_status);
   if (tp_status.status_high.tic_in_bios) {
     /* Write Clear TINT Command */
@@ -310,7 +332,8 @@ hdp_done_check:
     else if (tp_hdp_status.status == 0x00) {
       /* Read HDP Remain Data */
       Read_HDP_REMAIN_DATA(&tp_hdp_status);
-      goto hdp_done_check;
+      if (++remain_rounds < 8) goto hdp_done_check;
+      write_tp_clear_int_cmd();
     }
   } else if (tp_status.status_high.cpu_run && tp_status.status_low.aux) {
     write_tp_clear_int_cmd();

@@ -23,6 +23,7 @@ static long  s_cal_raw[CAL_MAX];    // Rohwerte der Referenzpunkte
 static float s_cal_g[CAL_MAX];      // zugehörige Sollgewichte
 static int   s_cal_n = 0;           // Anzahl Referenzpunkte
 static float s_raw = 0.0f;      // Brutto in g (ungefiltert, für Logik)
+static bool s_fresh = true;     // read_counts() hat einen neuen Wert vom HX711 (Simulator: immer)
 static float s_shown = 0.0f;    // geglättet, für die Anzeige
 static float s_tare = 0.0f;     // Tara in g
 
@@ -76,6 +77,7 @@ float sim_force_g = -1.0f;  // Testumgebung: >= 0 legt dieses Gewicht fest auf
 
 static long read_counts() {
   uint32_t now = hal_millis();
+  s_fresh = true;  // Simulator: jeder Takt ein neuer Wert
   if (sim_force_g >= 0.0f) {
     sim_value += (sim_force_g - sim_value) * 0.25f;
     float noise = ((rand() % 100) - 50) / 200.0f;
@@ -133,7 +135,10 @@ static void hw_init() {
 static long read_counts() {
   // 10 neue Werte pro Sekunde -> passt zum 100-ms-Takt.
   // Ist gerade kein neuer Wert fertig, bleibt der letzte stehen.
-  if (s_hx.is_ready()) s_hw_last = s_hx.read();
+  if (s_hx.is_ready()) {
+    s_hw_last = s_hx.read();
+    s_fresh = true;
+  }
   return s_hw_last;
 }
 #endif
@@ -162,9 +167,13 @@ static float counts_to_g(long c) {
   return 0;
 }
 
-// Ausreißer-Filter: Median der letzten drei Rohwerte. Ein einzelner falsch
+// Ausreißer-Filter: Median der letzten drei NEUEN Rohwerte. Ein einzelner falsch
 // gelesener Wert des HX711 (Bitfehler, z. B. wenn WLAN den Takt stört) kommt
 // so gar nicht erst an und löst weder "Überlast" noch einen Sprung aus.
+// Wichtig: nur neue Werte zählen. Vorher wurde ein Wert, der noch nicht durch
+// einen neuen ersetzt war, im nächsten Takt nochmal eingereiht; ein falscher
+// Wert stand dann zweimal im Puffer und kam durch (Langzeitmessung 14.10.2026:
+// einmal 122 g statt 239,6 g, und die Waage hat ihn angesagt).
 static long s_rb[3];
 static int s_rb_n = 0;
 static long median3(long c) {
@@ -185,7 +194,11 @@ static long median3(long c) {
 static int s_over_n = 0;
 
 void scale_update() {
-  s_counts = median3(read_counts());
+  long c = read_counts();
+  if (s_fresh) {
+    s_fresh = false;
+    s_counts = median3(c);
+  }
   s_raw = counts_to_g(s_counts);
   if (s_raw > WAAGE_MAX_G) {
     if (s_over_n < OVER_SAMPLES) s_over_n++;
