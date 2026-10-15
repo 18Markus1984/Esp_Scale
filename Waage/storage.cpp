@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <SD_MMC.h>
+#include "esp_heap_caps.h"
 #include "TCA9554PWR.h"
 
 // Pins der TF-Karte (siehe Waveshare-Wiki)
@@ -17,6 +18,7 @@ static bool s_ok = false;
 static bool s_ever_ok = false;          // war schon einmal eine Karte da?
 static uint32_t s_last_try = 0, s_last_check = 0;
 static uint32_t s_errors = 0, s_remounts = 0;
+static uint32_t s_fail_streak = 0;     // erfolglose Versuche in Folge
 static SemaphoreHandle_t s_mtx = NULL;  // Zugriff aus UI- und Ton-Task
 
 // ------------------------------------------------------------
@@ -91,7 +93,10 @@ void storage_loop() {
   }
   // Ausgefallen oder beim Start nicht da: regelmäßig neu einhängen
   // Ohne Karte seit dem Start nur selten suchen (Einhängen blockiert kurz)
-  if (now - s_last_try < (s_ever_ok ? REMOUNT_EVERY_MS : 30000UL)) return;
+  // Jeder Versuch blockiert kurz die Anzeige: nach Fehlschlägen seltener (3, 6, 12 … 60 s)
+  uint32_t every = s_ever_ok ? (REMOUNT_EVERY_MS << (s_fail_streak < 5 ? s_fail_streak : 5)) : 30000UL;
+  if (every > 60000UL) every = 60000UL;
+  if (now - s_last_try < every) return;
   s_last_try = now;
   Lock l;
   SD_MMC.end();
@@ -100,9 +105,14 @@ void storage_loop() {
     s_ok = true;
     s_ever_ok = true;
     s_remounts++;
+    s_fail_streak = 0;
     s_last_check = now;
     storage_mkdir(DIR_ROOT);
     printf("SD: wieder eingehängt (%lu. Mal)\r\n", (unsigned long)s_remounts);
+  } else {
+    s_fail_streak++;
+    printf("SD: Einhängen fehlgeschlagen (%lu. Versuch, frei intern %u KB)\r\n", (unsigned long)s_fail_streak,
+           (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
   }
 }
 

@@ -26,9 +26,37 @@ __attribute__((constructor(101))) static void early_power_hold() {
   gpio_set_level((gpio_num_t)PIN_PWR_HOLD, 1);
 }
 
+// Notausschalter: PWR-Taste 10 s halten schaltet ab bzw. startet neu, auch wenn
+// die Anzeige hängt (eigener kleiner Task, braucht weder Anzeige noch SD-Karte).
+// Normales Ausschalten (3 s) läuft weiter über die Oberfläche.
+#define EMERGENCY_HOLD_MS 10000
+static void pwr_watch(void *) {
+  bool armed = false;  // erst nach dem ersten Loslassen (Einschalt-Druck zählt nicht)
+  uint32_t since = 0;
+  while (true) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    bool down = digitalRead(PIN_PWR_KEY) == LOW;
+    if (!down) {
+      armed = true;
+      since = 0;
+      continue;
+    }
+    if (!armed) continue;
+    if (since == 0) since = millis();
+    if (millis() - since >= EMERGENCY_HOLD_MS) {
+      printf("PWR-Taste 10 s gehalten: Notabschaltung\r\n");
+      Set_Backlight(0);
+      digitalWrite(PIN_PWR_HOLD, LOW);  // Akku: Strom weg
+      vTaskDelay(pdMS_TO_TICKS(600));
+      esp_restart();                    // am USB: neu starten
+    }
+  }
+}
+
 void hal_init() {
   pinMode(BOOT_PIN, INPUT_PULLUP);
   pinMode(PIN_PWR_KEY, INPUT);
+  xTaskCreatePinnedToCore(pwr_watch, "pwr", 2048, NULL, 10, NULL, 1);
 }
 
 void hal_power_hold(bool on) {

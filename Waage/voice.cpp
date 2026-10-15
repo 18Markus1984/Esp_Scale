@@ -323,6 +323,7 @@ static void ensure_task();
 #endif
 
 #define AWAKE_MS 6000      // so lange nach "Hallo Waage" auf einen Befehl warten
+#define AWAKE_AFTER_SAY_MS 4500  // nach dem Ende einer Antwort mindestens noch so lange
 #define DECIDE_MS 450      // nach dem ersten Treffer noch so lange sammeln, dann den besten nehmen
 #define DECIDE_ZIEL_MS 1000  // bei Zielmengen länger: "zweihundert…" kommt vor "…fünfzig"
 #define AFTER_WAKE_MS 500  // nach dem Weckwort kurz nichts auswerten (Rest von "Waage")
@@ -814,6 +815,8 @@ static void process(const int16_t *pcm, int n) {
   if (s_snd_busy) {
     s_snd_busy = false;
     if (s_mute_until < s_clock + AFTER_SOUND_MS) s_mute_until = s_clock + AFTER_SOUND_MS;
+    // Nach einer Antwort ("Ja?", auch ein längerer Spruch) bleibt genug Zeit für den Befehl
+    if (s_awake && s_awake_until < s_clock + AWAKE_AFTER_SAY_MS) s_awake_until = s_clock + AWAKE_AFTER_SAY_MS;
   }
   if (s_want && kws_ready()) {
     if (s_reset_req) {
@@ -906,7 +909,7 @@ void voice_loop() {
     s_ev_notund = false;
     if (!sound_say("nicht_verst")) sound_play(SND_WARN);  // "Nicht verstanden. Sag Hilfe."
   }
-  if (s_awake && s_clock > s_awake_until + 200 && !s_dec_active) {
+  if (s_awake && s_clock > s_awake_until + 200 && !s_dec_active && !sound_busy()) {
     s_awake = false;
     s_heard = false;
   }

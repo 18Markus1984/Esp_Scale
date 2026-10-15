@@ -23,6 +23,7 @@ typedef enum { P_RUN, P_STANDBY, P_OFF } pstate_t;
 
 static pstate_t s_state = P_RUN;
 static uint32_t s_press_ms = 0;
+static uint32_t s_press_start = 0;  // seit wann gedrückt (echte Zeit: hängt die Anzeige, zählt es trotzdem)
 static bool s_ignore_press = false;   // Taste noch vom Einschalten gedrückt
 static float s_standby_ref_g = 0;
 static uint32_t s_off_at = 0;
@@ -223,7 +224,8 @@ void ui_power_tick() {
   }
 
   if (pressed) {
-    s_press_ms += 100;
+    if (s_press_ms == 0) s_press_start = now;
+    s_press_ms = now - s_press_start + 1;
     if (s_state == P_OFF) return;  // Einschalten erst beim Loslassen
     if (s_press_ms > SHORT_MAX_MS) {
       if (s_state == P_STANDBY) wake();

@@ -42,48 +42,56 @@ WORDS = {
 
 # Ansagen der Sprachsteuerung (auch einzeln: --zusatz). Dateinamen höchstens 13 Zeichen.
 ZUSATZ = {
-    "ja": "Ja?",
-    "nicht_verst": "Nicht verstanden. Sag Hilfe.",
-    "hilfe": "Sag zuerst: Hallo Waage. Oder tippe zweimal oben auf die Waage. Dann zum Beispiel: "
-             "Tara. Wie viel? Speichern. Fünfzig Gramm. Stopp. Akku. Uhrzeit. Lauter. Leiser. Nochmal.",
-    "ziel": "Ziel",
+    # Bausteine (werden mit Zahlen zusammengesetzt: kurz, ohne Pause, neutral)
+    "ziel": "Ziel",                    # Ziel | 250 | Gramm | einfuellen
     "einfuellen": "Jetzt einfüllen.",
-    "ziel_beendet": "Zielwiegen beendet.",
-    "akku": "Akku",
+    "akku": "Akku",                    # Akku | 60 | Prozent | (laedt)
     "prozent": "Prozent",
-    "laedt": "wird geladen",
-    "uhr": "Uhr",
-    # seit 1.1.21: Rückmeldung für jeden Sprachbefehl und Hinweise für blinde Nutzer
+    "laedt": "wird geladen.",
+    "uhr": "Uhr",                      # 14 | Uhr | 5
+    "lautstaerke": "Lautstärke",       # Lautstärke | 80 | Prozent
+    "noch": "noch",                    # noch | 120 | Gramm
+    "zu_viel": "zu viel.",             # 20 | Gramm | zu viel
+    "milliliter": "Milliliter",
+    # ganze Sätze
+    "ja": "Ja?",                       # kurz halten (unter 1,5 s)
+    "nicht_verst": "Das habe ich nicht verstanden. Sag Hilfe.",
+    "hilfe": "Sag zuerst Hallo Waage, oder tippe zweimal oben auf die Waage. Dann zum Beispiel: "
+             "Tara. Wie viel. Speichern. Zweihundert Gramm. Stopp. Weiter. Zurück. "
+             "Nochmal. Lauter. Leiser. Akku. Uhrzeit.",
+    "ziel_beendet": "Zielwiegen beendet.",
     "bereit": "Waage bereit.",
     "weiter": "Weiter.",
     "zurueck": "Zurück zur Startseite.",
     "geht_nicht": "Das geht hier gerade nicht.",
-    "lautstaerke": "Lautstärke",
     "akku_leer": "Akku fast leer. Bitte laden.",
-    "timer_ab": "Timer abgelaufen.",
-    "zeit_unbek": "Uhrzeit unbekannt.",
+    "timer_ab": "Der Timer ist abgelaufen.",
+    "zeit_unbek": "Die Uhrzeit kenne ich noch nicht.",
     "schaltet_aus": "Die Waage schaltet sich gleich aus.",
 }
 ZUSATZ_EN = {
-    "yes": "Yes?",
-    "not_underst": "Not understood. Say help.",
-    "help": "First say: Hallo Waage. Or tap the top of the scale twice. Then for example: "
-            "tare, how much, save, fifty grams, stop, battery, time, louder, quieter, again.",
     "target": "Target",
     "fill_now": "Fill in now.",
-    "target_off": "Target weighing stopped.",
     "battery": "Battery",
     "percent": "percent",
-    "charging": "charging",
+    "charging": "charging.",
     "oclock": "o'clock",
+    "volume": "Volume",
+    "to_go": "to go",
+    "too_much": "too much.",
+    "milliliters": "milliliters",
+    "yes": "Yes?",
+    "not_underst": "I did not understand. Say help.",
+    "help": "First say: Hallo Waage. Or tap the top of the scale twice. Then for example: "
+            "tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery, time.",
+    "target_off": "Target weighing stopped.",
     "ready": "Scale ready.",
     "next": "Next.",
     "back": "Back to the start page.",
     "cannot": "That is not possible right now.",
-    "volume": "Volume",
     "batt_low": "Battery low. Please charge.",
-    "timer_done": "Timer finished.",
-    "time_unknown": "Time unknown.",
+    "timer_done": "The timer has finished.",
+    "time_unknown": "I do not know the time yet.",
     "power_off": "The scale will switch off soon.",
 }
 WORDS.update(ZUSATZ)

@@ -888,3 +888,32 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   2,6 s Vorlauf; Kandidaten nach Präfix; sicher = Weckschwelle / Befehl ≥0,6 / _unbekannt ≥0,7; einig →
   auto; sonst abspielen + fragen). Speichert nur das gemeinte Wort (`cut_word`, kws_train
   `split_utterances(bounds=True)`, Segment, das vor dem Modell-Peak endet) als Aufnahmen/<cls>/m_<name>.wav.
+
+### Stand 15.10.2026 (nachts): Ansagen-Texte überarbeitet, Restmenge aus _Zusatz, längeres Befehlsfenster
+- `_Zusatz` hat jetzt 22 Dateien: zusätzlich `noch`, `zu_viel`, `milliliter` (EN `to_go`, `too_much`, `milliliters`),
+  Texte freundlicher ("Das habe ich nicht verstanden. Sag Hilfe.", Hilfe nennt alle Befehle). Neu erzeugt:
+  _Zusatz (piper eva_k), _Zusatz-EN, Roboter, Roboter-EN (espeak).
+- sound.cpp: `sound_speak_rest` nutzt `have_word` (Paket oder _Zusatz) statt nur Paket → Restmenge auch mit
+  Paketen ohne noch/zu_viel. SAY_WORDS/WORD_EN um noch/zu_viel/milliliter ergänzt (sound_missing zeigt sie).
+- voice.cpp: nach dem Ende jeder Ansage im Wachzustand mindestens `AWAKE_AFTER_SAY_MS` 4,5 s Befehlsfenster;
+  Wachzustand läuft nicht ab, solange die Waage spricht → längere Charakter-"Ja?" möglich.
+- Markus' Stimmenpakete (16, u. a. Rick DE, Drachenlord, KI-AnimeGirl/Männlich/Weiblich): Liste der 22 neuen
+  Dateien mit neutralen Texten, Rick-Sprüchen und KI-AnimeGirl-Vorschlägen in seiner Stimmenpakete_Uebersicht.md.
+- kws_mitschnitt: automatisch nur, wenn sichere Modelle einig UND Mehrheit aller Modelle dasselbe Wort vorn
+  (vorher reichte ein einzelnes sicheres Modell, z. B. w002_53 → _unbekannt gegen zwei hallo_waage).
+  Training 15.10. abends (Mitschnitte drin): neues kws_de bestes Modell für hallo_waage (86 % bei −20 dB),
+  gesamt 82 % = gleichauf mit 15-10V1; schwach: nochmal (→ stopp), ziel_250/300, akku leise ("-"), _unbekannt zu wenige (12).
+- kws_mitschnitt `holen` holt jetzt auch `/zip?dir=/Waage/Sprache/Aufnahmen` und legt neue Dateien (SHA1-Dedupe
+  gegen Aufnahmen/) nach Aufnahmen/<wort>/ (Namenskonflikt → _<sha6>); `--ohne-aufnahmen` schaltet es ab.
+
+### Stand 15.10.2026 (spät nachts): Waage hängt nach ZIP-Download (kws_mitschnitt)
+- Markus: nach dem Holen per Skript dreht die UI, Ausschalten geht nicht, SD nicht erreichbar, Mic/Waage 5 s
+  verzögert; half nur Neu-Flashen (= Neustart). Ursache nicht bewiesen (kein Log). Vermutung: SD fällt unter
+  WLAN-Last aus (interner RAM knapp), storage_loop versucht alle 3 s neu einzuhängen und blockiert dabei den
+  100-ms-UI-Timer → Anzeige ruckelt im Sekundentakt; PWR-Taste zählte Takte (+100 je Aufruf) statt Zeit →
+  3 s Halten erreichte nie OFF_HOLD_MS.
+- Fixes: ui_power zählt echte Zeit (PWRTEST im Sim: 3 Takte à 2 s schalten ab); hal_board Task "pwr"
+  (Kern 1, Prio 10): PWR 10 s halten → Akku-Halt aus, sonst esp_restart (unabhängig von Anzeige/SD);
+  storage: Neu-Einhängen mit Backoff 3/6/12/…/60 s + Log mit freiem internem RAM; h_zip: Puffer im PSRAM,
+  wartet bei < 16 KB internem RAM, Log "ZIP fertig … intern frei min."; kws_mitschnitt 5 s Pause zwischen den ZIPs.
+- Offen: serielles Log beim nächsten Mal ("SD: …", "ZIP fertig …").

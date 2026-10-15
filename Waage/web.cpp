@@ -598,6 +598,7 @@ static void h_file_get() {
 //  wie bei jeder großen Datei (die Weboberfläche läuft im Haupttakt).
 // ------------------------------------------------------------
 #define ZIP_MAX_FILES 3000
+#define ZIP_MIN_FREE (16 * 1024)  // darunter wartet das Senden kurz (normal sind etwa 35 KB frei)
 typedef struct {
   char name[112];  // Name im ZIP, z. B. "Aufnahmen/tara/a001.wav"
   uint32_t crc, size, off;
@@ -641,7 +642,7 @@ static void h_zip() {
   }
   String top = dir.substring(dir.lastIndexOf('/') + 1);
   zip_ent_t *ents = (zip_ent_t *)ps_malloc(sizeof(zip_ent_t) * ZIP_MAX_FILES);
-  uint8_t *buf = (uint8_t *)malloc(4096);
+  uint8_t *buf = (uint8_t *)ps_malloc(4096);  // interner Speicher bleibt für WLAN und SD-Karte
   if (!ents || !buf) {
     free(ents);
     free(buf);
@@ -660,7 +661,7 @@ static void h_zip() {
   s_server.sendHeader("Content-Disposition", "attachment; filename=" + top + ".zip");
   s_server.send(200, "application/zip", "");
   printf("ZIP: %s, %d Dateien\r\n", dir.c_str(), n);
-  uint32_t off = 0;
+  uint32_t off = 0, min_free = 0xFFFFFFFF;
   int sent = 0;
   for (int i = 0; i < n; i++) {
     zip_ent_t &e = ents[i];
@@ -682,6 +683,11 @@ static void h_zip() {
         if (r <= 0) break;
         crc = zip_crc32(crc, buf, r);
         size += r;
+        // Wird der interne Speicher knapp (WLAN-Puffer), kurz warten, bis gesendet ist –
+        // sonst bekommt die SD-Karte keinen Speicher mehr und fällt aus
+        for (int w = 0; w < 50 && heap_caps_get_free_size(MALLOC_CAP_INTERNAL) < ZIP_MIN_FREE; w++) delay(20);
+        uint32_t fr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        if (fr < min_free) min_free = fr;
         s_server.sendContent((const char *)buf, r);
         if (!s_server.client().connected()) break;  // Browser hat abgebrochen
       }
@@ -709,6 +715,8 @@ static void h_zip() {
   int k = zip_end(buf, (uint16_t)sent, cd_size, cd_off);
   s_server.sendContent((const char *)buf, k);
   s_server.sendContent("");  // Ende der Übertragung
+  printf("ZIP fertig: %d von %d Dateien, %lu KB, intern frei min. %lu KB\r\n", sent, n, (unsigned long)(off / 1024),
+         (unsigned long)(min_free / 1024));
   free(ents);
   free(buf);
 }

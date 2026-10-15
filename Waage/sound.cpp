@@ -635,15 +635,13 @@ void sound_speak_count(int pieces) {
 // (englisch "120 grams to go" / "20 grams too much"). Fehlt dem Stimmpaket
 // das Wort (noch.wav, zu_viel.wav, to_go.wav, too_much.wav), kommt false
 // zurück und die Waage sagt stattdessen das Gewicht an.
+static bool have_word(const char *name);
 bool sound_speak_rest(float rest_g, bool now) {
   if (!sound_voice_available()) return true;  // ohne Stimme gibt es nichts anzusagen
   bool en = g_set.lang == LANG_EN;
   bool over = rest_g < 0;
   const char *w = over ? (en ? "too_much" : "zu_viel") : (en ? "to_go" : "noch");
-  char path[96];
-  if (g_set.voice[0]) snprintf(path, sizeof(path), VOICE_DIR "/%s/%s.wav", g_set.voice, w);
-  else snprintf(path, sizeof(path), VOICE_DIR "/%s.wav", w);
-  if (!storage_exists(path)) return false;
+  if (!have_word(w)) return false;  // im Paket oder in _Zusatz
   static msg_t m;
   if (now) sound_speak_stop();
   m.type = 1;
@@ -672,6 +670,7 @@ static const char *const WORD_EN[][2] = {
   { "bereit", "ready" },       { "weiter", "next" },            { "zurueck", "back" },
   { "geht_nicht", "cannot" },  { "lautstaerke", "volume" },     { "akku_leer", "batt_low" },
   { "timer_ab", "timer_done" }, { "zeit_unbek", "time_unknown" }, { "schaltet_aus", "power_off" },
+  { "noch", "to_go" },         { "zu_viel", "too_much" },       { "milliliter", "milliliters" },
 };
 
 // Sätze, die nur die Sprachsteuerung und die Hinweise brauchen (stehen in _Zusatz,
@@ -679,7 +678,7 @@ static const char *const WORD_EN[][2] = {
 static const char *const SAY_WORDS[] = { "ja", "nicht_verst", "hilfe", "ziel", "einfuellen", "ziel_beendet",
                                          "akku", "prozent", "laedt", "uhr", "bereit", "weiter", "zurueck",
                                          "geht_nicht", "lautstaerke", "akku_leer", "timer_ab", "zeit_unbek",
-                                         "schaltet_aus" };
+                                         "schaltet_aus", "noch", "zu_viel", "milliliter" };
 
 static const char *word_file(const char *file) {
   if (g_set.lang == LANG_EN)
