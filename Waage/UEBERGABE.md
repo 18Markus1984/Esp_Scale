@@ -71,7 +71,7 @@ Testumgebung lässt alle Waveshare-Dateien beim Bauen weg (`WAVESHARE` im Makefi
 /Waage/Spiel/spieler.txt  /Waage/Spiel/bestenliste.txt  /Waage/Spiel/spiele.txt
 /Waage/Stimme/<Paket>/*.wav   (16 kHz, Mono, 16 Bit; englische Pakete mit englischen Dateinamen)
 /Waage/Akku/test_<Datum>.csv
-/Waage/Pruefung/<Datum>.txt
+/Waage/Pruefung/<Datum>_<HHMM>.csv   (Messmittelprüfungen, msa_store.cpp; ältere <Datum>.txt bleiben liegen)
 ```
 
 ## 5. Was fertig ist
@@ -755,6 +755,33 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   es geweckt hätte; Spitzenwert 2 s gehalten (voice.cpp `s_live_at`). Sim-Test `MICTEST=<wav>`.
 - Nächster Schritt: Markus' neue `kws_de.bin` und Aufnahmen-Ordner mit `kws_pruefen.py --ordner`
   prüfen (alt gegen neu) bzw. neu trainieren und die neue Tabelle ansehen.
+
+### Stand 15.10.2026 (vormittags): Messmittelprüfungen speichern und zeichnen, 4 Kalibrierpunkte
+- Markus' Prüfungen (Browser): 155 g/T 3 g: Bias −0,34 g, s 0,058 g, Cg 1,73, Cgk −0,23;
+  1352 g/T 10 g: Bias +0,21 g, Cg 5,56, Cgk 4,38. Werte nur in 0,1-g-Schritten (Browser nahm `S.g`).
+- **msa_store.cpp/.h (neu):** `msa_calc()` (Cg, Cgk, T_min, Spanne) und `msa_save()` →
+  `/Waage/Pruefung/JJJJ-MM-TT_HHMM.csv` (bei gleicher Minute `_2` …): Kopfzeilen `Schlüssel;Wert`
+  (Datum, Quelle Waage/Browser, Firmware, Sollwert, Toleranz T, n, Mittelwert, Bias, s, Cg, Cgk,
+  Ergebnis, T_min, Kalibriert, Kalibrierpunkte), Leerzeile, `Nr;Messwert_g`. Komma als Dezimalzeichen.
+- page_msa.cpp nutzt msa_calc/msa_save (einmal, `m_saved`), Ergebnisseite mit Kommas, „≥“ (fehlt im
+  Font) → „ab 1,33“, neuer Knopf **Verlauf** → Seite Werteverlauf (lv_line, Band Soll ± 0,1·T, Soll,
+  Mittel gestrichelt, Kalibrierdatum und -punkte, Dateiname). Sim-Test `MSATEST` (kalibriert 4 Punkte,
+  25 Messungen, Ergebnis, Verlauf, CSV-Inhalt).
+- web.cpp: `POST /api/msa {nom,tol,vals}` → msa_save (Quelle Browser); Status hat `gp` (Netto mit 2
+  Nachkommastellen, die Browser-Prüfung nimmt jetzt diesen Wert); Einstellungen haben `cal_date`, `cal_pts`.
+- page.html P.msa: Startseite mit Karten Kalibrierung (Datum, Alter, Punkte), „Abweichung über dem
+  Sollwert“ (Bias je Prüfung über Soll, Balken ± 0,1·T, Dreiecke = Kalibrierpunkte, hohl = nicht fähig)
+  und Liste (max. 24 neueste); Prüfbericht mit Kennwerten, Kalibrierung zur Prüfung, Werteverlauf
+  (Band, Soll, Mittel, ± 3s, hohle gelbe Punkte außerhalb), Histogramm mit Normalverteilung, Einzelwerte.
+  `msaParse` liest auch das alte Browser-CSV (Punkt als Dezimalzeichen). mock.py: `MSA_FILES`, `/api/msa`.
+- **scale.cpp:** `CAL_MAX` 3 → 4. Kalibrierdatum `cal_date` (NVS, `scale_cal_date()`).
+  **Fehler behoben:** Bei Mehrpunkt-Kalibrierung wurden die gespeicherten Rohwerte absolut mit dem
+  beim Einschalten neu gemessenen Nullpunkt verrechnet; hatte sich der Nullpunkt verschoben, lagen die
+  oberen Abschnitte um diese Verschiebung daneben. Jetzt relativ zu `cal_zero` (wurde schon immer
+  gespeichert, war aber ungenutzt) – alte Kalibrierungen gelten weiter.
+- Langzeitmessung 15.10. mit ~2,99 kg: in 28 min stetig von 2991 auf 2884 g (−3,6 %, abklingend).
+  Bei 240 g (14.10.) über 23 min stabil auf ±0,1 g. Verdacht: mechanisch (Überlastanschlag/Kontakt
+  oder Kriechen gedruckter Teile unter Last nahe Nennlast), nicht Auto-Null (wirkt nur nahe 0).
 
 ## 6. Offene Punkte
 

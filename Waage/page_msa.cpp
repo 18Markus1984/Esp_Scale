@@ -9,7 +9,8 @@
 //     Cg  = 0,2·T / (6·s)        (Streuung)
 //     Cgk = (0,1·T − |Bi|) / (3·s)  (Lage)
 //  Fähig ab 1,33 (Bosch-Formeln). T ist die Toleranz der Prüfaufgabe.
-//  Ergebnis samt Einzelwerten landet in /Waage/Pruefung/<Datum>.txt
+//  Ergebnis samt Einzelwerten landet als CSV in /Waage/Pruefung/
+//  (msa_store.cpp); die Weboberfläche zeichnet daraus die Diagramme.
 // ============================================================
 #include "ui_pages.h"
 #include "ui.h"
@@ -20,6 +21,7 @@
 #include "sound.h"
 #include "hal.h"
 #include "config.h"
+#include "msa_store.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -34,6 +36,9 @@ static int m_runs = 25;       // Anzahl Messungen
 static int m_step = 10;
 static float m_val[MSA_MAX];
 static int m_done = 0;
+static msa_stats_t m_res;       // Auswertung der letzten Prüfung
+static bool m_saved = false;     // schon gespeichert (Ergebnisseite wird beim Zurückkommen neu gebaut)
+static char m_file[40] = "";     // Dateiname auf der SD-Karte
 
 static lv_obj_t *page_run_create();
 static lv_obj_t *page_result_create();
@@ -90,6 +95,7 @@ static void su_runs_cb(lv_event_t *e) {
 
 static void su_go_cb(lv_event_t *e) {
   m_done = 0;
+  m_saved = false;
   scale_tare();
   ui_switch_page(page_run_create());
 }
@@ -291,41 +297,31 @@ static lv_obj_t *page_run_create() {
 // ------------------------------------------------------------
 //  Auswertung
 // ------------------------------------------------------------
-static lv_obj_t *page_result_create() {
-  double sum = 0;
-  for (int i = 0; i < m_done; i++) sum += m_val[i];
-  double mean = m_done ? sum / m_done : 0;
-  double var = 0;
-  for (int i = 0; i < m_done; i++) var += (m_val[i] - mean) * (m_val[i] - mean);
-  double sg = m_done > 1 ? sqrt(var / (m_done - 1)) : 0;
-  double bias = mean - m_nominal;
-  double tol = m_tol;  // Toleranz T (nicht T nennen, T() übersetzt)
-  double cg = sg > 0 ? 0.2 * tol / (6 * sg) : 0;
-  double cgk = sg > 0 ? (0.1 * tol - fabs(bias)) / (3 * sg) : 0;
-  bool ok = cg >= 1.33 && cgk >= 1.33;
 
-  // Ergebnis mit allen Einzelwerten auf die SD
-  char day[11];
-  log_today(day);
-  int h, mi;
-  hal_time(&h, &mi);
-  char path[56], line[160];
-  snprintf(path, sizeof(path), "/Waage/Pruefung/%s.txt", day[0] ? day : "unbekannt");
-  snprintf(line, sizeof(line),
-           "%02d:%02d;Verfahren 1;n=%d;Soll=%d g;T=%d g;Mittel=%.3f;Bi=%.3f;s=%.3f;Cg=%.2f;Cgk=%.2f;%s", h, mi,
-           m_done, m_nominal, m_tol, mean, bias, sg, cg, cgk, ok ? "faehig" : "nicht faehig");
-  storage_append(path, line);
-  line[0] = 0;
-  for (int i = 0; i < m_done; i++) {  // Einzelwerte in Zeilen zu je zehn
-    char one[12];
-    snprintf(one, sizeof(one), "%s%.2f", i % 10 ? ";" : "", m_val[i]);
-    strncat(line, one, sizeof(line) - strlen(line) - 1);
-    if (i % 10 == 9 || i == m_done - 1) {
-      storage_append(path, line);
-      line[0] = 0;
-    }
+static lv_obj_t *page_chart_create();
+
+// Dezimalpunkt -> Komma (wie das Gewicht auf der Wiegeseite)
+static void comma(char *b) {
+  for (char *c = b; *c; c++)
+    if (*c == '.') *c = ',';
+}
+
+// Datum "2026-10-15 09:05" -> "15.10.2026"
+static void de_date(char *b, int len, const char *iso) {
+  if (strlen(iso) >= 10) snprintf(b, len, "%.2s.%.2s.%.4s", iso + 8, iso + 5, iso);
+  else snprintf(b, len, "%s", T("unbekannt"));
+}
+
+static lv_obj_t *page_result_create() {
+  if (!m_saved) {
+    msa_calc(m_val, m_done, (float)m_nominal, (float)m_tol, &m_res);
+    // Ergebnis mit allen Einzelwerten als CSV auf die SD (Diagramme im Browser)
+    if (!msa_save((float)m_nominal, (float)m_tol, m_val, m_done, "Waage", m_file, sizeof(m_file))) m_file[0] = 0;
+    m_saved = true;
+    sound_play(m_res.ok ? SND_DONE : SND_WARN);
   }
-  sound_play(ok ? SND_DONE : SND_WARN);
+  double mean = m_res.mean, bias = m_res.bias, sg = m_res.s, cg = m_res.cg, cgk = m_res.cgk;
+  bool ok = m_res.ok;
 
   lv_obj_t *s = ui_screen_create();
   lv_obj_t *ring = ui_ring(s, 396);
@@ -337,29 +333,145 @@ static lv_obj_t *page_result_create() {
 
   char b[48];
   snprintf(b, sizeof(b), T("Cg %.2f"), cg);
+  comma(b);
   lv_obj_t *l1 = ui_label(s, b, &font_sg_34, cg >= 1.33 ? C_ACCENT : C_WARN);
-  lv_obj_align(l1, LV_ALIGN_CENTER, 0, -74);
+  lv_obj_align(l1, LV_ALIGN_CENTER, 0, -82);
   snprintf(b, sizeof(b), T("Cgk %.2f"), cgk);
+  comma(b);
   lv_obj_t *l2 = ui_label(s, b, &font_sg_34, cgk >= 1.33 ? C_ACCENT : C_WARN);
-  lv_obj_align(l2, LV_ALIGN_CENTER, 0, -28);
+  lv_obj_align(l2, LV_ALIGN_CENTER, 0, -36);
 
-  lv_obj_t *v = ui_label(s, ok ? "fähig (≥ 1,33)" : "nicht fähig", &font_sg_18, ok ? C_ACCENT : C_WARN);
-  lv_obj_align(v, LV_ALIGN_CENTER, 0, 14);
+  lv_obj_t *v = ui_label(s, ok ? "fähig (ab 1,33)" : "nicht fähig", &font_sg_18, ok ? C_ACCENT : C_WARN);
+  lv_obj_align(v, LV_ALIGN_CENTER, 0, 6);
 
   snprintf(b, sizeof(b), T("Mittel %.2f g · Bi %+.2f g"), mean, bias);
+  comma(b);
   lv_obj_t *l3 = ui_label(s, b, &font_sg_14, C_MUTED);
-  lv_obj_align(l3, LV_ALIGN_CENTER, 0, 48);
+  lv_obj_align(l3, LV_ALIGN_CENTER, 0, 40);
   snprintf(b, sizeof(b), "s %.3f g · n %d · T %d g", sg, m_done, m_tol);
+  comma(b);
   lv_obj_t *l4 = ui_label(s, b, &font_sg_14, C_MUTED);
-  lv_obj_align(l4, LV_ALIGN_CENTER, 0, 70);
+  lv_obj_align(l4, LV_ALIGN_CENTER, 0, 62);
 
   // Kleinste prüfbare Toleranz: T_min = 40·s + 10·|Bi|  (aus Cgk = 1,33)
-  snprintf(b, sizeof(b), T("kleinste prüfbare Toleranz %.1f g"), 40 * sg + 10 * fabs(bias));
-  lv_obj_t *l5 = ui_label(s, b, &font_sg_14, C_FAINT);
-  lv_obj_align(l5, LV_ALIGN_CENTER, 0, 96);
+  snprintf(b, sizeof(b), T("kleinste prüfbare Toleranz %.1f g"), m_res.tmin);
+  comma(b);
+  lv_obj_t *l5 = ui_label(s, b, &font_sg_14, C_MUTED);
+  lv_obj_align(l5, LV_ALIGN_CENTER, 0, 85);
 
-  lv_obj_t *b2 = ui_btn(s, "Fertig", BTN_PRIMARY);
-  lv_obj_align(b2, LV_ALIGN_CENTER, 0, 138);
+  lv_obj_t *row = ui_box(s);
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(row, 10, 0);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, 126);
+  lv_obj_t *b1 = ui_btn(row, "Verlauf", BTN_NORMAL);
+  lv_obj_add_event_cb(b1, [](lv_event_t *e) { ui_switch_page(page_chart_create()); }, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *b2 = ui_btn(row, "Fertig", BTN_PRIMARY);
   lv_obj_add_event_cb(b2, [](lv_event_t *e) { ui_go_home(); }, LV_EVENT_CLICKED, NULL);
+  return s;
+}
+
+// ------------------------------------------------------------
+//  Werteverlauf: Einzelwerte über der Nummer, grünes Band = Soll ± 0,1·T
+//  (dort muss der Mittelwert liegen, damit Cgk passt), gestrichelt der
+//  Mittelwert. Darunter, wann die Waage kalibriert wurde.
+// ------------------------------------------------------------
+#define MC_W 296
+#define MC_H 150
+static lv_point_t mc_pts[MSA_MAX], mc_soll[2], mc_mean[2];
+
+static lv_obj_t *mc_line(lv_obj_t *par, lv_point_t *p, int n, lv_color_t c, int w, bool dash) {
+  lv_obj_t *l = lv_line_create(par);
+  lv_line_set_points(l, p, n);
+  lv_obj_set_pos(l, 0, 0);
+  lv_obj_set_style_line_width(l, w, 0);
+  lv_obj_set_style_line_color(l, c, 0);
+  lv_obj_set_style_line_rounded(l, true, 0);
+  if (dash) {
+    lv_obj_set_style_line_dash_width(l, 6, 0);
+    lv_obj_set_style_line_dash_gap(l, 5, 0);
+  }
+  return l;
+}
+
+static lv_obj_t *page_chart_create() {
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *t = ui_label(s, "Werteverlauf", &font_sg_14, C_MUTED);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 48);
+  char b[64];
+  snprintf(b, sizeof(b), T("Soll %d g · Band ± 0,1·T · gestrichelt: Mittel"), m_nominal);
+  lv_obj_t *st = ui_label(s, b, &font_sg_14, C_MUTED);
+  lv_obj_align(st, LV_ALIGN_TOP_MID, 0, 72);
+
+  // Wertebereich: Band etwas größer als ± 0,1·T, alle Werte sichtbar
+  double band = 0.1 * m_tol;
+  double lo = m_nominal - band * 1.6, hi = m_nominal + band * 1.6;
+  if (m_res.lo < lo) lo = m_res.lo;
+  if (m_res.hi > hi) hi = m_res.hi;
+  double pad = (hi - lo) * 0.08;
+  lo -= pad;
+  hi += pad;
+  auto Y = [&](double g) { return (lv_coord_t)lround((hi - g) / (hi - lo) * (MC_H - 1)); };
+
+  lv_obj_t *fr = ui_box(s);
+  lv_obj_set_size(fr, MC_W, MC_H);
+  lv_obj_set_style_border_width(fr, 1, 0);
+  lv_obj_set_style_border_color(fr, C_TRACK, 0);
+  lv_obj_set_style_radius(fr, 8, 0);
+  lv_obj_set_style_clip_corner(fr, true, 0);
+  lv_obj_align(fr, LV_ALIGN_CENTER, 0, -6);
+
+  // Band Soll ± 0,1·T
+  lv_obj_t *bd = lv_obj_create(fr);
+  lv_obj_remove_style_all(bd);
+  int y1 = Y(m_nominal + band), y2 = Y(m_nominal - band);
+  lv_obj_set_pos(bd, 0, y1);
+  lv_obj_set_size(bd, MC_W, y2 - y1 > 1 ? y2 - y1 : 1);
+  lv_obj_set_style_bg_color(bd, C_ACCENT, 0);
+  lv_obj_set_style_bg_opa(bd, LV_OPA_20, 0);
+  lv_obj_clear_flag(bd, LV_OBJ_FLAG_CLICKABLE);
+
+  mc_soll[0] = { 0, Y(m_nominal) };
+  mc_soll[1] = { MC_W - 1, Y(m_nominal) };
+  mc_line(fr, mc_soll, 2, C_MUTED, 1, false);
+  mc_mean[0] = { 0, Y(m_res.mean) };
+  mc_mean[1] = { MC_W - 1, Y(m_res.mean) };
+  mc_line(fr, mc_mean, 2, C_TEXT, 2, true);
+  int n = m_done > 1 ? m_done : 1;
+  for (int i = 0; i < m_done; i++) {
+    mc_pts[i].x = (lv_coord_t)(6 + i * (MC_W - 13) / (n > 1 ? n - 1 : 1));
+    mc_pts[i].y = Y(m_val[i]);
+  }
+  if (m_done > 1) mc_line(fr, mc_pts, m_done, m_res.ok ? C_ACCENT : C_WARN, 3, false);
+
+  // Skala rechts im Diagramm: obere und untere Bandgrenze
+  char g1[16], g2[16];
+  int dec = band >= 0.5 ? 1 : 2;  // Bandgrenzen: so genau wie nötig
+  snprintf(g1, sizeof(g1), "%.*f", dec, m_nominal + band);
+  snprintf(g2, sizeof(g2), "%.*f", dec, m_nominal - band);
+  for (char *c = g1; *c; c++) if (*c == '.') *c = ',';
+  for (char *c = g2; *c; c++) if (*c == '.') *c = ',';
+  lv_obj_t *lt = ui_label(fr, g1, &font_sg_14, C_FAINT);
+  lv_obj_align(lt, LV_ALIGN_TOP_RIGHT, -6, y1 - 18 > 2 ? y1 - 18 : 2);
+  lv_obj_t *lb = ui_label(fr, g2, &font_sg_14, C_FAINT);
+  lv_obj_align(lb, LV_ALIGN_TOP_RIGHT, -6, y2 + 2 < MC_H - 18 ? y2 + 2 : MC_H - 18);
+
+  // Kalibrierung, die bei dieser Prüfung galt
+  char d[16], pts[48] = "";
+  de_date(d, sizeof(d), scale_cal_date());
+  for (int i = 0; i < scale_cal_count(); i++) {
+    char one[12];
+    snprintf(one, sizeof(one), "%s%d", i ? " · " : "", (int)lroundf(scale_cal_gram(i)));
+    strncat(pts, one, sizeof(pts) - strlen(pts) - 1);
+  }
+  snprintf(b, sizeof(b), T("kalibriert %s · %s g"), d, pts[0] ? pts : "–");
+  lv_obj_t *cl = ui_label(s, b, &font_sg_14, C_MUTED);
+  lv_obj_align(cl, LV_ALIGN_CENTER, 0, 86);
+  lv_obj_t *fl = ui_label(s, m_file[0] ? m_file : T("nicht gespeichert (SD-Karte?)"), &font_sg_14, C_MUTED);
+  lv_obj_align(fl, LV_ALIGN_CENTER, 0, 108);
+
+  lv_obj_t *bk = ui_btn(s, "Zurück", BTN_NORMAL);
+  lv_obj_align(bk, LV_ALIGN_CENTER, 0, 148);
+  lv_obj_add_event_cb(bk, [](lv_event_t *e) { ui_switch_page(page_result_create()); }, LV_EVENT_CLICKED, NULL);
   return s;
 }

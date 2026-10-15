@@ -1,9 +1,11 @@
 #include "scale.h"
 #include "config.h"
 #include "hal.h"
+#include "data.h"  // log_today
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #ifdef ARDUINO
 #include <Arduino.h>
 #include <Preferences.h>
@@ -22,6 +24,8 @@ static float s_factor = 420.0f; // Zählwerte pro Gramm (erster Abschnitt)
 static long  s_cal_raw[CAL_MAX];    // Rohwerte der Referenzpunkte
 static float s_cal_g[CAL_MAX];      // zugehörige Sollgewichte
 static int   s_cal_n = 0;           // Anzahl Referenzpunkte
+static long  s_cal_zero = 0;        // Nullpunkt (roh) bei der Kalibrierung
+static char  s_cal_date[20] = "";   // wann kalibriert wurde
 static float s_raw = 0.0f;      // Brutto in g (ungefiltert, für Logik)
 static bool s_fresh = true;     // read_counts() hat einen neuen Wert vom HX711 (Simulator: immer)
 static float s_shown = 0.0f;    // geglättet, für die Anzeige
@@ -121,9 +125,9 @@ static void hw_init() {
     snprintf(k, sizeof(k), "cal_g%d", i);
     s_cal_g[i] = p.getFloat(k, 0);
   }
-  long saved_zero = p.getLong("cal_zero", 0);
+  s_cal_zero = p.getLong("cal_zero", 0);
+  p.getString("cal_date", s_cal_date, sizeof(s_cal_date));
   p.end();
-  (void)saved_zero;
   // Nullpunkt beim Einschalten messen (Waage muss leer sein)
   bool ok = s_hx.wait_ready_timeout(1000);
   if (ok) s_zero = s_hx.read_average(10);  // ca. 1 s
@@ -148,18 +152,24 @@ void scale_init() {
 }
 
 // Rohwert -> Gramm. Mit mehreren Punkten abschnittsweise linear.
+// Gerechnet wird mit dem Abstand zum Nullpunkt: die Referenzpunkte relativ zum
+// Nullpunkt der Kalibrierung, der Messwert relativ zum aktuellen Nullpunkt.
+// (Bis 1.1.20 wurden die Punkte absolut verglichen; hatte sich der Nullpunkt
+// seit der Kalibrierung verschoben, waren die oberen Abschnitte um diese
+// Verschiebung falsch – bei 400 Zählwerten etwa 1 g.)
 static float counts_to_g(long c) {
   if (s_cal_n < 2) return (c - s_zero) / s_factor;
-  long x0 = s_zero;
+  long d = c - s_zero;
+  long x0 = 0;
   float y0 = 0;
   for (int i = 0; i < s_cal_n; i++) {
-    long x1 = s_cal_raw[i];
+    long x1 = s_cal_raw[i] - s_cal_zero;
     float y1 = s_cal_g[i];
     bool last = (i == s_cal_n - 1);
-    if (c <= x1 || last) {
+    if (d <= x1 || last) {
       float span = (float)(x1 - x0);
       if (span == 0) return y1;
-      return y0 + (c - x0) * (y1 - y0) / span;  // innerhalb bzw. verlängert
+      return y0 + (d - x0) * (y1 - y0) / span;  // innerhalb bzw. verlängert
     }
     x0 = x1;
     y0 = y1;
@@ -330,6 +340,8 @@ int scale_cal_count() {
   return s_cal_n;
 }
 
+const char *scale_cal_date() { return s_cal_date; }
+
 float scale_cal_gram(int i) {
   return (i >= 0 && i < s_cal_n) ? s_cal_g[i] : 0.0f;
 }
@@ -338,7 +350,16 @@ bool scale_calibrate_points(long zero_raw, const long *raws, const float *grams,
   if (n < 1 || n > CAL_MAX) return false;
   if (labs(raws[0] - zero_raw) < MIN_CAL_COUNTS || grams[0] <= 0.0f) return false;
   s_zero = zero_raw;
+  s_cal_zero = zero_raw;
   s_cal_n = n;
+  // Zeitpunkt merken (für Messmittelprüfung und Weboberfläche)
+  {
+    char day[11];
+    int h, mi;
+    log_today(day);
+    if (day[0] && hal_time(&h, &mi)) snprintf(s_cal_date, sizeof(s_cal_date), "%s %02d:%02d", day, h, mi);
+    else s_cal_date[0] = 0;
+  }
   for (int i = 0; i < n; i++) {
     s_cal_raw[i] = raws[i];
     s_cal_g[i] = grams[i];
@@ -352,6 +373,7 @@ bool scale_calibrate_points(long zero_raw, const long *raws, const float *grams,
   p.putFloat("cal", s_factor);
   p.putInt("cal_n", n);
   p.putLong("cal_zero", s_zero);
+  p.putString("cal_date", s_cal_date);
   for (int i = 0; i < n; i++) {
     char k[8];
     snprintf(k, sizeof(k), "cal_r%d", i);

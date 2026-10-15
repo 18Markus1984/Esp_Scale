@@ -25,6 +25,7 @@
 #include "voice.h"
 #include "zipw.h"
 #include "crash.h"
+#include "msa_store.h"
 #include <time.h>
 #include <Arduino.h>
 #include <WiFi.h>
@@ -148,7 +149,8 @@ static void h_state() {
   hal_time(&h, &m);
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", h, m);
-  String s = "{\"g\":" + String(net, 1) + ",\"gross\":" + String(scale_gross(), 1) + ",\"disp\":\"" + disp +
+  // gp: zwei Nachkommastellen (Messmittelprüfung im Browser rechnet damit)
+  String s = "{\"g\":" + String(net, 1) + ",\"gp\":" + String(net, 2) + ",\"gross\":" + String(scale_gross(), 1) + ",\"disp\":\"" + disp +
              "\",\"unit\":\"" + unit_name(u) + "\",\"stable\":" + (scale_stable() ? "true" : "false") +
              ",\"over\":" + (scale_overload() ? "true" : "false") + ",\"pot\":\"" + esc(ui_active_pot()) +
              "\",\"off\":" + web_seconds_left() + ",\"time\":\"" + t + "\",\"bat\":" + hal_battery_percent() +
@@ -814,6 +816,37 @@ static void h_scores() {
   send_json(s + "]");
 }
 
+// Messmittelprüfung aus dem Browser auf der SD-Karte ablegen (wie an der Waage)
+// {"nom":155,"tol":3,"vals":[154.62,154.71,…]}
+static void h_msa_save() {
+  String b = s_server.arg("plain");
+  float nom = jval(b, "nom").toFloat(), tol = jval(b, "tol").toFloat();
+  static float v[60];
+  int n = 0;
+  int i = b.indexOf("\"vals\":[");
+  if (i >= 0) {
+    const char *p = b.c_str() + i + 8;
+    while (*p && *p != ']' && n < 60) {
+      char *e;
+      float x = strtof(p, &e);
+      if (e == p) break;
+      v[n++] = x;
+      p = e;
+      while (*p == ',' || *p == ' ') p++;
+    }
+  }
+  if (nom <= 0 || tol <= 0 || n < 2) {
+    ok(false, "Werte fehlen");
+    return;
+  }
+  char name[40];
+  if (!msa_save(nom, tol, v, n, "Browser", name, sizeof(name))) {
+    ok(false, "Keine SD-Karte");
+    return;
+  }
+  send_json(String("{\"ok\":1,\"file\":\"") + name + "\"}");
+}
+
 static void h_score_add() {
   String b = s_server.arg("plain");
   String game = jval(b, "game"), name = jval(b, "name"), unit = jval(b, "unit");
@@ -852,6 +885,11 @@ static void h_settings() {
              ",\"modes_off\":" + g_set.modes_off + ",\"setup_done\":" + (g_set.setup_done ? "true" : "false") +
              ",\"upd_auto\":" + (g_set.upd_auto ? "true" : "false") + ",\"fw_local\":" + (fw_is_local() ? "true" : "false") +
              ",\"theme\":" + g_set.theme;
+  {  // Kalibrierung: wann und mit welchen Stützpunkten
+    s += ",\"cal_date\":\"" + String(scale_cal_date()) + "\",\"cal_pts\":[";
+    for (int i = 0; i < scale_cal_count(); i++) s += String(i ? "," : "") + String(scale_cal_gram(i), 0);
+    s += "]";
+  }
   {  // Prüfgewicht
     char last[16], next[16];
     refchk_date(g_set.ref_last, last, sizeof(last));
@@ -1247,6 +1285,7 @@ static void routes() {
   s_server.on("/api/player_add", h_player_add);
   s_server.on("/api/scores", HTTP_GET, h_scores);
   s_server.on("/api/scores", HTTP_POST, h_score_add);
+  s_server.on("/api/msa", HTTP_POST, h_msa_save);
   s_server.on("/api/recipes", h_recipes);
   s_server.on("/api/recipe", HTTP_GET, h_recipe);
   s_server.on("/api/recipe", HTTP_POST, h_recipe_save);

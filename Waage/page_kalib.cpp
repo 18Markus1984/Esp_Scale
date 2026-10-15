@@ -233,7 +233,7 @@ static lv_obj_t *page_step3_create() {
   lv_obj_align(pl, LV_ALIGN_CENTER, 0, 36);
 
   lv_obj_t *hint = ui_label(s, k_n < CAL_MAX ? "„Punkt +“ für einen weiteren\nStützpunkt (genauer über den Bereich)"
-                                             : "Drei Punkte gespeichert", &font_sg_14, C_FAINT);
+                                             : "Vier Punkte gespeichert", &font_sg_14, C_FAINT);
   lv_obj_align(hint, LV_ALIGN_CENTER, 0, 66);
 
   lv_obj_t *row = ui_box(s);
@@ -241,7 +241,7 @@ static lv_obj_t *page_step3_create() {
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(row, 10, 0);
   lv_obj_align(row, LV_ALIGN_CENTER, 0, 110);
-  if (k_n < CAL_MAX) {  // mit zwei oder drei Punkten wird es über den Bereich genauer
+  if (k_n < CAL_MAX) {  // mit mehreren Punkten (bis vier) wird es über den Bereich genauer
     lv_obj_t *more = ui_btn(row, "Punkt +", BTN_NORMAL);
     lv_obj_add_event_cb(more, [](lv_event_t *e) {
       ref_g = (int)(k_g[k_n - 1] * 2);

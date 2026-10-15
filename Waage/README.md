@@ -259,10 +259,14 @@ Das WLAN schaltet sich nach 10 Minuten ohne Zugriff ab; ein laufendes Update hä
 ## Kalibrierung und Messmittelprüfung
 
 **Kalibrierung (Setup -> Waage):** leeren, Referenz auflegen, Kontrolle. Über „Punkt +“
-lassen sich bis zu **drei Stützpunkte** aufnehmen (z. B. 500 g, 1000 g, 2000 g).
+lassen sich bis zu **vier Stützpunkte** aufnehmen (z. B. 200 g, 500 g, 1000 g, 2000 g).
 Zwischen den Punkten rechnet die Waage abschnittsweise linear, außerhalb mit der
 Steigung des äußersten Abschnitts. Das fängt die Nichtlinearität der Wägezelle ab,
-die mit einem einzigen Punkt am Rand des Bereichs sichtbar wird.
+die mit einem einzigen Punkt am Rand des Bereichs sichtbar wird. Die Punkte gelten
+relativ zum Nullpunkt (beim Einschalten neu gemessen); Datum und Uhrzeit der
+Kalibrierung speichert die Waage mit (Weboberfläche → Messmittelprüfung).
+Mehr Punkte helfen nur mit genauen Gewichten: jeder Fehler eines Referenzgewichts
+wird an seinem Punkt zur Abweichung der Waage.
 
 **Messmittelprüfung (Setup -> Waage -> Kalibrierung -> „Prüfen“, oder im Browser
 unter Einstellungen -> Messmittelprüfung):** Messmittelfähigkeit nach Verfahren 1.
@@ -274,9 +278,14 @@ Danach rechnet die Waage:
     Cg  = 0,2·T / (6·s)          Cgk = (0,1·T − |Bi|) / (3·s)
 
 Fähig ab 1,33 (Bosch). Zusätzlich wird die kleinste prüfbare Toleranz
-T_min = 40·s + 10·|Bi| angezeigt. Ergebnis und alle Einzelwerte landen in
-/Waage/Pruefung/<Datum>.txt. In der Weboberfläche gibt es dieselbe Prüfung mit
-**CSV-Export** aller Einzelwerte zum Weiterrechnen.
+T_min = 40·s + 10·|Bi| angezeigt. Ergebnis und alle Einzelwerte landen als CSV in
+/Waage/Pruefung/<Datum>_<Uhrzeit>.csv (Kopf: Kennwerte, Quelle, Firmware und die
+Kalibrierung, die zur Prüfung galt; darunter Nr;Messwert_g), egal ob an der Waage oder
+im Browser geprüft. An der Waage zeigt „Verlauf“ die Einzelwerte mit dem Band
+Soll ± 0,1·T. Die Weboberfläche (Messmittelprüfung) zeigt die letzte Kalibrierung, eine
+Übersicht „Abweichung über dem Sollwert“ aller Prüfungen und je Prüfung einen
+Prüfbericht mit Werteverlauf und Histogramm. Im Browser rechnet die Prüfung mit zwei
+Nachkommastellen (nicht mit der gerundeten Anzeige).
 
 ## Akku
 

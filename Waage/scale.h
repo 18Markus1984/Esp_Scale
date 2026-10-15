@@ -25,10 +25,12 @@ bool  scale_precise(float *net, float *u, int *n);
 void  scale_set_autozero(bool on);
 
 // ---- Kalibrierung ----
-// Bis zu drei Referenzpunkte: dazwischen wird linear umgerechnet, außerhalb
-// mit der Steigung des äußersten Abschnitts weitergerechnet. Ein Punkt
-// entspricht der bisherigen Kalibrierung über einen Faktor.
-#define CAL_MAX 3
+// Bis zu vier Referenzpunkte (plus Nullpunkt): dazwischen wird linear
+// umgerechnet, außerhalb mit der Steigung des äußersten Abschnitts weiter-
+// gerechnet. Ein Punkt entspricht der bisherigen Kalibrierung über einen Faktor.
+// Die Punkte gelten relativ zum Nullpunkt der Kalibrierung, so verschieben
+// sie sich mit, wenn der Nullpunkt beim Einschalten neu gemessen wird.
+#define CAL_MAX 4
 long  scale_raw();        // Rohwert, gemittelt über ca. 1 s
 float scale_factor();     // Zählwerte pro Gramm
 // Nullpunkt und Faktor aus zwei Messungen berechnen und im Flash speichern.
@@ -38,3 +40,4 @@ bool  scale_calibrate(long zero_raw, long load_raw, float ref_g);
 bool  scale_calibrate_points(long zero_raw, const long *raws, const float *grams, int n);
 int   scale_cal_count();                       // gespeicherte Referenzpunkte
 float scale_cal_gram(int i);                   // Sollgewicht des Punktes i
+const char *scale_cal_date();                  // "2026-10-15 09:05", "" = unbekannt (vor 1.1.21)
