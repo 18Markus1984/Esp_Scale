@@ -649,7 +649,10 @@ static void fu_timer_cb(lv_timer_t *t) {
   lv_obj_set_style_bg_color(fu_btn, inst ? C_PRIMARY : C_SURFACE, 0);
   lv_obj_set_style_text_color(lv_obj_get_child(fu_btn, 0), inst ? C_ON_PRIMARY : C_TEXT, 0);
   lv_obj_set_style_border_width(fu_btn, inst ? 0 : 2, 0);
+  bool det = st == UPD_ERROR && upd_detail()[0];
+  lv_obj_set_style_text_color(fu_sub, det ? C_MUTED : C_FAINT, 0);  // Grund gut lesbar
   if (st == UPD_DOWNLOAD) ui_label_update(fu_sub, T("Nicht ausschalten"));
+  else if (det) ui_label_update(fu_sub, upd_detail());
   else {
     snprintf(b, sizeof(b), "github.com/%s", upd_repo());
     ui_label_update(fu_sub, b);

@@ -1,6 +1,7 @@
 #include "update_online.h"
 #include "disp_rot.h"
 #include <esp_heap_caps.h>
+#include <mbedtls/platform.h>
 #include "config.h"
 #include "net.h"
 #include "web.h"
@@ -76,6 +77,16 @@ int upd_progress() {
 const char *upd_error() {
   return s_error;
 }
+
+// Kurzer technischer Grund zum Fehler (Weboberfläche und Firmware-Seite), z. B.
+// "HTTP -1 · Block 15 KB": HTTP-Code bzw. HTTPClient-Fehler und größter freier
+// interner Speicherblock (TLS brauchte bis 1.1.21 gut 16 KB am Stück)
+static char s_detail[64] = "";
+static void set_detail(int code) {
+  snprintf(s_detail, sizeof(s_detail), "HTTP %d · Block %u KB", code,
+           (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024));
+}
+const char *upd_detail() { return s_detail; }
 
 static void fail(const char *msg) {
   s_error = msg;
@@ -182,6 +193,7 @@ static void do_check() {
     http.end();
     if (code > 0) break;
     printf("Update: GitHub %d (%s)\r\n", code, HTTPClient::errorToString(code).c_str());
+    set_detail(code);
     vTaskDelay(pdMS_TO_TICKS(1500));
   }
   if (code <= 0) {
@@ -257,6 +269,7 @@ static void do_install() {
     }
     int code = http.GET();
     int size = http.getSize();
+    set_detail(code);
     if (code == 404) {
       http.end();
       err = "Keine Firmware im Release";
@@ -356,6 +369,34 @@ static void task(void *arg) {
   vTaskDelete(NULL);
 }
 
+// ------------------------------------------------------------
+//  TLS-Speicher in den PSRAM
+//  Die Arduino-Fassung legt alles von mbedTLS in den internen RAM
+//  (CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC); allein die beiden Datensatzpuffer
+//  brauchen je gut 16 KB am Stück. Nach dem Einschalten ist das da – darum
+//  klappte die automatische Suche beim Start. Läuft die Waage eine Weile
+//  (Weboberfläche, Spracherkennung …), ist der größte freie interne Block oft
+//  nur noch ~15 KB (siehe Absturz.txt: "37/10/15 KB"), der TLS-Handshake
+//  scheitert und die manuelle Suche meldet "GitHub nicht erreichbar" bzw.
+//  der Download bricht ab. Große Blöcke (ab 2 KB) kommen deshalb jetzt aus
+//  dem PSRAM, kleine bleiben intern (schneller).
+// ------------------------------------------------------------
+static void *tls_calloc(size_t n, size_t size) {
+  void *p = NULL;
+  if (n * size >= 2048) p = heap_caps_calloc(n, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!p) p = heap_caps_calloc(n, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (!p) p = heap_caps_calloc(n, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p;
+}
+static void tls_free(void *p) { heap_caps_free(p); }
+
+static void tls_use_psram() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  mbedtls_platform_set_calloc_free(tls_calloc, tls_free);
+}
+
 static void start(bool install) {
   if (s_task) return;
   if (strstr(OTA_REPO, "DEIN-GITHUB-NAME")) {  // noch nicht eingerichtet
@@ -368,6 +409,8 @@ static void start(bool install) {
   }
   s_install = install;
   s_error = "";
+  s_detail[0] = 0;
+  tls_use_psram();
   // Zeitabgleich beenden: seine DNS-Anfragen kamen den Update-Anfragen in die
   // Quere (Absturz "udp_new_ip_type", siehe net.cpp)
   net_sntp_stop();

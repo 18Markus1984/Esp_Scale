@@ -169,6 +169,7 @@ als neuer. So kommst du mit „Online suchen“ jederzeit auf den offiziellen St
 | Waage: „Kein WLAN“ | Kein gespeichertes Netz in Reichweite (Setup → Zeit & Funk → WLAN). |
 | Waage: „Repository nicht gefunden (privat?)“ | GitHub kennt das Repository nicht – für Fremde. Meist steht es auf **Private** (Settings → General → ganz unten „Change visibility“ → Public), oder der Name in `config.h` (`OTA_REPO`, Groß-/Kleinschreibung) stimmt nicht. |
 | Waage: „Noch kein Release veröffentlicht“ | Das Repository ist da, aber es gibt kein Release: Tag `v…` pushen (Schritt 6) und warten, bis die Action grün ist. |
+| Waage: „GitHub nicht erreichbar“ | Keine Verbindung zu GitHub. Darunter steht der Grund, z. B. „HTTP -1 · Block 15 KB“: negative Zahl = Verbindung/Verschlüsselung gescheitert, Block = größter freier interner Speicher. Bis 1.1.20 fehlte nach längerer Laufzeit der Speicher für die Verschlüsselung (nach einem Neustart klappte es); ab 1.1.21 nutzt sie den PSRAM. |
 | Waage: „Kein Release gefunden“ | Es gibt noch kein Release, das Repository ist privat, oder der Name in `config.h` stimmt nicht. |
 | Waage: „Keine Firmware im Release“ | Die Action läuft noch, oder ist fehlgeschlagen. |
 | Waage: „Download fehlgeschlagen“ | WLAN zu schwach. Die Waage setzt einen abgerissenen Download bis zu fünfmal an derselben Stelle fort; klappt es trotzdem nicht, einfach nochmal versuchen. Die alte Firmware bleibt erhalten. |

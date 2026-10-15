@@ -1424,7 +1424,7 @@ P.firmware={render(){return head("Firmware-Update")+`<div class="col">
   e.innerHTML=`<div class="top"><span class="mut">Online-Update</span><span class="pill ${st=="error"?"w":(st=="available"?"":"n")}">${o.local?"lokal gebaut":"Version "+esc(o.ver)}</span></div>
    <span class="${st=="available"?"":"mut"}" style="${st=="available"?"color:var(--acc)":""}">${esc(txt)}</span>
    ${st=="download"||st=="done"?`<div class="bar"><div style="width:${o.progress}%"></div></div>`:""}
-   <span class="faint" translate="no">github.com/${esc(o.repo)}</span>
+   <span class="faint" translate="no">github.com/${esc(o.repo)}${st=="error"&&o.detail?" · "+esc(o.detail):""}</span>
    ${busy||st=="done"?"":(st=="available"?`<button class="p" onclick="P.firmware.ota('install=1')">Installieren</button>`
      :`<button onclick="P.firmware.ota('check=1')">Online suchen</button>`)}
    <span class="faint">Die Waage lädt die neueste Version aus den GitHub-Releases und startet danach neu.</span>

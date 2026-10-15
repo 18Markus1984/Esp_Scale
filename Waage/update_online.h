@@ -33,6 +33,7 @@ bool        upd_busy();        // verbindet, sucht oder lädt gerade
 const char *upd_latest();      // gefundene Version, z. B. "1.5.0"
 int         upd_progress();    // 0 … 100 beim Laden
 const char *upd_error();       // deutscher Text (für T())
+const char *upd_detail();      // technischer Grund, z. B. "HTTP -1 · Block 15 KB" ("" = keiner)
 void        upd_loop();        // aus dem UI-Takt: Ton, WLAN freigeben, Neustart
 bool        upd_wants_wifi();  // WLAN nicht abschalten (Update läuft oder steht gleich an)
 void        upd_restart();     // sauber neu starten (WLAN abmelden, SD aushängen, Display-Reset)

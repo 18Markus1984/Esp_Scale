@@ -1079,7 +1079,7 @@ static void h_ota() {
   static const char *const ST[] = { "idle", "connect", "check", "latest", "available", "download", "done", "error" };
   String s = "{\"ver\":\"" + esc(fw_version()) + "\",\"local\":" + (fw_is_local() ? "true" : "false") +
              ",\"repo\":\"" + esc(upd_repo()) + "\",\"state\":\"" + ST[upd_state()] + "\",\"latest\":\"" +
-             esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) +
+             esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) + "\",\"detail\":\"" + esc(upd_detail()) +
              "\",\"crash\":\"" + esc(crash_reason()) + "\",\"crash_at\":\"" + esc(crash_where()) +
              "\",\"crash_pct\":" + crash_pct() + ",\"crash_time\":\"" + esc(crash_when()) + "\"}";
   send_json(s);

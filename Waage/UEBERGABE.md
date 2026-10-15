@@ -838,4 +838,26 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   `kNNN_PP.wav` (knapp), max. 60 je Einschalten. Mikrofonseite: „Hallo Waage 93 % · weckt ab 65 %“,
   darunter „Mitschnitte: n · letzte Datei“. Sim `MICTEST=<wav>` (`MICMODEL=` anderes Modell): kws.cpp
   94 % ↔ kws_pruefen 93 % auf derselben Datei – PC und Waage rechnen gleich.
+- Markus' Lauf ohne Doppelzählung (36 Dateien, 60 Wörter hallo_waage): Prüfung 81 %, eigene Prüf-Aufnahmen
+  100 % / 89 % (20 dB) / 44–67 % (30 dB). `kws_pruefen --leiser 25`: bei allen drei Modellen fallen
+  a023, a027, a029–a031 und Serien s002/s003 fast auf 0 % → leise Sprache ist die Schwachstelle (passt
+  zu „weckt im Alltag nicht“). Rauschboden der Waagen-Aufnahmen gemessen: rms ≈ 29 (−61 dBFS).
+- **kws_train.py:** Training legte Rauschen immer relativ zur Sprache an, fester Boden nur −85 dB →
+  leise Sprache war im Training viel sauberer als an der Waage. Jetzt fester Rauschboden −64…−57 dBFS
+  in jedem Beispiel. Schwellenwahl berücksichtigt auch „30 dB leiser“.
+- kws_pruefen `--ordner`: Spalte „Pegel“ (lauteste Stelle in dBFS nach --leiser).
+
+### Stand 15.10.2026 (abends): Online-Update „GitHub nicht erreichbar“
+- Markus (1.1.19 und 1.1.20, WLAN da, Repo public): manuelle Suche meldet „GitHub nicht erreichbar“, einmal
+  „Download fehlgeschlagen“; die automatische Suche direkt nach dem Start klappt. Updates zuletzt per
+  Browser (/update). „GitHub nicht erreichbar“ = `http.GET()` < 0, also TLS/Verbindung.
+- Ursache (sehr wahrscheinlich): Arduino-Core baut mbedTLS mit `CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC`;
+  die Datensatzpuffer brauchen je ~16,7 KB am Stück im internen RAM. Nach einer Weile Betrieb ist der
+  größte freie interne Block ~15 KB (Absturz.txt „37/10/15 KB“) → Handshake scheitert. Nach dem Start
+  ist genug da.
+- **Fix:** update_online.cpp `tls_use_psram()` (beim ersten `start()`): `mbedtls_platform_set_calloc_free`
+  mit eigenem Allocator – ab 2 KB aus dem PSRAM, kleinere intern, sonst Ausweichen. Symbol im Core
+  vorhanden (`mbedtls_calloc` ruft über `mbedtls_calloc_func`).
+- Fehlergrund sichtbar: `upd_detail()` „HTTP <Code> · Block <KB>“ (Firmware-Seite statt Repo-Zeile,
+  Web-Firmware-Karte hinter dem Repo, JSON `detail`).
 
