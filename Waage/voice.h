@@ -59,3 +59,4 @@ int voice_rec_ms(int word);          // Länge der Aufnahme
 
 // Simulator: Audio direkt hineingeben (statt Mikrofon)
 void voice_sim_feed(const int16_t *pcm, int n);
+void voice_sim_cmd(const char *cls);  // Testumgebung: Befehl direkt ausführen

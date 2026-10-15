@@ -897,6 +897,7 @@ const char *voice_last() { return s_last; }
 unsigned long voice_last_ms() { return s_last_ms; }
 
 // ---- Befehle ausführen (UI-Takt) ----
+static void run_cmd(const char *c);
 void voice_loop() {
 #ifndef ARDUINO
   if (s_rec_state == 3 && s_rec_buf) rec_save();  // Simulator: kein eigener Task
@@ -916,7 +917,11 @@ void voice_loop() {
   int cmd = s_pending;
   if (cmd < 0) return;
   s_pending = -1;
-  const char *c = kws_class(cmd);
+  run_cmd(kws_class(cmd));
+}
+
+// Einen erkannten Befehl ausführen und ansagen (auch für den Test im Simulator)
+static void run_cmd(const char *c) {
   printf("Sprache: Befehl %s\r\n", c);
   if (strcmp(c, "tara") == 0) {
     ui_cmd_tara();
@@ -964,8 +969,9 @@ void voice_loop() {
     bat_state_t st = hal_battery_state();
     if (!sound_say_battery(hal_battery_percent(), st == BAT_CHARGING || st == BAT_FULL)) sound_play(SND_WARN);
   } else if (strcmp(c, "uhrzeit") == 0) {
-    int h, mi;
-    if (!hal_time(&h, &mi)) {
+    int y, mo, d, h, mi, sec;
+    // Ohne gültiges Datum (RTC nach Stromausfall auf 2000) ist auch die Uhrzeit Unsinn
+    if (!hal_now(&y, &mo, &d, &h, &mi, &sec)) {
       if (!sound_say("zeit_unbek")) sound_play(SND_WARN);  // Uhr nicht gestellt
     } else if (!sound_say_time(h, mi)) {
       sound_play(SND_WARN);
@@ -1088,6 +1094,11 @@ void voice_stop() {
 }
 void voice_rec_session(bool on) { s_session += on ? 1 : (s_session > 0 ? -1 : 0); }
 void voice_hold(bool on) { s_hold = on; }
+void voice_sim_cmd(const char *cls) {
+  if (!strcmp(cls, "!")) s_ev_wake = true;         // wie "Hallo Waage" erkannt
+  else if (!strcmp(cls, "?")) s_ev_notund = true;  // etwas gesagt, nichts verstanden
+  else run_cmd(cls);
+}
 void voice_sim_feed(const int16_t *pcm, int n) {
   while (n > 0) {
     int k = n > 256 ? 256 : n;

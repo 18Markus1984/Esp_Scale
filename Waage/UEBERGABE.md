@@ -917,3 +917,33 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   storage: Neu-Einhängen mit Backoff 3/6/12/…/60 s + Log mit freiem internem RAM; h_zip: Puffer im PSRAM,
   wartet bei < 16 KB internem RAM, Log "ZIP fertig … intern frei min."; kws_mitschnitt 5 s Pause zwischen den ZIPs.
 - Offen: serielles Log beim nächsten Mal ("SD: …", "ZIP fertig …").
+
+### Stand 15.10.2026 (nachts): Whisper als Schiedsrichter für Mitschnitte
+- Neu `Sprachmodell/kws_whisper.py`: faster-whisper (CPU, int8, language=de, word_timestamps), Pegel auf
+  Spitze 0,7 angehoben (max +30 dB), Halluzinationsfilter (Untertitel/ZDF …, no_speech>0,6 & logprob<−0,8).
+  `classify(text, cand)`: norm() (Umlaute, 1.000→1000), Weckwort fuzzy (hallo≥0,75, waage≥0,85, nicht „Wagen“),
+  Befehle: letzte Fundstelle zählt, längere Phrase bei gleicher Stelle (250 vor 50), Zahlen nur exakt,
+  sonst Sprache → _unbekannt, leer → None. Selbsttest `python kws_whisper.py --test` (29/29).
+- kws_mitschnitt: Whisper standardmäßig an, wenn installiert (`--whisper small|medium|large-v3-turbo`,
+  `--ohne-whisper`). Auto: Whisper-Ergebnis, solange das Modell-Urteil (einig+Mehrheit) nicht widerspricht;
+  Whisper leer → altes Modell-Urteil; Widerspruch → nachfragen (Vorschlag Whisper). Schnitt mit Whisper-Wortende.
+  Mit echtem Whisper-Modell hier NICHT getestet (HuggingFace gesperrt); Logik mit gefälschtem transcribe getestet.
+- Markus: Whisper auf den Waagen-Mitschnitten schlechter als die eigenen Modelle (Mikrofon leise/verrauscht).
+  → Whisper jetzt aus (opt-in `--whisper [modell]`); entscheidet nie allein: eigene Modelle (einig+Mehrheit) zuerst,
+  Whisper sortiert nur, wenn es mit der Mehrheits-Tendenz der (unsicheren) Modelle übereinstimmt; sonst nur Hinweis.
+  Neu `kws_mitschnitt.py zuruecknehmen [--wie whisper|auto|hand|alle]`: löscht m_-Kopien, holt Originale aus
+  erledigt/ zurück nach Mitschnitt/, entfernt Zeilen aus mitschnitt_bekannt.csv.
+
+### Stand 15.10.2026 (nachts): alle Sprach-Ansagen geprüft (Sim VOICEALL)
+- voice.cpp: Befehlsausführung in `run_cmd(c)` ausgelagert; Sim-Hook `voice_sim_cmd(cls)` ("!" = geweckt,
+  "?" = nicht verstanden). Host-Test VOICEALL (Baseline host/t_VOICEALL.txt): jeder Befehl + Ereignisse
+  (bereit, ja, nicht_verst, timer_ab, akku_leer, schaltet_aus, Rest/zu viel, laedt, zeit_unbek).
+- Gefunden und behoben:
+  1. „Akku … wird geladen“ kam nie: hal_battery_state erkannte Laden nur ab 4,14 V. Neu: Sprung > +0,06 V in 10 s
+     (Kabel rein) oder 10-min-Fenster in beiden Hälften > +6 mV und letzte 2,5 min > +2 mV (Erholung nach Last
+     zählt nicht); Ende bei Sprung < −0,05 V oder fallend. Offline mit 7 Spannungsverläufen geprüft, NICHT am Gerät.
+  2. Uhrzeit: „Uhrzeit unbekannt“ kam nie (hal_time immer gültig) → prüft jetzt hal_now (Jahr ≥ 2024).
+  3. Profil ≠ Einfach: Sprachbefehl „250 Gramm“ öffnete Ziel-Seite ohne Ansage → sagt jetzt „Ziel … einfüllen“;
+     „Wie viel?“ auf der Ziel-Seite sagt jetzt die Restmenge („noch …“ / „… zu viel“) statt des Gewichts.
+- Hinweis: bereit, timer_ab, akku_leer, schaltet_aus nur mit Ansage „Sprüche“ (speak_ev); Antworten auf
+  Sprachbefehle immer. TGTTEST-Baseline um die neue Ziel-Ansage ergänzt.

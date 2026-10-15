@@ -1201,6 +1201,8 @@ void ui_cmd_speak() {
     if (s_tgt > 0 && !scale_overload() && tgt_state(net) != 1 && sound_speak_rest(s_tgt - net, true)) return;
     sound_speak_weight_now(roundf(net), 0);
   } else {
+    int goal = page_ziel_running();  // Modus Ziel offen: Restmenge statt Gewicht
+    if (goal > 0 && !scale_overload() && sound_speak_rest(goal - net, true)) return;
     sound_speak_weight_now(net, g_set.unit);
   }
 }
@@ -1243,6 +1245,7 @@ bool ui_target_start(int grams) {
   if (!ui_simple()) {  // andere Profile: Modus Ziel mit diesem Gewicht
     if (cd_active) cd_hide();
     ui_open_page(page_ziel_goal_create(grams));
+    if (!sound_say_target(grams)) sound_play(SND_CLICK);  // "Ziel 250 Gramm. Jetzt einfüllen."
     return true;
   }
   if (lv_scr_act() != scr_home) ui_go_home();

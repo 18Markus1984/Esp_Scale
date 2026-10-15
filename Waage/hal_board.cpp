@@ -1,6 +1,7 @@
 // Umsetzung der Hardware-Schicht mit den Waveshare-Treibern
 #include "batt_filter.h"
 #include <Arduino.h>
+#include <string.h>
 #include "hal.h"
 #include "Gyro_QMI8658.h"
 #include "RTC_PCF85063.h"
@@ -154,12 +155,16 @@ float hal_battery_volts() {
 //   über 4,19 V  -> Ladegerät schiebt aktiv (grüne Lade-LED an)
 //   4,14..4,19 V -> Kabel steckt, Ladung beendet ("voll")
 //   direkt nach dem Abziehen fällt die Spannung auf etwa 4,13 V
-//   darunter     -> Akkubetrieb
+//   darunter     -> Akkubetrieb, außer das Kabel wurde eingesteckt (Sprung um
+//                   mehr als 0,06 V in 10 s) oder die Spannung steigt in beiden Hälften
+//                   der letzten 10 min um je mehr als 6 mV (Laden mitten im Akku, < 4,14 V)
 // Wichtig ist die Vorgeschichte: 4,15 V mit Kabel heißt voll, dieselbe
 // Spannung nach dem Abziehen heißt schlicht "fast voller Akku".
 bat_state_t hal_battery_state() {
-  static float v_ref = 0;
-  static uint32_t t_ref = 0;
+  static float v_ref = 0, v_step = 0;
+  static uint32_t t_ref = 0, t_step = 0;
+  static float hist[21];  // Spannung alle 30 s, die letzten 10 min
+  static int n_hist = 0;
   static bat_state_t state = BAT_DISCHARGE;
   static float trend = 0;
   bat_sample();
@@ -168,13 +173,35 @@ bat_state_t hal_battery_state() {
 
   uint32_t now = millis();
   if (t_ref == 0) {
-    v_ref = v;
-    t_ref = now;
+    v_ref = v_step = v;
+    t_ref = t_step = now;
   }
+  bool tick30 = false;
   if (now - t_ref > 30000) {  // Trend alle 30 s
     trend = v - v_ref;
     v_ref = v;
     t_ref = now;
+    tick30 = true;
+    if (n_hist == 21) memmove(hist, hist + 1, 20 * sizeof(float));
+    else n_hist++;
+    hist[n_hist - 1] = v;
+  }
+  // Sprung: Kabel einstecken hebt die Spannung sofort um 0,1–0,2 V, Abziehen senkt sie
+  float step = 0;
+  if (now - t_step > 10000) {
+    step = v - v_step;
+    v_step = v;
+    t_step = now;
+  }
+  // Langer Trend: beim Laden (auch mitten im Akku, z. B. 3,8 V) steigt die Spannung
+  // stetig um einige mV pro Minute. Nach einer Last (WLAN aus, Licht gedimmt) erholt
+  // sie sich auch, das flacht aber schnell ab. Deshalb beide Hälften der letzten
+  // 10 Minuten vergleichen: Laden steigt in beiden, die Erholung nur in der ersten.
+  bool rising = false, falling = false;
+  if (tick30 && n_hist == 21) {
+    float a = hist[10] - hist[0], b = hist[20] - hist[10];
+    rising = a > 0.006f && b > 0.006f && hist[20] - hist[15] > 0.002f;  // auch zuletzt noch steigend
+    falling = b < -0.005f;
   }
 
   if (v >= 4.19f) {
@@ -182,10 +209,13 @@ bat_state_t hal_battery_state() {
   } else if (v >= 4.14f) {
     // Kabel steckt und die Ladung ist fertig – außer die Spannung fällt
     // gerade deutlich, dann wurde eben abgezogen
-    if (state == BAT_CHARGING || state == BAT_FULL) state = (trend < -0.01f) ? BAT_DISCHARGE : BAT_FULL;
-    else state = (trend > 0.008f) ? BAT_CHARGING : BAT_DISCHARGE;
+    if (state == BAT_CHARGING || state == BAT_FULL) state = (trend < -0.01f || step < -0.05f) ? BAT_DISCHARGE : BAT_FULL;
+    else state = (trend > 0.008f || step > 0.06f) ? BAT_CHARGING : BAT_DISCHARGE;
+  } else if (state == BAT_CHARGING) {
+    // unter 4,14 V beim Laden: bleibt, bis die Spannung springt oder über Minuten fällt
+    if (step < -0.05f || falling) state = BAT_DISCHARGE;
   } else {
-    state = BAT_DISCHARGE;
+    state = (step > 0.06f || rising) ? BAT_CHARGING : BAT_DISCHARGE;
   }
   return state;
 }
