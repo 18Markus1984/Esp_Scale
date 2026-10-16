@@ -947,3 +947,23 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
      „Wie viel?“ auf der Ziel-Seite sagt jetzt die Restmenge („noch …“ / „… zu viel“) statt des Gewichts.
 - Hinweis: bereit, timer_ab, akku_leer, schaltet_aus nur mit Ansage „Sprüche“ (speak_ev); Antworten auf
   Sprachbefehle immer. TGTTEST-Baseline um die neue Ziel-Ansage ergänzt.
+
+### Stand 16.10.2026: sauberer Neustart der Mitschnitt-Zuordnung
+- Markus traut den Mitschnitt-Zuordnungen nicht (Zahlen 50/150/250 verwechselt, hallo_waage: 97 von 134 Dateien
+  sind Mitschnitte). Neu in kws_mitschnitt: `neustart` (zuruecknehmen alle + übrige m_*-Dateien aus Aufnahmen
+  zurück nach Mitschnitt/, Original aus erledigt/ bevorzugt), `sortieren --nur-neuestes` (nur kws_de.bin),
+  strengere Sicherheit: Abstand ≥ 0,25 zum zweitbesten Wort (MARGIN); bei b…_ziel_X-Dateien muss das Modell
+  dieselbe Zahl sagen wie die Waage, sonst nachfragen.
+- Geprüft (Cloud, eigene Aufnahmen ziel_50/150/250, kws_de.bin vom 15.10.): 0 dB 95 %, −20 dB 84 %
+  (250 oft „nichts“). Alternative Ziel-Entscheidungsregel (längere enthaltene Zahl bevorzugen) brachte dort
+  nichts → Firmware-Regel unverändert. Beobachtet: Aufnahmen/ziel_150/m_b001_ziel_250_47.wav (Waage: 250).
+- **Ursache der schlechten Mitschnitte gefunden (16.10.):** voice_task las selbst per readBytes vom Mikrofon und
+  rechnete dazwischen (Merkmale + DS-CNN alle 200 ms, cap_save); der I2S-DMA-Puffer (ESP_I2S fest 6×240 Frames
+  = 90 ms) lief über → fehlende Stücke. Messung an Markus' Dateien: Knackser (LPC-Residuum) in Mitschnitten
+  genau auf 200-ms-Raster (Position mod 3200 = 0), in Aufnahmen keine; „Hallo Waage“ Median 0,85 s
+  (Mitschnitt) vs. 1,30 s (Aufnahmen). Pegel, Rauschboden, Spektrum sonst gleich.
+  Fix voice.cpp: Lese-Task "MicRd" (Prio 6, Kern 0) → StreamBuffer 1 s im PSRAM (nur ganze Stücke, Zähler
+  s_rd_lost), voice_task liest daraus (xStreamBufferReceive 30 ms). Log alle 60 s „Mikrofon: Puffer max … ms,
+  verworfen … ms“ (sollte 0 sein). Am Gerät NICHT getestet.
+  kws_mitschnitt `neustart` schiebt alte Mitschnitte nach Mitschnitt/alt_abgehackt (nicht mehr sortieren;
+  `--alte-sortieren` für das alte Verhalten).

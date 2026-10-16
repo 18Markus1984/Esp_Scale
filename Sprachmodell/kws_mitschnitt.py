@@ -7,7 +7,8 @@
 #  Befehle, n… = nicht verstanden). Dieses Skript
 #
 #    1. holt den Ordner als ZIP von der Waage – nur Dateien, die es noch
-#       nicht kennt (gleicher Inhalt = schon da, egal unter welchem Namen),
+#       nicht kennt (gleicher Inhalt = schon da, egal unter welchem Namen) –
+#       und gleich auch neue Wort-Aufnahmen (Setup → Ton → Wörter) nach Aufnahmen\<wort>\,
 #    2. lässt alle Modelle (*.bin hier und in modelle\) drüber laufen und
 #       sortiert jede Datei, bei der sich die sicheren Modelle einig sind,
 #       nach Aufnahmen\<wort>\m_<name>.wav (nur das gemeinte Wort ausgeschnitten),
@@ -31,6 +32,7 @@ sys.path.insert(0, HERE)
 import numpy as np
 import kws_common as K
 import kws_pruefen as P
+import kws_whisper as W
 from kws_daten import load, save
 
 MIT = os.path.join(HERE, "Mitschnitt")
@@ -38,6 +40,7 @@ DONE = os.path.join(MIT, "erledigt")
 KNOWN = os.path.join(HERE, "mitschnitt_bekannt.csv")
 SAFE_CMD = 0.60   # Befehl gilt als "sicher erkannt" ab dieser Wahrscheinlichkeit
 SAFE_UNK = 0.70   # anderes Wort
+MARGIN = 0.25     # sicher nur mit Abstand zum zweitbesten Wort (50/150/250 liegen eng beieinander)
 
 
 def sha1(b):
@@ -78,19 +81,35 @@ def file_hashes(folders):
 # ------------------------------------------------------------
 #  1. Holen
 # ------------------------------------------------------------
-def holen(waage, aufnahmen):
-    url = "http://%s/zip?dir=%s" % (waage, urllib.request.quote("/Waage/Sprache/Mitschnitt"))
+def fetch_zip(waage, folder, timeout=600):
+    """Ordner der Waage als ZIP holen. None = nicht erreichbar oder kein ZIP."""
+    url = "http://%s/zip?dir=%s" % (waage, urllib.request.quote(folder))
     print("Hole", url, "…")
     try:
-        with urllib.request.urlopen(url, timeout=180) as r:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
             data = r.read()
     except Exception as e:
         print("Waage nicht erreichbar (%s). WLAN an? Weboberfläche offen? Sonst --waage <IP-Adresse>." % e)
-        return False
+        return None
     try:
-        z = zipfile.ZipFile(io.BytesIO(data))
+        return zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
-        print("Keine ZIP-Datei bekommen (gibt es den Ordner Mitschnitt auf der SD-Karte schon?)")
+        print("Keine ZIP-Datei bekommen (gibt es den Ordner %s auf der SD-Karte?)" % folder)
+        return None
+
+
+def unique_path(d, name, h):
+    """Gleicher Name, anderer Inhalt (Nummern fangen auf der Karte neu an): Name + Prüfsumme."""
+    dst = os.path.join(d, name)
+    if os.path.exists(dst):
+        stem, ext = os.path.splitext(name)
+        dst = os.path.join(d, "%s_%s%s" % (stem, h[:6], ext))
+    return dst
+
+
+def holen(waage, aufnahmen):
+    z = fetch_zip(waage, "/Waage/Sprache/Mitschnitt")
+    if z is None:
         return False
     known = set(read_known())
     known |= set(file_hashes([MIT] + ([aufnahmen] if aufnahmen and os.path.isdir(aufnahmen) else [])))
@@ -104,16 +123,42 @@ def holen(waage, aufnahmen):
         if h in known:
             old += 1
             continue
-        name = os.path.basename(info.filename)
-        dst = os.path.join(MIT, name)
-        if os.path.exists(dst):  # gleicher Name, anderer Inhalt (Nummern fangen auf der Karte neu an)
-            stem, ext = os.path.splitext(name)
-            dst = os.path.join(MIT, "%s_%s%s" % (stem, h[:6], ext))
-        with open(dst, "wb") as f:
+        with open(unique_path(MIT, os.path.basename(info.filename), h), "wb") as f:
             f.write(b)
         known.add(h)
         new += 1
     print("Mitschnitte: %d neu, %d schon bekannt (übersprungen)" % (new, old))
+    return True
+
+
+def holen_aufnahmen(waage, aufnahmen):
+    """Neue Wort-Aufnahmen (Setup → Ton → Wörter) direkt in die Wort-Ordner übernehmen."""
+    z = fetch_zip(waage, "/Waage/Sprache/Aufnahmen")
+    if z is None:
+        return False
+    known = set(file_hashes([aufnahmen])) if os.path.isdir(aufnahmen) else set()
+    per, old = {}, 0
+    for info in z.infolist():
+        parts = info.filename.replace("\\", "/").split("/")
+        if not info.filename.lower().endswith(".wav") or len(parts) < 3:
+            continue  # erwartet Aufnahmen/<wort>/<datei>.wav
+        cls = parts[-2]
+        b = z.read(info)
+        h = sha1(b)
+        if h in known:
+            old += 1
+            continue
+        d = os.path.join(aufnahmen, cls)
+        os.makedirs(d, exist_ok=True)
+        with open(unique_path(d, parts[-1], h), "wb") as f:
+            f.write(b)
+        known.add(h)
+        per[cls] = per.get(cls, 0) + 1
+    if per:
+        print("Aufnahmen: %d neu (%s), %d schon da"
+              % (sum(per.values()), ", ".join("%s %d" % kv for kv in sorted(per.items())), old))
+    else:
+        print("Aufnahmen: nichts Neues (%d schon da)" % old)
     return True
 
 
@@ -180,6 +225,9 @@ def guess(m, pk, cand):
         return "-", 0.0, False
     best = max(pk, key=pk.get)
     p = pk[best]
+    second = max([v for c, v in pk.items() if c != best], default=0.0)
+    if p - second < MARGIN:
+        return best, p, False
     if best == "hallo_waage":
         sure = p >= m["wthr"]
     elif best == "_unbekannt":
@@ -228,12 +276,22 @@ def finish(path, h, cls, how):
     add_known(h, os.path.basename(path), cls, how)
 
 
-def sortieren(aufnahmen, alles_fragen=False):
+def device_word(name):
+    """Was die Waage beim Mitschnitt verstanden hatte: b012_ziel_150_63.wav -> ziel_150."""
+    parts = os.path.splitext(name)[0].split("_")
+    if name[:1].lower() == "b" and len(parts) >= 3:
+        return "_".join(parts[1:-1])
+    return None
+
+
+def sortieren(aufnahmen, alles_fragen=False, whisper=None, nur_neuestes=False):
     files = [f for f in K.wav_files(MIT)]
     if not files:
         print("Keine neuen Mitschnitte in", MIT)
         return
     models = P.all_models(HERE)
+    if nur_neuestes and models:
+        models = models[-1:]  # nur kws_de.bin (z. B. nach dem Neustart: das saubere Modell)
     if not models:
         print("Kein Modell gefunden (kws_de.bin oder modelle\\*.bin)")
         return
@@ -245,6 +303,9 @@ def sortieren(aufnahmen, alles_fragen=False):
     print("Modelle: " + ", ".join(names))
     print("%d Mitschnitte. Sicher = Weckwort über der Weckschwelle, Befehl ab %.0f %%, anderes Wort ab %.0f %%.\n"
           % (len(files), SAFE_CMD * 100, SAFE_UNK * 100))
+    if whisper:
+        print("Whisper (%s) hört nur als Hilfe mit: entscheidet nie allein, nur wenn die eigenen Modelle"
+              " unsicher sind und in dieselbe Richtung tendieren." % whisper)
     auto = manual = skipped = 0
     shown_list = False
     for f in files:
@@ -265,12 +326,46 @@ def sortieren(aufnahmen, alles_fragen=False):
         sure = sorted({g[0] for g in gs if g[2]})
         line = "  ".join("%s: %s %.0f%%%s" % (n, g[0], g[1] * 100, " ✓" if g[2] else "") for n, g in zip(names, gs))
         print("%-26s %s" % (os.path.basename(f)[:26], line))
-        if len(sure) == 1 and not alles_fragen:
-            dst = save_to(f, sure[0], aufnahmen, a, when(sure[0]))
-            finish(f, h, sure[0], "auto")
-            print("   → %s (alle sicheren Modelle einig)" % os.path.relpath(dst, HERE))
-            auto += 1
-            continue
+        # automatisch nur, wenn die sicheren Modelle einig sind UND die Mehrheit aller
+        # Modelle dasselbe Wort vorne hat (ein einzelnes sicheres Modell reicht nicht gegen den Rest)
+        top = sum(1 for g in gs if g[0] == (sure[0] if sure else None))
+        mc = sure[0] if len(sure) == 1 and top * 2 > len(gs) else None  # Urteil der eigenen Modelle
+        dw = device_word(os.path.basename(f))
+        if mc and dw and mc.startswith("ziel_") and dw.startswith("ziel_") and mc != dw:
+            print("   Waage hatte %s verstanden, Modell sagt %s – lieber selbst hören" % (dw, mc))
+            mc = None  # Zahlen verwechselt: nicht automatisch
+        wcls, wt = None, None
+        if whisper:
+            try:
+                text, words = W.transcribe(a, whisper)
+                wcls, idx = W.classify(text, cand)
+                wt = W.word_end_ms(words, idx) if wcls else None
+                print("   Whisper: \"%s\" → %s" % (text[:60], wcls or "nichts verstanden"))
+            except Exception as e:
+                print("   Whisper geht nicht (%s) – weiter nur mit den eigenen Modellen" % e)
+                whisper = None
+        # Mehrheit aller Modelle (auch wenn unsicher): wohin tendieren sie?
+        tops = {}
+        for g in gs:
+            tops[g[0]] = tops.get(g[0], 0) + 1
+        lean = max(tops, key=tops.get) if tops else None
+        if lean and tops[lean] * 2 <= len(gs):
+            lean = None
+        if not alles_fragen:
+            # Die eigenen Modelle kennen das Mikrofon der Waage: ihr sicheres Urteil gilt zuerst
+            if mc:
+                dst = save_to(f, mc, aufnahmen, a, when(mc))
+                finish(f, h, mc, "auto")
+                print("   → %s (sichere Modelle einig, Mehrheit gleich)" % os.path.relpath(dst, HERE))
+                auto += 1
+                continue
+            # Modelle unsicher, aber Mehrheit tendiert zum selben Wort wie Whisper
+            if wcls and wcls == lean:
+                dst = save_to(f, wcls, aufnahmen, a, wt if wt is not None else when(wcls))
+                finish(f, h, wcls, "whisper")
+                print("   → %s (Modelle tendieren dazu, Whisper bestätigt)" % os.path.relpath(dst, HERE))
+                auto += 1
+                continue
         if not interactive:
             print("   → offen (unsicher; zum Nachfragen im Terminal starten)")
             skipped += 1
@@ -285,6 +380,8 @@ def sortieren(aufnahmen, alles_fragen=False):
         for g in gs:
             votes[g[0]] = votes.get(g[0], 0) + g[1]
         sugg = max(votes, key=votes.get) if votes else "-"
+        if wcls and wcls != sugg:
+            print("   (Whisper meint %s – nur ein Hinweis)" % wcls)
         play(f)
         while True:
             ans = input("   Was war das? [Enter = %s] " % sugg).strip().lower()
@@ -306,28 +403,124 @@ def sortieren(aufnahmen, alles_fragen=False):
             if cls is None or cls == "-":
                 print("   ? Nummer, h, u, w, x, s oder q")
                 continue
-            dst = save_to(f, cls, aufnahmen, a, when(cls))
+            dst = save_to(f, cls, aufnahmen, a, wt if (cls == wcls and wt is not None) else when(cls))
             finish(f, h, cls, "hand")
             print("   → %s" % os.path.relpath(dst, HERE))
             manual += 1
             break
     print("\nFertig: %d automatisch, %d von Hand einsortiert, %d offen." % (auto, manual, skipped))
     if auto or manual:
-        print("Jetzt neu trainieren: python kws_train.py")
+        print("Jetzt neu trainieren: python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene")
+
+
+def zuruecknehmen(aufnahmen, wie="whisper", quiet=False):
+    """Einsortierte Mitschnitte wieder zurück nach Mitschnitt\\ (zum neu Sortieren),
+    z. B. alles, was Whisper entschieden hat."""
+    if not os.path.exists(KNOWN):
+        print("Noch nichts einsortiert.")
+        return
+    with open(KNOWN, encoding="utf-8") as f:
+        rows = list(csv.reader(f, delimiter=";"))
+    keep, back = rows[:1], 0
+    for r in rows[1:]:
+        if len(r) < 4 or not (wie == "alle" or r[3] == wie) or r[2] in ("-", ""):
+            keep.append(r)
+            continue
+        name, cls = r[1], r[2]
+        stem, ext = os.path.splitext("m_" + name)
+        d = os.path.join(aufnahmen, cls)
+        for g in [stem + ext] + ["%s_%d%s" % (stem, k, ext) for k in range(2, 10)]:
+            p = os.path.join(d, g)
+            if os.path.exists(p):
+                os.remove(p)  # nur die ausgeschnittene Kopie; das Original liegt in erledigt
+                break
+        src = os.path.join(DONE, name)
+        if not os.path.exists(src):
+            alt = os.path.join(DONE, "%s_%s%s" % (os.path.splitext(name)[0], r[0][:6], os.path.splitext(name)[1]))
+            src = alt if os.path.exists(alt) else None
+        if src:
+            os.makedirs(MIT, exist_ok=True)
+            shutil.move(src, unique_path(MIT, name, r[0]))
+        back += 1
+    with open(KNOWN, "w", encoding="utf-8", newline="") as f:
+        csv.writer(f, delimiter=";").writerows(keep)
+    if not quiet:
+        print("%d Mitschnitte (%s) zurück nach Mitschnitt – jetzt neu sortieren: python kws_mitschnitt.py sortieren"
+              % (back, wie))
+    return back
+
+
+ALT = os.path.join(MIT, "alt_abgehackt")
+
+
+def neustart(aufnahmen, alte_sortieren=False):
+    """Sauberer Neuanfang: alle Mitschnitte (m_…) aus den Aufnahmen nehmen. Eigene Aufnahmen
+    bleiben unangetastet. Die bisherigen Mitschnitte sind abgehackt (Firmware vor dem
+    Mikrofon-Puffer: Stücke fehlten) und passen nicht mehr zu dem, was die Waage jetzt hört –
+    sie kommen nach Mitschnitt\\alt_abgehackt und werden nicht wieder einsortiert."""
+    rest = zuruecknehmen(aufnahmen, "alle", quiet=True) or 0
+    for root, _, files in os.walk(aufnahmen):
+        for n in files:
+            if not (n.startswith("m_") and n.lower().endswith(".wav")):
+                continue
+            p = os.path.join(root, n)
+            orig = n[2:]
+            src = os.path.join(DONE, orig)
+            os.makedirs(MIT, exist_ok=True)
+            if os.path.exists(src):  # Original (ganzer 3-s-Mitschnitt) ist noch da
+                shutil.move(src, unique_path(MIT, orig, sha1(open(src, "rb").read())))
+                os.remove(p)
+            else:
+                with open(p, "rb") as fh:
+                    h = sha1(fh.read())
+                shutil.move(p, unique_path(MIT, orig, h))
+            rest += 1
+    old = 0
+    if not alte_sortieren:
+        os.makedirs(ALT, exist_ok=True)
+        for f in K.wav_files(MIT):
+            shutil.move(f, os.path.join(ALT, os.path.basename(f)))
+            old += 1
+    print("Neustart: Aufnahmen enthalten jetzt nur noch eigene Wörter (%d weitere Mitschnitte zurück)." % rest)
+    if old:
+        print("%d alte (abgehackte) Mitschnitte liegen in Mitschnitt\\alt_abgehackt und werden nicht trainiert." % old)
+    print("Weiter:  python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene")
+    print("Neue Mitschnitte (mit der neuen Firmware) dann: python kws_mitschnitt.py --nur-neuestes")
 
 
 def main():
     ap = argparse.ArgumentParser(description="Mitschnitte der Waage holen und einsortieren")
-    ap.add_argument("was", nargs="?", choices=["holen", "sortieren", "beides"], default="beides")
+    ap.add_argument("was", nargs="?", choices=["holen", "sortieren", "beides", "zuruecknehmen", "neustart"], default="beides")
     ap.add_argument("--waage", default="waage.local", help="Adresse der Waage (Standard waage.local)")
     ap.add_argument("--aufnahmen", default=os.path.join(HERE, "Aufnahmen"), help="Ordner mit den Wort-Unterordnern")
     ap.add_argument("--alles-fragen", action="store_true", help="auch sichere Fälle nachfragen")
+    ap.add_argument("--alte-sortieren", action="store_true", help="neustart: alte Mitschnitte trotzdem neu sortieren")
+    ap.add_argument("--nur-neuestes", action="store_true", help="sortieren nur mit kws_de.bin (nicht mit alten Modellen)")
+    ap.add_argument("--wie", default="whisper", help="zuruecknehmen: welche Entscheidungen (whisper, auto, hand, alle)")
+    ap.add_argument("--ohne-aufnahmen", action="store_true", help="nur Mitschnitte holen, nicht die Wort-Aufnahmen")
+    ap.add_argument("--whisper", nargs="?", const="small", default=None, metavar="MODELL",
+                    help="Whisper als Hilfe mithören lassen (small, medium, large-v3-turbo); Standard: aus")
     a = ap.parse_args()
+    if a.was == "neustart":
+        neustart(a.aufnahmen, a.alte_sortieren)
+        return
+    if a.was == "zuruecknehmen":
+        zuruecknehmen(a.aufnahmen, a.wie)
+        return
     if a.was in ("holen", "beides"):
-        if not holen(a.waage, a.aufnahmen) and a.was == "holen":
+        ok = holen(a.waage, a.aufnahmen)
+        if ok and not a.ohne_aufnahmen:
+            import time
+            time.sleep(5)  # der Waage Zeit lassen (WLAN-Puffer freigeben), bevor das nächste ZIP kommt
+            holen_aufnahmen(a.waage, a.aufnahmen)
+        if not ok and a.was == "holen":
             sys.exit(1)
     if a.was in ("sortieren", "beides"):
-        sortieren(a.aufnahmen, a.alles_fragen)
+        wh = a.whisper
+        if wh and not W.available():
+            print("Whisper ist nicht installiert (pip install faster-whisper) – weiter ohne.")
+            wh = None
+        sortieren(a.aufnahmen, a.alles_fragen, wh, a.nur_neuestes)
 
 
 if __name__ == "__main__":

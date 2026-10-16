@@ -205,6 +205,8 @@ Der Akku bleibt dauerhaft angeschlossen, geschaltet wird über die PWR-Taste:
 - **Kurz drücken:** Standby mit gedimmter Uhr. Aufwecken per Taste, Antippen oder
   Gewicht auflegen.
 - **3 s halten:** Ausschalten (Ring zeigt den Fortschritt, Loslassen bricht ab).
+- **10 s halten:** Notabschaltung bzw. Neustart am USB – funktioniert auch, wenn die Anzeige hängt
+  (eigener kleiner Task, unabhängig von Anzeige und SD-Karte).
 - **Auto-Aus:** Nach der eingestellten Zeit ohne Bedienung (Berühren, Taste oder
   Gewichtsänderung) schaltet sich die Waage selbst aus – auch aus dem Standby.
   15 s vorher erscheint ein Countdown mit Warnton, Antippen bricht ab.
@@ -442,6 +444,21 @@ sagt „Ja?“ und zeigt „Ich höre zu …“, dann innerhalb von 6 s einen Be
 | „Nochmal“ | letzte Ansage wiederholen |
 | „Lauter“ / „Leiser“ | Lautstärke ändern |
 | „Akku“ / „Uhrzeit“ | Akkustand bzw. Uhrzeit ansagen |
+
+Jeder Befehl wird gesprochen bestätigt („Weiter.“, „Zurück zur Startseite.“, „Lautstärke 80 Prozent“,
+„Akku 60 Prozent, wird geladen.“, „Das geht hier gerade nicht.“, „Uhrzeit unbekannt.“ …). Mit Ansage
+„Sprüche“ sagt sie außerdem „Waage bereit.“, „Timer abgelaufen.“, „Akku fast leer.“ und warnt vor dem
+Auto-Aus. Fehlen einem Stimmpaket Sätze, kommen sie aus `/Waage/Stimme/_Zusatz`; die Weboberfläche
+zeigt unter Einstellungen → Ton, was fehlt. Nach jeder Antwort bleiben mindestens 4,5 s für den Befehl.
+
+Das Mikrofon liest ein eigener Task lückenlos in einen 1-s-Puffer (PSRAM); die Erkennung arbeitet ihn
+ab. (Bis 15.10.2026 las die Erkennung selbst und verlor während des Rechnens Stücke – Mitschnitte aus
+dieser Zeit sind abgehackt.) Das serielle Log meldet jede Minute „Mikrofon: Puffer max … ms,
+verworfen … ms“.
+
+**Mitschnitt:** Solange die Mikrofonseite offen ist, speichert die Waage jeden Weckversuch und Befehl als
+3-s-WAV nach `/Waage/Sprache/Mitschnitt` (`w…` geweckt, `k…` knapp daneben, `b…_<befehl>` Befehl,
+`n…` nicht verstanden). Am PC holt und sortiert `kws_mitschnitt.py` sie (siehe `Sprachmodell/LIESMICH.md`).
 
 Während die Waage selbst spricht oder piept, hört sie weg. Unter **Setup -> Ton -> Wörter** nimmst du
 mit dem Mikrofon der Waage Beispiele auf (Wort wählen, runden Knopf tippen, nach dem Piepton sprechen).

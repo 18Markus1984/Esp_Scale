@@ -172,17 +172,54 @@ Höchstens 60 Dateien je Einschalten. **Holen und einsortieren** (Waage im WLAN,
     python kws_mitschnitt.py --waage 192.168.178.50     (falls waage.local nicht geht)
 
 Das Skript holt den Ordner als ZIP und übernimmt nur Dateien, die es noch nicht kennt (gleicher
-Inhalt = schon da). Dann rechnen **alle Modelle** jede Datei durch. Sind sich die sicheren Modelle
-einig (Weckwort über der Weckschwelle, Befehl ab 60 %, anderes Wort ab 70 %), wird automatisch
+Inhalt = schon da). **Gleichzeitig holt es neue Wort-Aufnahmen** (Setup → Ton → Wörter) von der Waage
+und legt sie direkt in `Aufnahmen\<wort>\` ab; was dort schon liegt, wird übersprungen (ohne:
+`--ohne-aufnahmen`). Dann rechnen **alle Modelle** jede Datei durch. Sind sich die sicheren Modelle
+einig (Weckwort über der Weckschwelle, Befehl ab 60 %, anderes Wort ab 70 %) und hat die Mehrheit
+aller Modelle dasselbe Wort vorn, wird automatisch
 einsortiert: nur das gemeinte Wort wird ausgeschnitten und als `Aufnahmen\<wort>\m_<name>.wav`
 gespeichert. Ist **kein Modell sicher**, spielt das Skript die Datei ab und fragt:
 
     Enter = Vorschlag   h = hallo_waage   u = anderes Wort   Nummer = Wort aus der Liste
     w = nochmal hören   x = verwerfen (Geräusch)   s = später   q = beenden
 
+`x` nur für Geräusche oder kaputte Dateien. War es Sprache, aber nicht „Hallo Waage“ (oder kein
+Befehl), lieber `u` drücken: solche Beispiele (`_unbekannt`) braucht das Modell, um nicht falsch zu wecken.
+
+**Whisper (optional, nur als Hilfe):** Mit `pip install faster-whisper` und `--whisper` hört ein großes
+Spracherkennungsmodell mit. Es kennt aber das leise, verrauschte Mikrofon der Waage nicht und liegt
+dort oft daneben. Deshalb entscheidet es nie allein: Es sortiert nur, wenn die eigenen Modelle unsicher
+sind, aber mehrheitlich zum selben Wort tendieren. Sonst steht beim Nachfragen nur ein Hinweis da.
+
+    python kws_mitschnitt.py --whisper              (small)  |  --whisper medium
+
+**Wichtig (Firmware ab 16.10.2026): Mitschnitte vorher waren abgehackt.** Der Sprach-Task hat früher
+selbst vom Mikrofon gelesen; während das Netz rechnete (alle 200 ms) lief der kleine Mikrofon-Puffer
+über und es fehlten Stücke. „Hallo Waage“ war in Mitschnitten im Schnitt 0,85 s lang statt 1,30 s wie in
+deinen Aufnahmen, mit Knacksern genau im 200-ms-Takt. Die Erkennung an der Waage hat dasselbe abgehackte
+Signal bekommen. Jetzt liest ein eigener Task ohne Lücken in einen 1-s-Puffer.
+
+**Sauberer Neustart danach:** Alle Mitschnitte kommen aus `Aufnahmen\` heraus; die alten (abgehackten)
+landen in `Mitschnitt\alt_abgehackt` und werden nicht mehr trainiert. Ein neues Modell lernt nur aus
+deinen eigenen Wort-Aufnahmen. Neue Mitschnitte (mit der neuen Firmware) sortiert nur dieses Modell,
+und zwar strenger: mindestens 25 Prozentpunkte Abstand zum zweitbesten Wort, bei Zahlen muss das Modell
+dasselbe sagen wie die Waage (sonst wird gefragt).
+
+    python kws_mitschnitt.py neustart
+    python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene
+    (neue Firmware + neues Modell auf die Waage, ein paar Tage benutzen)
+    python kws_mitschnitt.py --nur-neuestes
+    python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene
+
+Falsch einsortiert? Zurücknehmen und neu sortieren (löscht nur die ausgeschnittenen Kopien, die
+Originale kommen aus `Mitschnitt\erledigt` zurück):
+
+    python kws_mitschnitt.py zuruecknehmen               alles, was Whisper entschieden hat
+    python kws_mitschnitt.py zuruecknehmen --wie alle    alle Mitschnitte
+
 Erledigte Dateien wandern nach `Mitschnitt\erledigt`, jede Entscheidung steht in
 `mitschnitt_bekannt.csv`. `python kws_mitschnitt.py sortieren --alles-fragen` fragt auch die
-sicheren Fälle. Danach neu trainieren.
+sicheren Fälle. Danach neu trainieren: `python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene`.
 
 ## Mikrofon im Gehäuse
 

@@ -38,6 +38,7 @@ The whole UI is available in **English and German** (display, web interface and 
 
 - [Highlights](#highlights)
 - [Screens](#screens)
+- [Voice control](#voice-control)
 - [Web interface](#web-interface)
 - [Housing design](#housing-design)
 - [Hardware](#hardware)
@@ -61,7 +62,7 @@ The whole UI is available in **English and German** (display, web interface and 
 | **Built-in web app** | One tap from the *System* list on the scale. Every mode, recipe and cocktail editor, log, battery chart, SD file manager and all settings in the browser: `http://waage.local`. |
 | **OTA from GitHub** | Push a tag and GitHub Actions compiles the firmware. After switching on, the scale finds the release and installs it by itself (only when empty and charged enough, or it asks), with automatic rollback if the new firmware does not start cleanly. |
 | **Wi-Fi made easy** | Up to 5 saved networks (the strongest one wins), a setup access point with QR code, NTP time sync. |
-| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, offline voice commands in German: say "Hallo Waage" (or double-tap the top in the simple profile), then "Tara", "Wie viel?", "zweihundertfünfzig Gramm", "Hilfe", "Akku" or "Uhrzeit"; the scale answers with short spoken feedback, made for blind users. A small keyword-spotting network runs on the scale itself; the model is a file on the SD card and can be retrained with your own recordings (folder `Sprachmodell`). |
+| **Sound and voice** | Sound schemes, spoken weights and character lines from WAV voice packs (German and English), a speaker button to stop or switch announcements, and **offline voice control in German** with spoken feedback for every command, made for blind users (see [Voice control](#voice-control)). A small keyword-spotting network runs on the scale itself; the model is a file on the SD card and can be retrained with your own recordings (folder `Sprachmodell`). |
 | **Battery aware** | LiPo runtime ≈ 10 h, calibrated charge curve, history chart, discharge test, auto-off, deep-discharge protection. |
 | **First-start setup** | A short wizard on the display (or on your phone) asks for language, profile, categories, colour, sound and Wi-Fi, then lets you try the gestures once. Repeat it any time under *Setup → Scale → Setup*. |
 | **Profiles** | *Standard*, *Kitchen* and *Workshop* show only the modes you need (each mode can also be hidden on its own). *Simple* turns the scale into a plain kitchen scale for poor eyesight: whole grams in large digits, tap the top half to hear the weight, the bottom half is tare. Leaving *Simple* is only possible in the web app (hold the top half for 5 s to start it). A second button next to tare starts target weighing: pick 100, 200, 250 or 500 g, then the scale shows the remaining amount in large digits and a filling ring, beeps like a parking sensor and announces "70 grams to go". |
@@ -92,6 +93,42 @@ a progress ring around the edge and round action buttons. Navigation works by sw
 the left edge always goes back.
 
 ---
+
+## Voice control
+
+Say **"Hallo Waage"** (or double-tap the top of the display), wait for "Ja?", then a command.
+Everything runs offline on the ESP32-S3: a small DS-CNN keyword spotter (about 108 KB,
+`/Waage/Sprache/kws_de.bin`) is evaluated every 200 ms. The microphone is read by its own task into a
+1 s buffer, so the network never misses audio while it computes.
+
+| Say (German) | What happens | Spoken answer |
+|---|---|---|
+| Tara · Tarieren · Null | tare | tare line of the voice pack |
+| Wie viel? · Wie schwer? | read out the weight (in target mode: the remaining amount) | "123 Gramm" / "noch 50 Gramm" |
+| Speichern | add to the log | "gespeichert" / "Das geht hier gerade nicht." |
+| Weiter · Zurück · Stopp | next step, back to the start page, end target weighing | "Weiter." · "Zurück zur Startseite." · "Zielwiegen beendet." |
+| 50 · 100 · 150 · 200 · 250 · 300 · 500 Gramm · ein Kilo | target weighing with parking-sensor beeper | "Ziel 250 Gramm. Jetzt einfüllen." |
+| Nochmal · Hilfe | repeat the last announcement · list all commands | |
+| Lauter · Leiser | volume ±20 % | "Lautstärke 80 Prozent" |
+| Akku · Uhrzeit | battery level (charging detected) · time | "Akku 60 Prozent, wird geladen." · "vierzehn Uhr fünf" |
+
+Without a command the scale also says "Waage bereit." after start-up, "Timer abgelaufen.",
+"Akku fast leer." and warns before auto-off (with *Announce → lines* switched on). Missing sentences
+of a voice pack are taken from `/Waage/Stimme/_Zusatz`; the web interface lists what is missing.
+
+**Training your own model** (folder `Sprachmodell`, Python on a PC, see `Sprachmodell/LIESMICH.md`):
+record words on the scale (*Setup → Sound → Words*), then
+
+```
+python kws_mitschnitt.py          # fetch new recordings + real-life captures from the scale, sort them
+python kws_train.py --aufnahmen Aufnahmen --ohne-abgeschnittene
+```
+
+While the microphone page is open the scale saves every wake attempt and command as a 3 s WAV
+(`/Waage/Sprache/Mitschnitt`). `kws_mitschnitt.py` downloads them as a ZIP (skipping files it already
+has), lets all trained models vote, sorts the clear cases automatically and asks only for the unclear
+ones (it plays the clip). `kws_pruefen.py --alle-woerter Aufnahmen` compares all models on all words
+and lists the weakest ones.
 
 ## Web interface
 
@@ -177,6 +214,7 @@ The firmware does not notice any difference, and both buttons keep working:
 | short (while off) | switch on: release once the logo lights up with the soft start-up chord (holding longer does no harm) |
 | short | standby with dimmed clock, wake up by button, touch or placing weight |
 | hold 3 s | switch off (a ring shows the progress, releasing cancels) |
+| hold 10 s | emergency off / restart, works even if the display hangs |
 
 Check with a multimeter which two pads of the on-board key are connected when it is pressed before
 soldering. The 10 mm plunger height lets the button reach through a typical 2–3 mm housing wall.
@@ -288,8 +326,8 @@ step-by-step setup (in German) is in [GITHUB.md](GITHUB.md).
 ├── Pruefung/    gauge studies
 ├── Akku/        battery history and discharge tests
 ├── Spiel/       leaderboard
-├── Sprache/     speech model kws_de.bin, Aufnahmen/ = your training recordings
-└── Stimme/      voice packs (one folder each, 16 kHz mono WAV)
+├── Sprache/     speech model kws_de.bin, Aufnahmen/ = your training recordings, Mitschnitt/ = real-life captures
+└── Stimme/      voice packs (one folder each, 16 kHz mono WAV), _Zusatz = fallback sentences for voice control
 ```
 
 A recipe is plain text and can be written on a PC or in the web editor:
@@ -334,7 +372,12 @@ Esp_Scale/
 │   ├── net.*                        Wi-Fi (multiple networks), NTP
 │   ├── update_online.*              OTA update from GitHub releases
 │   ├── i18n*                        English translations of the German UI
+│   ├── voice.*, kws.*, mic.*        voice control: microphone reader, keyword spotter, command handling
+│   ├── sound.*                      tones and spoken announcements from WAV voice packs
 │   └── (Waveshare driver files)
+├── Sprachmodell/                    PC tools: train the speech model, fetch/sort captures, compare models
+├── Testumgebung/                    PC simulator (LVGL on SDL), web mock server, automated UI/web tests
+├── SD-Karte/                        contents of the SD card (recipes, cocktails, voice packs …)
 ├── lv_conf.h                        LVGL configuration used by the CI build
 ├── docs/images/                     pictures for this README (heroes, photos, Fusion renderings, logo)
 └── GITHUB.md                        release setup guide (German)

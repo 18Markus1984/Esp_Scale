@@ -317,6 +317,8 @@ const char *voice_capture_last() { return ""; }
 #include <Arduino.h>
 #include <ESP_I2S.h>
 #include <esp_heap_caps.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/stream_buffer.h>
 #include "mic.h"
 extern I2SClass &mic_i2s();
 static void ensure_task();
@@ -987,13 +989,78 @@ static void run_cmd(const char *c) {
 static TaskHandle_t s_task = NULL;
 static bool s_mic_on = false;
 
-static void voice_task(void *arg) {
+// ---- Mikrofon lesen: eigener Task mit Puffer ----
+// Früher las der Sprach-Task selbst vom Mikrofon. Während er rechnete (Merkmale +
+// Netz alle 200 ms, Mitschnitt speichern) lief der kleine I2S-DMA-Puffer (90 ms)
+// über, und es fehlten Stücke: Mitschnitte klangen abgehackt (Wörter ~1/3 kürzer)
+// und die Erkennung hörte etwas anderes als die sauberen Trainingsaufnahmen.
+// Jetzt liest ein kleiner Task mit höherer Priorität ununterbrochen in einen
+// 1-s-Puffer (PSRAM); der Sprach-Task arbeitet ihn in seinem Tempo ab.
+#define RD_BUF_BYTES (16000 * 2)  // 1 s Mono, 16 Bit
+static StreamBufferHandle_t s_sb = NULL;
+static StaticStreamBuffer_t s_sb_ctl;
+static volatile bool s_rd_on = false, s_rd_idle = true;
+static volatile uint32_t s_rd_lost = 0;  // verworfene Abtastwerte (Puffer voll)
+static volatile uint32_t s_rd_max = 0;   // höchster Füllstand in Bytes
+
+static void reader_task(void *arg) {
   static int16_t raw[512];  // 256 Stereo-Paare = 16 ms
   static int16_t mono[256];
+  while (true) {
+    if (!s_rd_on) {
+      s_rd_idle = true;
+      vTaskDelay(pdMS_TO_TICKS(10));
+      continue;
+    }
+    s_rd_idle = false;
+    size_t got = mic_i2s().readBytes((char *)raw, sizeof(raw));
+    int frames = (int)got / 4;
+    if (frames <= 0) {
+      vTaskDelay(pdMS_TO_TICKS(5));
+      continue;
+    }
+    // beide Kanäle zusammen: das Mikrofon liegt je nach Verdrahtung links oder rechts
+    for (int i = 0; i < frames; i++) {
+      int v = (int)raw[2 * i] + raw[2 * i + 1];
+      mono[i] = (int16_t)(v > 32767 ? 32767 : (v < -32768 ? -32768 : v));
+    }
+    size_t bytes = (size_t)frames * 2;
+    if (xStreamBufferSpacesAvailable(s_sb) >= bytes) xStreamBufferSend(s_sb, mono, bytes, 0);
+    else s_rd_lost = s_rd_lost + frames;  // nur ganze Stücke, sonst verrutschen die Abtastwerte
+    uint32_t lvl = (uint32_t)xStreamBufferBytesAvailable(s_sb);
+    if (lvl > s_rd_max) s_rd_max = lvl;
+  }
+}
+
+static bool reader_start() {
+  if (!s_sb) {
+    uint8_t *mem = (uint8_t *)heap_caps_malloc(RD_BUF_BYTES + 1, MALLOC_CAP_SPIRAM);
+    if (!mem) return false;
+    s_sb = xStreamBufferCreateStatic(RD_BUF_BYTES, 2, mem, &s_sb_ctl);
+    if (!s_sb) return false;
+    static TaskHandle_t rd = NULL;
+    if (!rd) xTaskCreatePinnedToCore(reader_task, "MicRd", 3072, NULL, 6, &rd, 0);
+  }
+  xStreamBufferReset(s_sb);
+  s_rd_lost = 0;
+  s_rd_max = 0;
+  s_rd_on = true;
+  return true;
+}
+
+static void reader_stop() {
+  s_rd_on = false;
+  for (int i = 0; i < 50 && !s_rd_idle; i++) vTaskDelay(pdMS_TO_TICKS(10));
+}
+
+static void voice_task(void *arg) {
+  static int16_t mono[256];
+  uint32_t stat_at = 0;
   while (true) {
     bool need = (s_want || s_session || s_rec_state == 1 || s_rec_state == 2) && !s_hold;
     if (!need) {
       if (s_mic_on) {
+        reader_stop();
         mic_set_exclusive(false);
         s_mic_on = false;
         s_running = false;
@@ -1015,7 +1082,16 @@ static void voice_task(void *arg) {
         vTaskDelay(pdMS_TO_TICKS(500));
         continue;
       }
+      if (!reader_start()) {
+        snprintf(s_err, sizeof(s_err), "zu wenig Speicher");
+        mic_set_exclusive(false);
+        s_want = false;
+        s_session = 0;
+        vTaskDelay(pdMS_TO_TICKS(500));
+        continue;
+      }
       s_mic_on = true;
+      stat_at = hal_millis();
     }
     if (s_want && (!s_model_tried || s_model_lang != g_set.lang)) {
       s_starting = true;
@@ -1029,18 +1105,16 @@ static void voice_task(void *arg) {
       rec_save();
       continue;
     }
-    if (s_cap_req) cap_save();
-    size_t got = mic_i2s().readBytes((char *)raw, sizeof(raw));
-    int frames = (int)got / 4;
-    if (frames <= 0) {
-      vTaskDelay(pdMS_TO_TICKS(5));
-      continue;
+    if (s_cap_req) cap_save();  // darf dauern: der Lese-Task puffert weiter
+    size_t got = xStreamBufferReceive(s_sb, mono, sizeof(mono), pdMS_TO_TICKS(30));
+    int frames = (int)got / 2;
+    if (hal_millis() - stat_at > 60000) {  // Lebenszeichen: fehlt Ton? (sollte 0 sein)
+      stat_at = hal_millis();
+      printf("Mikrofon: Puffer max %lu ms, verworfen %lu ms\r\n", (unsigned long)(s_rd_max / 32),
+             (unsigned long)(s_rd_lost / 16));
+      s_rd_max = 0;
     }
-    // beide Kanäle zusammen: das Mikrofon liegt je nach Verdrahtung links oder rechts
-    for (int i = 0; i < frames; i++) {
-      int v = (int)raw[2 * i] + raw[2 * i + 1];
-      mono[i] = (int16_t)(v > 32767 ? 32767 : (v < -32768 ? -32768 : v));
-    }
+    if (frames <= 0) continue;
     process(mono, frames);
   }
 }
