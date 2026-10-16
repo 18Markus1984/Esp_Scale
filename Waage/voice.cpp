@@ -1053,9 +1053,19 @@ static void reader_stop() {
   for (int i = 0; i < 50 && !s_rd_idle; i++) vTaskDelay(pdMS_TO_TICKS(10));
 }
 
+// Lastabwurf: hinkt die Erkennung mehr als LAG_HI hinterher (Puffer des Lese-Tasks),
+// setzt das Netz aus, bis sie wieder unter LAG_LO ist. Und: der Task gibt den Kern
+// spätestens alle REST_MS kurz frei, sonst schlägt der Watchdog von IDLE0 an
+// (so geschehen mit 1.1.27: Netz brauchte ~200 ms je 200 ms Ton, Neustart nach 15 s).
+#define LAG_HI_BYTES (16000 * 2 * 4 / 10)  // 400 ms
+#define LAG_LO_BYTES (16000 * 2 / 10)      // 100 ms
+#define REST_MS 250
 static void voice_task(void *arg) {
   static int16_t mono[256];
   uint32_t stat_at = 0;
+  TickType_t rest_at = xTaskGetTickCount();
+  bool lag = false;
+  uint32_t lag_n = 0;
   while (true) {
     bool need = (s_want || s_session || s_rec_state == 1 || s_rec_state == 2) && !s_hold;
     if (!need) {
@@ -1106,13 +1116,32 @@ static void voice_task(void *arg) {
       continue;
     }
     if (s_cap_req) cap_save();  // darf dauern: der Lese-Task puffert weiter
+    size_t avail = xStreamBufferBytesAvailable(s_sb);
+    if (!lag && avail > LAG_HI_BYTES) {
+      lag = true;
+      lag_n++;
+    } else if (lag && avail < LAG_LO_BYTES) {
+      lag = false;
+    }
+    kws_skip(lag);
+    TickType_t now_t = xTaskGetTickCount();
+    if (avail == 0) rest_at = now_t;  // gleich wartet der Task ohnehin auf neuen Ton
+    else if (now_t - rest_at > pdMS_TO_TICKS(REST_MS)) {
+      vTaskDelay(2);
+      rest_at = xTaskGetTickCount();
+    }
     size_t got = xStreamBufferReceive(s_sb, mono, sizeof(mono), pdMS_TO_TICKS(30));
     int frames = (int)got / 2;
-    if (hal_millis() - stat_at > 60000) {  // Lebenszeichen: fehlt Ton? (sollte 0 sein)
+    if (hal_millis() - stat_at > 60000) {  // Lebenszeichen: fehlt Ton, reicht die Rechenzeit?
       stat_at = hal_millis();
-      printf("Mikrofon: Puffer max %lu ms, verworfen %lu ms\r\n", (unsigned long)(s_rd_max / 32),
-             (unsigned long)(s_rd_lost / 16));
+      uint32_t avg, mx, runs, skip;
+      kws_stats(&avg, &mx, &runs, &skip, true);
+      printf("Mikrofon: Puffer max %lu ms, verworfen %lu ms; Netz %lu ms (max %lu), %lu Auswertungen, "
+             "%lu ausgelassen (%lu x hinterher)\r\n",
+             (unsigned long)(s_rd_max / 32), (unsigned long)(s_rd_lost / 16), (unsigned long)(avg / 1000),
+             (unsigned long)(mx / 1000), (unsigned long)runs, (unsigned long)skip, (unsigned long)lag_n);
       s_rd_max = 0;
+      lag_n = 0;
     }
     if (frames <= 0) continue;
     process(mono, frames);

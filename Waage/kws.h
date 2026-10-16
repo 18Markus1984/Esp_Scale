@@ -42,6 +42,9 @@ bool kws_feed(const int16_t *pcm, int n);
 const float *kws_probs();                      // geglättete Wahrscheinlichkeiten je Klasse
 int kws_best(float *p);                        // beste Nicht-Hintergrund-Klasse (-1 = keine)
 uint32_t kws_infer_us();                       // Dauer der letzten Auswertung
+void kws_skip(bool on);                        // true: fällige Auswertungen auslassen (Lastabwurf)
+// Auswertungen seit dem letzten reset: mittlere/längste Dauer, Anzahl, ausgelassen
+void kws_stats(uint32_t *avg_us, uint32_t *max_us, uint32_t *runs, uint32_t *skipped, bool reset);
 
 // Für Tests: Merkmale bzw. Netz direkt (Rückgabe: Anzahl Rahmen)
 int kws_frames();

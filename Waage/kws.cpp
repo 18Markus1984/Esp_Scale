@@ -31,10 +31,15 @@ static void *kws_alloc(size_t n) {  // große Puffer ins PSRAM
   void *p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   return p ? p : malloc(n);
 }
+static void *kws_alloc_fast(size_t n) {  // kleine, oft gelesene Puffer in den internen RAM
+  void *p = heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  return p ? p : kws_alloc(n);
+}
 static uint32_t kws_us() { return (uint32_t)micros(); }
 #else
 #include <chrono>
 static void *kws_alloc(size_t n) { return malloc(n); }
+static void *kws_alloc_fast(size_t n) { return malloc(n); }
 static uint32_t kws_us() {
   return (uint32_t)std::chrono::duration_cast<std::chrono::microseconds>(
              std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -43,6 +48,8 @@ static uint32_t kws_us() {
 
 #define NFFT_MAX 512
 #define MAX_LAYERS 24
+#define TILE 8      // Positionen je Rechenschritt (siehe tile_mul)
+#define TILE_K 128  // längstes Skalarprodukt (Eingangskanäle bzw. Kern der ersten Schicht)
 #define SMOOTH 3  // so viele Auswertungen werden gemittelt
 
 enum { L_CONV = 1, L_DW = 2, L_GAP = 3, L_DENSE = 4 };
@@ -66,6 +73,7 @@ static layer_t s_lay[MAX_LAYERS];
 static int s_nlay;
 static float *s_pool;      // alle Gewichte (ausgerichtet kopiert)
 static float *s_act[2];    // Zwischenergebnisse, abwechselnd
+static float *s_tile;      // Kachel für den Rechenkern (intern, siehe tile_mul)
 static int s_act_len;
 
 // ---- Merkmale ----
@@ -84,6 +92,8 @@ static int s_ring_pos, s_ring_fill, s_since_infer;
 static float s_probs[KWS_MAX_CLASSES], s_hist[SMOOTH][KWS_MAX_CLASSES];
 static int s_hist_n, s_hist_pos;
 static uint32_t s_infer_us;
+static bool s_skip;        // Lastabwurf: fällige Auswertungen auslassen (kws_skip)
+static uint32_t s_st_sum, s_st_max, s_st_n, s_st_skip;  // für kws_stats
 static float *s_input;     // frames x mels für das Netz
 
 const char *kws_error() { return s_err; }
@@ -95,6 +105,14 @@ float kws_threshold() { return s_thr; }
 float kws_wake_threshold() { return s_wake_thr; }
 const float *kws_probs() { return s_probs; }
 uint32_t kws_infer_us() { return s_infer_us; }
+void kws_skip(bool on) { s_skip = on; }
+void kws_stats(uint32_t *avg_us, uint32_t *max_us, uint32_t *runs, uint32_t *skipped, bool reset) {
+  if (avg_us) *avg_us = s_st_n ? s_st_sum / s_st_n : s_infer_us;
+  if (max_us) *max_us = s_st_max;
+  if (runs) *runs = s_st_n;
+  if (skipped) *skipped = s_st_skip;
+  if (reset) s_st_sum = s_st_max = s_st_n = s_st_skip = 0;
+}
 int kws_frames() { return s_frames; }
 int kws_mels() { return s_mels; }
 
@@ -146,10 +164,10 @@ static void fail(const char *msg) {
 
 void kws_unload() {
   s_ready = false;
-  void *bufs[] = { s_pool, s_act[0], s_act[1], s_mean, s_istd, s_mel_w, s_buf, s_cmn, s_ring, s_input,
+  void *bufs[] = { s_pool, s_act[0], s_act[1], s_tile, s_mean, s_istd, s_mel_w, s_buf, s_cmn, s_ring, s_input,
                    s_hann, s_cos, s_sin, s_re, s_im, s_pw };
   for (void *b : bufs) free(b);
-  s_pool = s_act[0] = s_act[1] = s_mean = s_istd = s_mel_w = s_buf = s_cmn = s_ring = s_input = NULL;
+  s_pool = s_act[0] = s_act[1] = s_tile = s_mean = s_istd = s_mel_w = s_buf = s_cmn = s_ring = s_input = NULL;
   s_hann = s_cos = s_sin = s_re = s_im = s_pw = NULL;
   s_nlay = s_ncls = 0;
   snprintf(s_err, sizeof(s_err), "kein Modell geladen");
@@ -379,6 +397,7 @@ bool kws_load_mem(const uint8_t *buf, int len) {
   s_act_len = maxact;
   s_act[0] = (float *)kws_alloc(maxact * sizeof(float));
   s_act[1] = (float *)kws_alloc(maxact * sizeof(float));
+  if (!s_tile) s_tile = (float *)kws_alloc_fast(TILE * TILE_K * sizeof(float));  // fehlt sie: langsamer Weg
   if (!s_pool || !s_act[0] || !s_act[1]) {
     fail("zu wenig Speicher");
     return false;
@@ -529,10 +548,59 @@ int kws_features(const int16_t *pcm, int n, float *out, int max_frames) {
 // ------------------------------------------------------------
 //  Netz
 // ------------------------------------------------------------
+// Rechenkern für punktweise Faltung und erste Schicht: TILE Positionen auf einmal.
+// Früher lief je Position einmal über alle Gewichte (bis 36 KB, mehr als der
+// 32-KB-Cache): jede Position holte sie neu aus dem PSRAM, eine Auswertung dauerte
+// so etwa 200 ms. Jetzt liegen TILE Eingänge verschränkt im internen RAM
+// (s_tile[i * TILE + j] = Eingang j, Wert i), jede Gewichtszeile wird einmal
+// gelesen und für alle TILE Positionen benutzt (8 Summen gleichzeitig).
+
+static void tile_load(const float *x, int ldx, int np, int k) {  // np Zeilen zu je k Werten
+  for (int j = 0; j < np; j++) {
+    const float *xj = x + j * ldx;
+    float *t = s_tile + j;
+    for (int i = 0; i < k; i++) t[i * TILE] = xj[i];
+  }
+  for (int j = np; j < TILE; j++)
+    for (int i = 0; i < k; i++) s_tile[i * TILE + j] = 0.0f;
+}
+
+// y[j * oc + o] = b[o] + Summe_i w[o * k + i] * tile[i][j], für j < np
+static void tile_mul(const float *w, const float *b, int k, int oc, bool relu, float *y, int np) {
+  for (int o = 0; o < oc; o++) {
+    const float *wo = w + o * k;
+    const float *t = s_tile;
+    float s0 = b[o], s1 = s0, s2 = s0, s3 = s0, s4 = s0, s5 = s0, s6 = s0, s7 = s0;
+    for (int i = k; i > 0; i--, t += TILE) {  // erst laden, dann rechnen (keine Wartetakte)
+      float wi = *wo++;
+      float t0 = t[0], t1 = t[1], t2 = t[2], t3 = t[3];
+      s0 += wi * t0;
+      s1 += wi * t1;
+      s2 += wi * t2;
+      s3 += wi * t3;
+      float t4 = t[4], t5 = t[5], t6 = t[6], t7 = t[7];
+      s4 += wi * t4;
+      s5 += wi * t5;
+      s6 += wi * t6;
+      s7 += wi * t7;
+    }
+    float r[TILE] = { s0, s1, s2, s3, s4, s5, s6, s7 };
+    for (int j = 0; j < np; j++) y[j * oc + o] = (relu && r[j] < 0) ? 0 : r[j];
+  }
+}
+
 static void run_conv(const layer_t *L, const float *in, float *out) {
   const int ic = L->ic, oc = L->oc;
-  if (L->kh == 1 && L->kw == 1 && L->sh == 1 && L->sw == 1) {  // punktweise: schneller Weg
+  if (L->kh == 1 && L->kw == 1 && L->sh == 1 && L->sw == 1) {  // punktweise
     int n = L->oh * L->ow;
+    if (s_tile && ic <= TILE_K) {
+      for (int p = 0; p < n; p += TILE) {
+        int np = n - p < TILE ? n - p : TILE;
+        tile_load(in + p * ic, ic, np, ic);
+        tile_mul(L->w, L->b, ic, oc, L->act, out + p * oc, np);
+      }
+      return;
+    }
     for (int p = 0; p < n; p++) {
       const float *x = in + p * ic;
       float *y = out + p * oc;
@@ -546,28 +614,27 @@ static void run_conv(const layer_t *L, const float *in, float *out) {
     }
     return;
   }
-  if (ic == 1 && L->kh * L->kw <= 64) {  // erste Schicht: Ausschnitt einmal holen, dann je Kanal ein Skalarprodukt
-    const int kk = L->kh * L->kw;
-    float patch[64];
-    for (int oy = 0; oy < L->oh; oy++)
-      for (int ox = 0; ox < L->ow; ox++) {
-        int n = 0;
+  if (ic == 1 && s_tile && L->kh * L->kw <= TILE_K) {  // erste Schicht: Ausschnitte direkt in die Kachel
+    const int kk = L->kh * L->kw, n = L->oh * L->ow;
+    for (int p = 0; p < n; p += TILE) {
+      int np = n - p < TILE ? n - p : TILE;
+      for (int j = 0; j < TILE; j++) {
+        float *t = s_tile + j;
+        if (j >= np) {
+          for (int i = 0; i < kk; i++) t[i * TILE] = 0.0f;
+          continue;
+        }
+        int oy = (p + j) / L->ow, ox = (p + j) % L->ow, m = 0;
         for (int ky = 0; ky < L->kh; ky++) {
           int iy = oy * L->sh - L->pt + ky;
-          for (int kx = 0; kx < L->kw; kx++) {
+          for (int kx = 0; kx < L->kw; kx++, m++) {
             int ix = ox * L->sw - L->pl + kx;
-            patch[n++] = (iy < 0 || iy >= L->ih || ix < 0 || ix >= L->iw) ? 0.0f : in[iy * L->iw + ix];
+            t[m * TILE] = (iy < 0 || iy >= L->ih || ix < 0 || ix >= L->iw) ? 0.0f : in[iy * L->iw + ix];
           }
         }
-        float *y = out + (oy * L->ow + ox) * oc;
-        const float *wp = L->w;
-        for (int o = 0; o < oc; o++) {
-          float s = L->b[o];
-          for (int k = 0; k < kk; k++) s += wp[k] * patch[k];
-          wp += kk;
-          y[o] = (L->act && s < 0) ? 0 : s;
-        }
       }
+      tile_mul(L->w, L->b, kk, oc, L->act, out + p * oc, np);
+    }
     return;
   }
   for (int oy = 0; oy < L->oh; oy++)
@@ -597,12 +664,16 @@ static void run_conv(const layer_t *L, const float *in, float *out) {
     }
 }
 
+#define DW_MAX 128
 static void run_dw(const layer_t *L, const float *in, float *out) {
   const int c = L->ic;
+  float acc[DW_MAX];  // Summen im internen RAM (Stapel), erst am Ende ins PSRAM
+  bool local = c <= DW_MAX;
   for (int oy = 0; oy < L->oh; oy++)
     for (int ox = 0; ox < L->ow; ox++) {
       float *y = out + (oy * L->ow + ox) * c;
-      for (int k = 0; k < c; k++) y[k] = L->b[k];
+      float *a = local ? acc : y;
+      for (int k = 0; k < c; k++) a[k] = L->b[k];
       for (int ky = 0; ky < L->kh; ky++) {
         int iy = oy * L->sh - L->pt + ky;
         if (iy < 0 || iy >= L->ih) continue;
@@ -611,12 +682,13 @@ static void run_dw(const layer_t *L, const float *in, float *out) {
           if (ix < 0 || ix >= L->iw) continue;
           const float *x = in + (iy * L->iw + ix) * c;
           const float *wp = L->w + (ky * L->kw + kx) * c;
-          for (int k = 0; k < c; k++) y[k] += wp[k] * x[k];
+          for (int k = 0; k < c; k++) a[k] += wp[k] * x[k];
         }
       }
       if (L->act)
-        for (int k = 0; k < c; k++)
-          if (y[k] < 0) y[k] = 0;
+        for (int k = 0; k < c; k++) y[k] = a[k] < 0 ? 0 : a[k];
+      else if (local)
+        memcpy(y, a, c * sizeof(float));
     }
 }
 
@@ -670,6 +742,10 @@ bool kws_feed(const int16_t *pcm, int n) {
   push_samples(pcm, n, NULL, 0);
   if (s_ring_fill < s_frames || s_since_infer < s_infer_hops) return false;
   s_since_infer = 0;
+  if (s_skip) {  // Erkennung hinkt hinterher: Merkmale laufen weiter, das Netz setzt aus
+    s_st_skip++;
+    return false;
+  }
   // Ring in zeitlicher Reihenfolge (älteste zuerst) ins Eingangsfeld
   int first = s_ring_pos;  // nächste Schreibstelle = ältester Rahmen
   for (int t = 0; t < s_frames; t++)
@@ -678,6 +754,9 @@ bool kws_feed(const int16_t *pcm, int n) {
   float p[KWS_MAX_CLASSES];
   kws_run(s_input, p);
   s_infer_us = kws_us() - t0;
+  s_st_sum += s_infer_us;
+  s_st_n++;
+  if (s_infer_us > s_st_max) s_st_max = s_infer_us;
   memcpy(s_hist[s_hist_pos], p, sizeof(float) * s_ncls);
   s_hist_pos = (s_hist_pos + 1) % SMOOTH;
   if (s_hist_n < SMOOTH) s_hist_n++;

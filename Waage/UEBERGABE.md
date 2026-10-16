@@ -967,3 +967,23 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   verworfen … ms“ (sollte 0 sein). Am Gerät NICHT getestet.
   kws_mitschnitt `neustart` schiebt alte Mitschnitte nach Mitschnitt/alt_abgehackt (nicht mehr sortieren;
   `--alte-sortieren` für das alte Verhalten).
+
+### Stand 16.10.2026 (vormittags): 1.1.27 startet ständig neu (Watchdog IDLE0, Task Voice)
+- Markus' Absturz.txt: 1.1.27 alle 15–25 s „Task watchdog … IDLE0 (CPU 0)“, Task Voice. addr2line mit dem lokalen
+  Build passt: voice_task → kws_feed → kws_run (bzw. push_samples). Ursache: Mit dem Lese-Task geht kein Ton mehr
+  verloren, das Netz muss jetzt wirklich alle 200 ms Ton rechnen. Es brauchte aber etwa 200 ms je Auswertung
+  (aus den Mitschnitten geschätzt: ~1/3 Ton fehlte bei 90 ms DMA-Puffer → Rechenzeit ≈ 200 ms) → Voice (Prio 3,
+  Kern 0) blockierte nie mehr, IDLE0 kam nicht dran. Früher bremste der Tonverlust die Last von selbst.
+- Warum so langsam: punktweise Faltungen liefen je Position einmal über alle Gewichte (bis 36 KB, Daten-Cache
+  32 KB) → jede Position holte die Gewichte neu aus dem PSRAM.
+- **Fix kws.cpp:** Rechenkern `tile_mul` (8 Positionen gleichzeitig, Eingänge verschränkt in `s_tile`, 4 KB intern,
+  Gewichtszeile einmal je Kachel gelesen, 8 Summen) für punktweise Schichten und die erste Schicht; Tiefen-
+  Faltung summiert im Stapel (`DW_MAX` 128) statt im PSRAM. Ergebnis bitgleich zum alten Code (Host-Vergleich
+  30 Zufallseingaben + kws_feed, KWSTEST identisch), Host 2,6× schneller; am Gerät erwartet ~40–60 ms.
+  Ohne s_tile (kein interner RAM) alter Weg.
+- **Sicherung voice.cpp:** Lastabwurf: Rückstand im Lese-Puffer > 400 ms → `kws_skip(true)` (Merkmale laufen
+  weiter, Netz setzt aus) bis < 100 ms. Voice gibt den Kern spätestens alle 250 ms für 2 Ticks frei.
+  Log alle 60 s: „Mikrofon: Puffer max …, verworfen …; Netz X ms (max Y), N Auswertungen, K ausgelassen“.
+  `kws_stats()`. Weboberfläche: „Sprachmodell: … · 45 ms / 200 ms“ (letzte Auswertung, nur wenn aktiv).
+- Ältere Einträge (1.1.20–1.1.26: BTU/BTC_TASK `vQueueDelete` assert, loopTask LoadProhibited in LVGL) lassen
+  sich mit dem lokalen Build nicht auflösen (andere Adressen) → ELF der jeweiligen Release nötig.

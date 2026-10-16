@@ -23,6 +23,7 @@
 #include "update_online.h"
 #include "refcheck.h"
 #include "voice.h"
+#include "kws.h"
 #include "zipw.h"
 #include "crash.h"
 #include "msa_store.h"
@@ -827,6 +828,13 @@ static void h_scores() {
 // Messmittelprüfung aus dem Browser auf der SD-Karte ablegen (wie an der Waage)
 // {"nom":155,"tol":3,"vals":[154.62,154.71,…]}
 // fehlende Ansagen des gewählten Stimmpakets (auch nicht in _Zusatz), für die Einstellungen
+// Modelltext, bei laufender Erkennung mit der Rechenzeit des Netzes je Auswertung (alle 200 ms)
+static String voice_info_text() {
+  String s = voice_model_info();
+  if (voice_running() && kws_infer_us() > 0) s += " · " + String((kws_infer_us() + 500) / 1000) + " ms / 200 ms";
+  return s;
+}
+
 static const char *voice_missing_list() {
   static char b[160];
   if (sound_missing(b, sizeof(b)) <= 0) b[0] = 0;
@@ -892,7 +900,7 @@ static void h_settings() {
              ",\"scheme\":" + g_set.scheme + ",\"speak\":" + (g_set.speak ? "true" : "false") +
              ",\"speak_ev\":" + (g_set.speak_ev ? "true" : "false") +
              ",\"voice_on\":" + (g_set.voice_on ? "true" : "false") + ",\"voice_ok\":" + (voice_available() ? "true" : "false") +
-             ",\"voice_model\":" + (voice_model_ok() ? "true" : "false") + ",\"voice_info\":\"" + esc(voice_model_info()) +
+             ",\"voice_model\":" + (voice_model_ok() ? "true" : "false") + ",\"voice_info\":\"" + esc(voice_info_text().c_str()) +
              "\",\"voice_err\":\"" + esc(voice_model_error()) + "\"" +
              ",\"voice\":\"" + esc(g_set.voice) + "\",\"voice_missing\":\"" + esc(voice_missing_list()) + "\",\"time\":\"" + t + "\",\"ssid\":\"" + esc(g_set.ssid) +
              "\",\"factor\":" + String(scale_factor(), 3) + ",\"lang\":" + g_set.lang + ",\"precise\":" + (g_set.precise ? "true" : "false") + ",\"whole\":" + (g_set.whole ? "true" : "false") + ",\"azt\":" + (g_set.azt ? "true" : "false") +
