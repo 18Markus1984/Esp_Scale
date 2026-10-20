@@ -28,7 +28,7 @@ The whole UI is available in **English and German** (display, web interface and 
 <p align="center">
   <img src="docs/images/real-pour.jpg" alt="Kitchen: pouring water into a mixing bowl on the scale" width="32%">
   <img src="docs/images/real-workshop.jpg" alt="Workshop: counting screws in a parts bin, the display shows 63 pieces" width="32%">
-  <img src="docs/images/real-party.jpg" alt="Games: the scale in colourful party light showing the blind-pour leaderboard" width="32%">
+  <img src="docs/images/real-party.jpg" alt="Games: the drinking game at a party – red cups in the background, a beer bottle on the scale, the display shows the sip that was just measured" width="32%">
 </p>
 <p align="center"><sub>Kitchen · Workshop · Games – the 3D-printed prototype in all three mode groups.</sub></p>
 

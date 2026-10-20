@@ -987,3 +987,58 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   `kws_stats()`. Weboberfläche: „Sprachmodell: … · 45 ms / 200 ms“ (letzte Auswertung, nur wenn aktiv).
 - Ältere Einträge (1.1.20–1.1.26: BTU/BTC_TASK `vQueueDelete` assert, loopTask LoadProhibited in LVGL) lassen
   sich mit dem lokalen Build nicht auflösen (andere Adressen) → ELF der jeweiligen Release nötig.
+
+### Stand 16.10.2026 (mittags): Rückmeldung zu 1.1.27/1.1.28
+- Absturz.txt: 159 Einträge 1.1.27 (Watchdog IDLE0, Task Voice, alle ~11 s nach 9 s Laufzeit). Ausschalten der
+  Sprachsteuerung ging nicht: Weboberfläche und Setup ignorierten den Schalter, solange `voice_starting()` – und
+  das war bis zum Neustart immer so. Markus musste per Arduino-IDE flashen. 1.1.28 (Netz-Beschleunigung) läuft,
+  UI leidet nur leicht.
+- **Sicherer Start** (crash.cpp, `crash_safe_mode()`): RTC-Zähler `s_quick` für Abstürze < 120 s nach dem Start.
+  Letzter Absturz im Task Voice/MicRd < 120 s nach Start oder 3 schnelle Abstürze in Folge → `g_set.voice_on =
+  false` (nur im RAM; gespeichert erst mit der nächsten Einstellungsänderung), Setup-Zeile „aus (Absturz)“,
+  crash_text mit „– Sprachsteuerung vorerst aus“. Sim: `SAFEMODE=1` (Bild der Ton-Seite).
+- **Ausschalten geht immer** (page_setup Fall 25, web.cpp voice_on): nur das Einschalten wartet auf `voice_starting()`.
+- **Update „Zu wenig Speicher“** (Foto, 1.1.28 lokal gebaut, Online suchen): kam von `xTaskCreatePinnedToCore`
+  (12 KB Stapel intern) direkt nach dem WLAN-Start. Jetzt Task vor `net_connect_start`, scheitert er, versucht
+  `upd_loop` es 8 s lang alle 250 ms (`try_create`, Log mit freiem/größtem Block).
+- **Voice- und MicRd-Stapel im PSRAM** (`task_psram`, `xTaskCreatePinnedToCoreWithCaps`, CONFIG_SPIRAM_ALLOW_STACK_
+  EXTERNAL_MEMORY=1): spart ~11 KB internen RAM. Beide Tasks schreiben nie in den Flash (nur SD/I2S). Fallback intern.
+- **Bluetooth-Absturz** (BTU/BTC_TASK `vQueueDelete`, laut Markus immer beim Antippen von Bluetooth): Bluedroid
+  bekommt seinen internen RAM nicht. `ble_kbd_begin()` prüft jetzt vorher (frei ≥ 90 KB, Block ≥ 40 KB, Schätzwerte;
+  in allen drei Abstürzen 68–73 KB / 30 KB) und lehnt ab: Chip „Bluetooth: zu wenig Speicher“ (Zählen, BT-Seite,
+  dort neuer Versuch alle 500 ms). Ob Bluetooth mit WLAN + Sprache überhaupt noch passt, ist offen.
+- **Download hängt** (1.1.28, Absturz.txt laden → Anzeige steht, Ausschalter reagiert nicht): `h_file_get` nutzte
+  `streamFile` (SD die ganze Zeit gesperrt, kein Blick auf den internen RAM – dieselbe Ursache wie beim ZIP am
+  15.10.). Jetzt Teil für Teil (4 KB PSRAM-Puffer, SD nur je Teil gesperrt, unter 16 KB frei kurz warten,
+  Abbruch bei Schreibfehler/Verbindung weg/120 s).
+- Training mit sauberen Daten (16.10.): 74 % Prüfung, eigene Prüfdateien 87 % (20 dB leiser), schwach ziel_300,
+  nochmal, lauter, akku. Nächster Schritt: mit 1.1.29 viel sprechen, Mitschnitte sammeln (ohne Knackser seit dem
+  Lese-Task), dann sortieren und neu trainieren.
+
+### Stand 20.10.2026: Party-Rückmeldung (Trinkspiel), Bluetooth-Abstürze, UI-Wächter
+- **Build-Umgebung repariert:** /root/.arduino15 war nach der Sitzungspause leer (Index, builtin-Discovery fehlten,
+  Download vom Proxy verboten). Abhilfe: `package_esp32_index.json` = /home/claude/ardu/idx.json, leere
+  `package_index.json`/`library_index.json`, in /root/Arduino/hardware/espressif/esp32/platform.txt die
+  `pluggable_discovery.required.*` auskommentiert. check.sh läuft wieder (> 2 min: im Hintergrund starten).
+- **Absturz.txt mit 0.0.0** (Markus' IDE-Builds, anderer ESP32-Core: ipc-Stapel 1108 statt 140 frei → Bibliotheks-
+  adressen passen nicht, Sketch-Adressen ungefähr): Stand 16.10. 12:02 nachgebaut (check_z.sh → outz/). Alle sechs
+  Einträge landen bei Bluetooth: `ble_kbd_begin` (Schreiben an 0x11c = `server->setCallbacks` mit server NULL),
+  `page_bluetooth_create`/`bt_done_cb`. → ble_kbd: `BLEDevice::getInitialized()` und NULL-Prüfung, bei Fehlschlag
+  `s_failed` (kein neuer Versuch), Chip wie „zu wenig Speicher“.
+- **Einfrieren auf der Party** (Trinkspiel, 3. Runde, Taste half nicht, kein Eintrag): Ursache unbekannt.
+  **UI-Wächter** (Waage.ino): `esp_task_wdt_reconfigure` 15 s (IDLE0 wie bisher), `enableLoopWDT()`; hängt loop()
+  > 15 s → Neustart mit Bericht (Task loopTask + Adressen). Lange Web-Antworten füttern über `hit()` (web.cpp,
+  jetzt mit `feedLoopWDT()`; CSV-Export, Hochladen ergänzt). Notabschaltung: PWR 10 s halten.
+- **Langzeitmessung:** während `lt_running()` keine Topferkennung und keine Minus-Tara auf der Startseite (ui.cpp).
+- **Trinkspiel-Bestenliste:** vorher Summe der Abweichungen (KO-Aus in Runde 1 mit 16 ml stand vorn). Jetzt
+  Ø Abweichung je Schluck, erst ab 3 gewerteten Schlucken (`t_nsip`, `SCORE_MIN_SIPS`), Spielname `Trinkspiel2`
+  (alte Summen bleiben in der Datei, zählen nicht). Web gleich (`nsip`, Hinweis „Ø je Schluck (ab 3)“, `PL.board(game,titel,hint)`).
+- **Spieler:** `PLAYER_MAX` 8 → 32. Liste voll: Ton (Gerät) bzw. Toast „Spielerliste voll (höchstens 32)“ (Web
+  prüft jetzt die Antwort von /api/player_add, vorher landeten Namen nur lokal und verschwanden).
+- **Ansagen flüssiger:** `play_wav` lädt das Wort (≤ 512 KB) in den PSRAM und schneidet Stille ab (Schwelle 3 %
+  der Spitze, mind. 150), es bleiben 15 ms davor/45 ms danach (Pakete hatten ~100/130–180 ms). Größere Dateien
+  wie früher gestreamt.
+- **„ein Uhr vierzig“** statt „eins Uhr“ (`sound_say_time`, nur Deutsch).
+- **QR-Code:** `#warning` in page_setup.cpp, wenn `LV_USE_QRCODE` 0 ist (IDE zeigt es beim Kompilieren).
+- README: neues Party-Foto `docs/images/real-party.jpg` (Markus’ Wahl IMG20261017202609 mit Bechern und Stern, ganzes Hochformat
+  auf 1000 px Höhe mittig, Seiten mit unscharfer, abgedunkelter Vergrößerung desselben Bilds aufgefüllt).

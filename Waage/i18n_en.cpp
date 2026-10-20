@@ -177,6 +177,8 @@ const i18n_pair_t I18N_EN[] = {
   { "Punkt +", "Point +" },
   // ---- page_mic.cpp ----
   { "startet …", "starting …" },
+  { "aus (Absturz)", "off (crash)" },
+  { "Bluetooth: zu wenig Speicher", "Bluetooth: not enough memory" },
   { "hört zu …", "listening …" },
   { "Sprachmodelle werden geladen", "Loading speech models" },
   { "Weckwort: „Hi ESP“", "Wake word: \"Hi ESP\"" },

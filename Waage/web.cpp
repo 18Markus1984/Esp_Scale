@@ -64,6 +64,7 @@ static char s_ip[20] = "";
 // ------------------------------------------------------------
 static void hit() {
   s_last_hit = millis();
+  feedLoopWDT();  // lange Antworten (ZIP, Dateien, Hochladen) rufen hit() laufend: UI-Wächter füttern
 }
 
 static void send_json(const String &s) {
@@ -511,6 +512,7 @@ static void h_log_csv() {
       if (chunk.length() > 1024) {
         s_server.sendContent(chunk);
         chunk = "";
+        hit();
       }
     }
     f.close();
@@ -569,6 +571,7 @@ static void h_files() {
   send_json(s);
 }
 
+#define FILE_MIN_FREE (16 * 1024)  // wie beim ZIP: darunter kurz warten (siehe h_zip)
 static void h_file_get() {
   hit();
   String path = s_server.arg("path");
@@ -578,17 +581,48 @@ static void h_file_get() {
   }
   storage_lock();
   File f = storage_ok() ? SD_MMC.open(path, FILE_READ) : File();
-  if (!f || f.isDirectory()) {
-    storage_unlock();
+  bool dir = f && f.isDirectory();
+  size_t size = f ? f.size() : 0;
+  if (dir) f.close();
+  storage_unlock();
+  if (!f || dir) {
     s_server.send(404, "text/plain", "nicht gefunden");
+    return;
+  }
+  // Teil für Teil wie beim ZIP (früher streamFile: SD-Karte die ganze Zeit gesperrt, kein Blick auf
+  // den Speicher; bei knappem internen RAM blieb die Waage stehen, z. B. beim Laden von Absturz.txt)
+  uint8_t *buf = (uint8_t *)ps_malloc(4096);
+  if (!buf) {
+    storage_lock();
+    f.close();
+    storage_unlock();
+    s_server.send(500, "text/plain", "zu wenig Speicher");
     return;
   }
   String name = path.substring(path.lastIndexOf('/') + 1);
   s_server.sendHeader("Content-Disposition", "attachment; filename=" + name);
   const char *type = name.endsWith(".wav") ? "audio/wav" : (name.endsWith(".csv") ? "text/csv" : "text/plain");
-  s_server.streamFile(f, type);
+  s_server.setContentLength(size);
+  s_server.send(200, type, "");
+  size_t sent = 0;
+  uint32_t t0 = millis();
+  while (sent < size) {
+    storage_lock();
+    int r = f.read(buf, 4096);
+    storage_unlock();
+    if (r <= 0) break;
+    for (int w = 0; w < 50 && heap_caps_get_free_size(MALLOC_CAP_INTERNAL) < FILE_MIN_FREE; w++) delay(20);
+    if (s_server.client().write(buf, r) != (size_t)r) break;  // Browser weg oder Netz hängt
+    sent += r;
+    hit();
+    delay(0);
+    if (!s_server.client().connected() || millis() - t0 > 120000) break;
+  }
+  storage_lock();
   f.close();
   storage_unlock();
+  free(buf);
+  if (sent < size) printf("Datei %s: nur %u von %u Byte gesendet\r\n", path.c_str(), (unsigned)sent, (unsigned)size);
 }
 
 // ------------------------------------------------------------
@@ -765,6 +799,7 @@ static void h_upload() {
     s_up_ok = (bool)s_up;
     printf("Upload: %s\r\n", path.c_str());
   } else if (up.status == UPLOAD_FILE_WRITE && s_up) {
+    hit();
     storage_lock();
     if (s_up.write(up.buf, up.currentSize) != up.currentSize) s_up_ok = false;
     storage_unlock();
@@ -970,9 +1005,9 @@ static void h_settings_save() {
   g_set.speak = jval(b, "speak") == "true";
   if (jval(b, "speak_ev").length()) g_set.speak_ev = jval(b, "speak_ev") == "true";
   // Sprachbefehle (eigenes Modell von der SD-Karte)
-  if (jval(b, "voice_on").length() && voice_available() && !voice_starting()) {
+  if (jval(b, "voice_on").length() && voice_available()) {
     bool on = jval(b, "voice_on") == "true" && voice_model_ok();  // ohne Modell nicht zuhören
-    if (on != g_set.voice_on) {
+    if (on != g_set.voice_on && (!on || !voice_starting())) {  // Ausschalten geht immer (auch beim Laden)
       g_set.voice_on = on;
       if (on) voice_begin();
       else voice_stop();

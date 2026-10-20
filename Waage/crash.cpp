@@ -62,6 +62,16 @@ typedef struct {
 } hb_t;
 static RTC_NOINIT_ATTR hb_t s_hb;
 
+// Abstürze kurz nacheinander (überlebt den Neustart, nicht Strom aus)
+#define QUICK_MAGIC 0x51434b31u
+#define QUICK_UP_S 120  // so kurz nach dem Start gilt ein Absturz als "schnell"
+static RTC_NOINIT_ATTR struct {
+  uint32_t magic;
+  uint32_t n;
+} s_quick;
+static bool s_safe = false;
+bool crash_safe_mode() { return s_safe; }
+
 // Kopie des Lebenszeichens vom letzten Lauf (nur nach Absturz gültig)
 static bool s_last_ok = false;
 static hb_t s_last;
@@ -242,6 +252,16 @@ void crash_begin() {
     esp_core_dump_image_erase();  // nur einmal melden
   }
 
+  // Sicherer Start (siehe crash.h)
+  if (s_quick.magic != QUICK_MAGIC || r == ESP_RST_POWERON) s_quick.n = 0;
+  s_quick.magic = QUICK_MAGIC;
+  bool quick = s_abnormal && r != ESP_RST_BROWNOUT && s_last_ok && s_last.up_s < QUICK_UP_S;
+  s_quick.n = quick ? s_quick.n + 1 : 0;
+  bool voice_task = !strcmp(task, "Voice") || !strcmp(task, "MicRd");
+  s_safe = (quick && voice_task) || s_quick.n >= 3;
+  if (s_safe) printf("Start: sicherer Start nach %lu schnellen Abstürzen (Task %s), Sprachsteuerung bleibt aus\r\n",
+                     (unsigned long)s_quick.n, task[0] ? task : "?");
+
   if (!s_abnormal && !phase) {
     s_phase.magic = 0;
     printf("Start: %s\r\n", reason_text(r));
@@ -249,6 +269,7 @@ void crash_begin() {
   }
   s_reason = reason_text(r);
   int o = snprintf(s_text, sizeof(s_text), "%s", s_reason);
+  if (s_safe) o += snprintf(s_text + o, sizeof(s_text) - o, " – Sprachsteuerung vorerst aus");
   if (phase) {
     snprintf(s_where, sizeof(s_where), "%s", s_phase.what);
     s_pct = s_phase.pct;
@@ -291,6 +312,7 @@ void crash_begin() {
 #else
 // Simulator: immer normal eingeschaltet (Test mit Umgebungsvariable CRASH)
 #include <stdlib.h>
+bool crash_safe_mode() { return getenv("SAFEMODE") != NULL; }
 void crash_phase(const char *what, int pct) {}
 void crash_tick() {}
 void crash_begin() {

@@ -319,6 +319,8 @@ const char *voice_capture_last() { return ""; }
 #include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/stream_buffer.h>
+#include <freertos/idf_additions.h>
+#include <esp_heap_caps.h>
 #include "mic.h"
 extern I2SClass &mic_i2s();
 static void ensure_task();
@@ -1003,6 +1005,15 @@ static volatile bool s_rd_on = false, s_rd_idle = true;
 static volatile uint32_t s_rd_lost = 0;  // verworfene Abtastwerte (Puffer voll)
 static volatile uint32_t s_rd_max = 0;   // höchster Füllstand in Bytes
 
+// Stapel von Voice und MicRd im PSRAM (Kern 0): spart ~11 KB internen RAM, den WLAN, TLS
+// (Update) und Bluetooth brauchen. Erlaubt, weil beide Tasks nie den Flash beschreiben
+// (nur SD-Karte und Mikrofon). Klappt das nicht, normal im internen RAM.
+static void task_psram(TaskFunction_t fn, const char *name, uint32_t stack, UBaseType_t prio, TaskHandle_t *h) {
+  if (xTaskCreatePinnedToCoreWithCaps(fn, name, stack, NULL, prio, h, 0, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) == pdPASS)
+    return;
+  xTaskCreatePinnedToCore(fn, name, stack, NULL, prio, h, 0);
+}
+
 static void reader_task(void *arg) {
   static int16_t raw[512];  // 256 Stereo-Paare = 16 ms
   static int16_t mono[256];
@@ -1039,7 +1050,7 @@ static bool reader_start() {
     s_sb = xStreamBufferCreateStatic(RD_BUF_BYTES, 2, mem, &s_sb_ctl);
     if (!s_sb) return false;
     static TaskHandle_t rd = NULL;
-    if (!rd) xTaskCreatePinnedToCore(reader_task, "MicRd", 3072, NULL, 6, &rd, 0);
+    if (!rd) task_psram(reader_task, "MicRd", 3072, 6, &rd);
   }
   xStreamBufferReset(s_sb);
   s_rd_lost = 0;
@@ -1149,7 +1160,7 @@ static void voice_task(void *arg) {
 }
 
 static void ensure_task() {
-  if (!s_task) xTaskCreatePinnedToCore(voice_task, "Voice", 8192, NULL, 3, &s_task, 0);
+  if (!s_task) task_psram(voice_task, "Voice", 8192, 3, &s_task);
 }
 
 bool voice_begin() {

@@ -6,7 +6,8 @@
 //  Tastaturlayout am PC (QWERTZ/QWERTY) egal.
 // ============================================================
 
-void ble_kbd_begin();                       // Bluetooth starten (mehrfacher Aufruf ist ok)
+bool ble_kbd_begin();                       // Bluetooth starten (mehrfacher Aufruf ist ok), false = zu wenig Speicher
+bool ble_kbd_no_memory();                   // letzter Start abgelehnt: zu wenig interner RAM
 bool ble_kbd_enabled();                     // in config.h eingeschaltet?
 bool ble_kbd_connected();                   // PC gekoppelt und verbunden?
 bool ble_kbd_send_line(const char *digits); // Ziffern tippen + Enter

@@ -830,8 +830,11 @@ static void home_update_cb(lv_timer_t *t) {
 
   lv_obj_t *act = lv_tileview_get_tile_act(h_tv);
   if (act == NULL || act == h_tile0) {
-    if (!ui_simple()) pot_detect();  // Einfach: keine Topferkennung, kein Countdown
-    neg_tare_check();
+    // Langzeitmessung läuft: nichts tarieren (Topferkennung bzw. Minus-Tara würden die Kurve
+    // springen lassen, wenn das Gewicht zufällig in die Nähe eines Topfes kommt)
+    bool lt = lt_running();
+    if (!ui_simple() && !lt) pot_detect();  // Einfach: keine Topferkennung, kein Countdown
+    if (!lt) neg_tare_check();
     if (!ui_simple()) autosave_check();
     speak_check();
     tgt_check();
@@ -1970,6 +1973,7 @@ void ui_init() {
       hal_set_datetime(y, mo, d, h, mi, 0);
   }
   sound_begin();
+  if (g_set.voice_on && crash_safe_mode()) g_set.voice_on = false;  // nach Absturz-Schleife: erst einmal aus
   if (g_set.voice_on) voice_begin();  // Spracherkennung, falls eingeschaltet
   pots_load();
   recipes_create_example();

@@ -145,7 +145,7 @@ void spools_load();
 bool spools_save();
 
 // ---------------- Spieler (Schätzspiel, Trinkspiel, Weboberfläche) ----------------
-#define PLAYER_MAX 8
+#define PLAYER_MAX 32  // gespeicherte Spieler (früher 8; mehr wurden still verworfen)
 #define FILE_PLAYERS "/Waage/Spiel/spieler.txt"
 extern char g_player_names[PLAYER_MAX][20];
 extern int g_player_count;

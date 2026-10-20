@@ -195,11 +195,12 @@ static void zc_timer_cb(lv_timer_t *t) {
   }
 
   // Bluetooth-Status: 0 = aus, 1 = wartet, 2 = verbunden
-  int bt = !ble_kbd_enabled() ? 0 : (ble_kbd_connected() ? 2 : 1);
+  int bt = !ble_kbd_enabled() ? 0 : (ble_kbd_connected() ? 2 : (ble_kbd_no_memory() ? 3 : 1));
   if (bt != zc_prev_bt) {
     zc_prev_bt = bt;
     if (bt == 2) ui_chip_set(zc_bt, "Bluetooth verbunden", C_ACCENT, false);
     else if (bt == 1) ui_chip_set(zc_bt, "Nicht gekoppelt · Hilfe ›", C_WARN, false);
+    else if (bt == 3) ui_chip_set(zc_bt, "Bluetooth: zu wenig Speicher", C_WARN, false);
     else ui_chip_set(zc_bt, "Bluetooth aus", C_FAINT, false);
   }
 }
@@ -248,8 +249,10 @@ static lv_obj_t *page_count_create() {
 static lv_obj_t *bt_chip;
 
 static void bt_timer_cb(lv_timer_t *t) {
+  if (ble_kbd_no_memory()) ble_kbd_begin();  // vielleicht reicht der Speicher inzwischen
   if (!ble_kbd_enabled()) ui_chip_set(bt_chip, "Bluetooth ausgeschaltet", C_FAINT, false);
   else if (ble_kbd_connected()) ui_chip_set(bt_chip, "Verbunden", C_ACCENT, false);
+  else if (ble_kbd_no_memory()) ui_chip_set(bt_chip, "Bluetooth: zu wenig Speicher", C_WARN, false);
   else ui_chip_set(bt_chip, "Sichtbar als „Waage“", C_WARN, false);
 }
 

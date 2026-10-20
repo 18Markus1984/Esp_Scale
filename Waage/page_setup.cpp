@@ -17,6 +17,7 @@
 #include "net.h"
 #include "web.h"
 #include "voice.h"
+#include "crash.h"
 #include "scale.h"
 #include "storage.h"
 #include "ui_text.h"
@@ -251,6 +252,7 @@ static void row_value(int cat, int row, char *b, int len) {
       else if (voice_start_stuck()) snprintf(b, len, T("Start hängt"));
       else if (voice_starting()) snprintf(b, len, T("startet …"));
       else if (voice_running()) snprintf(b, len, "%s", T("an"));
+      else if (crash_safe_mode()) snprintf(b, len, "%s", T("aus (Absturz)"));  // sicherer Start, siehe crash.h
       else if (!voice_model_ok()) snprintf(b, len, "%s", T("kein Modell"));
       else snprintf(b, len, "%s", T("aus"));
       break;
@@ -348,7 +350,7 @@ static void row_cb(lv_event_t *e) {
       return;
     }
     case 25:
-      if (!voice_available() || voice_starting()) return;
+      if (!voice_available() || (voice_starting() && !g_set.voice_on)) return;  // Ausschalten geht immer
       if (!g_set.voice_on && !voice_model_ok()) {  // ohne Modell auf der SD-Karte kein Zuhören
         sound_play(SND_WARN);
         return;
@@ -1315,6 +1317,9 @@ lv_obj_t *page_web_quick_create() {
 //  und Adresse der Weboberfläche. Antippen wechselt.
 //  Braucht LV_USE_QRCODE 1 in lv_conf.h (siehe README).
 // ------------------------------------------------------------
+#if !LV_USE_QRCODE
+#warning "LV_USE_QRCODE ist in lv_conf.h aus: kein QR-Code fürs WLAN. In lv_conf.h auf 1 setzen (siehe README)."
+#endif
 static int qr_mode = 0;  // 0 = WLAN, 1 = Adresse
 static lv_obj_t *qr_code, *qr_caption, *qr_hint;
 

@@ -397,6 +397,18 @@ static void tls_use_psram() {
   mbedtls_platform_set_calloc_free(tls_calloc, tls_free);
 }
 
+// TLS braucht Stapel; auf Kern 0 neben dem WLAN, die Anzeige läuft weiter.
+// Der Stapel muss intern sein (der Task beschreibt den Flash).
+#define CREATE_WAIT_MS 8000
+static uint32_t s_create_from = 0;  // > 0: Task noch nicht angelegt, seit dann
+static bool try_create() {
+  if (xTaskCreatePinnedToCore(task, "update", 12288, NULL, 1, NULL, 0) == pdPASS) return true;
+  printf("Update: Task noch nicht möglich, intern frei %u, größter Block %u\r\n",
+         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+  return false;
+}
+
 static void start(bool install) {
   if (s_task) return;
   if (strstr(OTA_REPO, "DEIN-GITHUB-NAME")) {  // noch nicht eingerichtet
@@ -417,6 +429,12 @@ static void start(bool install) {
   // Spracherkennung ruht: Mikrofon und Netz brauchen Rechenzeit auf Kern 0
   // (dort laufen auch WLAN und TLS), wieder an in upd_loop
   voice_hold(true);
+  // Task zuerst anlegen (12 KB Stapel intern), dann erst das WLAN starten: das holt sich
+  // selbst viel internen RAM. Gelingt es nicht, versucht upd_loop es noch ein paar Sekunden
+  // (vorher kam sofort "Zu wenig Speicher", z. B. mit laufender Spracherkennung).
+  s_task = true;
+  s_state = UPD_CONNECT;
+  s_create_from = try_create() ? 0 : (millis() | 1);
   // Verbindung anstoßen (eigenes WLAN der Weboberfläche dabei offen lassen)
   if (WiFi.status() != WL_CONNECTED) net_connect_start(web_running() && web_ap_mode());
   // Während Suche und Download das Display-Drehen aussetzen: TLS und WLAN
@@ -425,13 +443,6 @@ static void start(bool install) {
   if (disp_rot_get() != 0) {
     disp_rot_suspend();
     s_rot_paused = true;
-  }
-  s_task = true;
-  s_state = UPD_CONNECT;
-  // TLS braucht Stapel; auf Kern 0 neben dem WLAN, die Anzeige läuft weiter
-  if (xTaskCreatePinnedToCore(task, "update", 12288, NULL, 1, NULL, 0) != pdPASS) {
-    s_task = false;
-    fail("Zu wenig Speicher");
   }
 }
 
@@ -471,6 +482,19 @@ void upd_install() {
 }
 
 void upd_loop() {
+  if (s_create_from) {  // Task wartet auf Speicher (siehe start)
+    static uint32_t tried = 0;
+    if (millis() - tried >= 250) {
+      tried = millis();
+      if (try_create()) s_create_from = 0;
+      else if (millis() - s_create_from > CREATE_WAIT_MS) {
+        s_create_from = 0;
+        crash_phase(NULL, 0);
+        fail("Zu wenig Speicher");
+        s_task = false;
+      }
+    }
+  }
   upd_state_t st = s_state;
   if (st != s_seen) {
     s_seen = st;

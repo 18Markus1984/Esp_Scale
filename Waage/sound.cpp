@@ -56,6 +56,7 @@ const char *scheme_name(int scheme) {
 //  Tonerzeugung und WAV-Wiedergabe auf dem ESP32
 // ============================================================
 #include <Arduino.h>
+#include <esp_heap_caps.h>
 #include <ESP_I2S.h>
 #include "sound_swell.h"
 #include <FS.h>
@@ -69,6 +70,9 @@ const char *scheme_name(int scheme) {
 #define VOICE_DIR "/Waage/Stimme"
 #define SPEAK_MAX 24        // so viele Bausteine je Ansage
 #define DEBOUNCE_MS 60      // gleicher Ton wird so lange unterdrückt
+#define WAV_MAX_BYTES (512 * 1024)  // bis zu dieser Größe wird ein Wort ganz geladen und gekürzt
+#define TRIM_LEAD_MS 15     // so viel Stille bleibt vor einem Wort
+#define TRIM_TAIL_MS 45     // und danach (Abstand zum nächsten Wort)
 
 typedef struct {
   uint16_t freq;  // 0 = Pause
@@ -224,10 +228,60 @@ static bool play_wav(const char *name) {
     return false;
   }
 
-  static int16_t in[512];
+  // Ganze Datei in den PSRAM und die Stille am Anfang und Ende abschneiden: die Pakete haben
+  // je Wort ~100 ms davor und 130–180 ms danach, zusammen ~0,3 s Pause zwischen zwei Wörtern
+  // ("zwei … hundert … fünfzig"). Jetzt bleiben TRIM_LEAD_MS/TRIM_TAIL_MS übrig.
   static int16_t out[1024 * 2];
   float gain = (float)g_set.volume / 100.0f;
   float step = (float)rate / RATE;  // >1: Datei hat mehr Abtastwerte als nötig
+  size_t bytes = f.size() > 44 ? f.size() - 44 : 0;
+  int16_t *pcm = (bytes > 0 && bytes <= WAV_MAX_BYTES)
+                     ? (int16_t *)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+                     : NULL;
+  if (pcm) {
+    size_t got = 0;
+    while (got < bytes) {
+      storage_lock();
+      int n = storage_ok() ? f.read((uint8_t *)pcm + got, bytes - got > 4096 ? 4096 : bytes - got) : -1;
+      storage_unlock();
+      if (n <= 0) break;
+      got += n;
+    }
+    storage_lock();
+    f.close();
+    storage_unlock();
+    int frames = (int)(got / 2 / channels);
+    int peak = 0;
+    for (int i = 0; i < frames; i++) {
+      int a = abs((int)pcm[i * channels]);
+      if (a > peak) peak = a;
+    }
+    int thr = peak * 3 / 100;
+    if (thr < 150) thr = 150;
+    int first = 0, last = frames - 1;
+    while (first < frames && abs((int)pcm[first * channels]) <= thr) first++;
+    while (last > first && abs((int)pcm[last * channels]) <= thr) last--;
+    int a = first - (int)(rate * TRIM_LEAD_MS / 1000), b = last + 1 + (int)(rate * TRIM_TAIL_MS / 1000);
+    if (a < 0 || first >= frames) a = 0;
+    if (b > frames || first >= frames) b = frames;
+    float pos = a;
+    while (pos < b && !s_abort_speech) {
+      int o = 0;
+      while (pos < b && o < 1024) {
+        int16_t v = (int16_t)(pcm[(int)pos * channels] * gain);
+        out[2 * o] = v;
+        out[2 * o + 1] = v;
+        o++;
+        pos += step;
+      }
+      if (o > 0) s_i2s.write((uint8_t *)out, o * 4);
+    }
+    free(pcm);
+    return true;
+  }
+
+  // zu groß oder kein PSRAM: wie früher Stück für Stück, ungekürzt
+  static int16_t in[512];
   float pos = 0;
   while (!s_abort_speech) {
     storage_lock();  // nur für das Lesen sperren, nicht während der Ausgabe
@@ -746,7 +800,8 @@ bool sound_say_time(int h, int mi) {
   static msg_t m;
   m.type = 1;
   m.count = 0;
-  add_number(&m, h);
+  if (h == 1 && g_set.lang != LANG_EN) add_word(&m, "ein");  // "ein Uhr", nicht "eins Uhr"
+  else add_number(&m, h);
   if (g_set.lang != LANG_EN || mi == 0) add_word(&m, word_file("uhr"));
   if (mi > 0) add_number(&m, mi);
   return say_msg(&m, true);

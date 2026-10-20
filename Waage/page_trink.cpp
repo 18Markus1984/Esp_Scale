@@ -47,6 +47,11 @@ static float t_dev_sum[PLAYER_MAX]; // Summe der Abweichungen
 static float t_drunk[PLAYER_MAX];   // insgesamt getrunken (Statistik)
 static bool t_out[PLAYER_MAX];      // KO: ausgeschieden
 static int t_out_round[PLAYER_MAX]; // KO: in welcher Runde raus
+static int t_nsip[PLAYER_MAX];      // gewertete Schlucke (für die Bestenliste)
+// Bestenliste: mittlere Abweichung je Schluck, erst ab so vielen Schlucken. Vorher stand dort die
+// Summe – wer im KO in Runde 1 mit 16 ml rausflog, stand vor allen, die 5 Runden gespielt hatten.
+#define SCORE_MIN_SIPS 3
+#define SCORE_GAME "Trinkspiel2"  // neuer Name: alte Summen-Einträge zählen nicht mehr
 
 static lv_obj_t *page_turn_create();
 static lv_obj_t *page_round_end_create();
@@ -122,6 +127,7 @@ static void su_go_cb(lv_event_t *e) {
   t_tol = KO_TOL_START;
   memset(t_dev_sum, 0, sizeof(t_dev_sum));
   memset(t_drunk, 0, sizeof(t_drunk));
+  memset(t_nsip, 0, sizeof(t_nsip));
   memset(t_out, 0, sizeof(t_out));
   scale_tare();  // Waage ist leer
   new_target();
@@ -331,6 +337,7 @@ static lv_obj_t *page_round_end_create() {
     if (t_out[i]) continue;
     float dev = fabsf(t_sip[i] - t_target);
     t_dev_sum[i] += dev;
+    t_nsip[i]++;
     if (dev <= t_tol) would_stay++;
   }
   if (t_mode == 1 && would_stay > 0) {  // raus nur, wenn nicht alle raus wären
@@ -418,7 +425,8 @@ static lv_obj_t *page_board_create() {
                   (int)lroundf(t_drunk[order[i]]));
   storage_append(DIR_GAME "/spiele.txt", line);
   snprintf(note, sizeof(note), T("Trinkspiel: Sieger %s"), pick_name(order[0]));
-  for (int i = 0; i < T_COUNT; i++) score_add("Trinkspiel", pick_name(i), t_dev_sum[i], "ml");
+  for (int i = 0; i < T_COUNT; i++)
+    if (t_nsip[i] >= SCORE_MIN_SIPS) score_add(SCORE_GAME, pick_name(i), t_dev_sum[i] / t_nsip[i], "ml");
   log_add(t_dev_sum[order[0]], note);
   sound_play(SND_DONE);
 

@@ -26,3 +26,8 @@ const char *crash_reason();       // "" oder z. B. "Absturz"
 const char *crash_where();        // "" oder z. B. "Beim Laden des Updates"
 int crash_pct();
 const char *crash_when();         // Zeitpunkt des Absturzes ("2026-10-14 08:31:05"), "" = unbekannt
+// Sicherer Start: true, wenn die Sprachsteuerung diesmal nicht starten soll – der letzte
+// Absturz war kurz nach dem Start im Sprach-Task (Voice/MicRd) oder es gab 3 Abstürze
+// hintereinander nach weniger als 2 min Laufzeit. Sonst endet so etwas in einer Schleife
+// aus Neustarts, in der man nichts mehr ausschalten oder updaten kann.
+bool crash_safe_mode();

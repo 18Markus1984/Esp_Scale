@@ -7,6 +7,7 @@
 #include <BLEServer.h>
 #include <BLEHIDDevice.h>
 #include <BLE2902.h>
+#include <esp_heap_caps.h>
 #include <HIDTypes.h>
 
 static BLEHIDDevice *s_hid = nullptr;
@@ -63,12 +64,38 @@ class KbdCallbacks : public BLEServerCallbacks {
   }
 };
 
-void ble_kbd_begin() {
-  if (s_started) return;
+// Bluetooth (Bluedroid) holt sich beim Start viel internen RAM am Stück. Reicht er nicht,
+// bricht der BT-Stapel mit assert ab (Absturz.txt: BTU_TASK/BTC_TASK "vQueueDelete",
+// immer beim Antippen von Bluetooth, intern frei 68–73 KB, größter Block 30 KB).
+// Darum vorher prüfen und lieber ablehnen.
+#define BLE_MIN_FREE (90 * 1024)
+#define BLE_MIN_BLOCK (40 * 1024)
+static bool s_no_mem = false;
+static bool s_failed = false;  // Start schon einmal gescheitert: nicht erneut versuchen
+bool ble_kbd_no_memory() { return s_no_mem; }
+
+bool ble_kbd_begin() {
+  if (s_failed) return false;
+  if (s_started) return true;
+  size_t fr = heap_caps_get_free_size(MALLOC_CAP_INTERNAL), bl = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+  if (fr < BLE_MIN_FREE || bl < BLE_MIN_BLOCK) {
+    if (!s_no_mem) printf("Bluetooth: zu wenig Speicher (intern frei %u, Block %u)\r\n", (unsigned)fr, (unsigned)bl);
+    s_no_mem = true;
+    return false;
+  }
+  s_no_mem = false;
   s_started = true;
 
   BLEDevice::init("Waage");
-  BLEServer *server = BLEDevice::createServer();
+  // Startet der BT-Stapel nicht (Speicher), liefert createServer NULL: früher Absturz
+  // "Schreiben an Adresse 0x11c" in ble_kbd_begin (Absturz.txt 16./17./19.10., IDE-Build 0.0.0)
+  BLEServer *server = BLEDevice::getInitialized() ? BLEDevice::createServer() : NULL;
+  if (!server) {
+    printf("Bluetooth: Start fehlgeschlagen (intern frei %u)\r\n", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    s_no_mem = true;  // gilt wie zu wenig Speicher; kein zweiter Versuch in diesem Lauf
+    s_failed = true;
+    return false;
+  }
   server->setCallbacks(new KbdCallbacks());
 
   s_hid = new BLEHIDDevice(server);
@@ -88,6 +115,7 @@ void ble_kbd_begin() {
   adv->setAppearance(HID_KEYBOARD);
   adv->addServiceUUID(s_hid->hidService()->getUUID());
   adv->start();
+  return true;
 }
 
 bool ble_kbd_enabled() {
@@ -121,7 +149,8 @@ bool ble_kbd_send_line(const char *digits) {
 
 #else
 // Bluetooth ausgeschaltet: alles ohne Wirkung
-void ble_kbd_begin() {}
+bool ble_kbd_begin() { return false; }
+bool ble_kbd_no_memory() { return false; }
 bool ble_kbd_enabled() { return false; }
 bool ble_kbd_connected() { return false; }
 bool ble_kbd_send_line(const char *digits) { return false; }

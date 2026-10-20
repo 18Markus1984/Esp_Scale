@@ -140,7 +140,7 @@ static void nm_pick_cb(lv_event_t *e) {
 // Neuen Spieler anlegen: Name über den Buchstabenring
 static void nm_new_done(bool ok, const char *text) {
   if (ok && text[0]) {
-    player_add(text);
+    if (!player_add(text)) sound_play(SND_WARN);  // Liste voll (PLAYER_MAX)
     int i = player_find(text);
     if (i >= 0) g_player_in[i] = true;
   }
