@@ -331,9 +331,11 @@ def sortieren(aufnahmen, alles_fragen=False, whisper=None, nur_neuestes=False):
         top = sum(1 for g in gs if g[0] == (sure[0] if sure else None))
         mc = sure[0] if len(sure) == 1 and top * 2 > len(gs) else None  # Urteil der eigenen Modelle
         dw = device_word(os.path.basename(f))
-        if mc and dw and mc.startswith("ziel_") and dw.startswith("ziel_") and mc != dw:
+        if mc and dw and mc != dw:
+            # Waage und Modell uneinig (z. B. b001_nochmal_57 -> wie_viel): nie automatisch,
+            # früher nur bei Zahlen geprüft
             print("   Waage hatte %s verstanden, Modell sagt %s – lieber selbst hören" % (dw, mc))
-            mc = None  # Zahlen verwechselt: nicht automatisch
+            mc = None
         wcls, wt = None, None
         if whisper:
             try:

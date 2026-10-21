@@ -1042,3 +1042,11 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
 - **QR-Code:** `#warning` in page_setup.cpp, wenn `LV_USE_QRCODE` 0 ist (IDE zeigt es beim Kompilieren).
 - README: neues Party-Foto `docs/images/real-party.jpg` (Markus’ Wahl IMG20261017202609 mit Bechern und Stern, ganzes Hochformat
   auf 1000 px Höhe mittig, Seiten mit unscharfer, abgedunkelter Vergrößerung desselben Bilds aufgefüllt).
+
+### Stand 20.10.2026 (abends): Training mit Party-Mitschnitten
+- Markus' Lauf: 61 Mitschnitte (27 automatisch, 11 von Hand), Modell 2026-10-20: Prüfung 74 %, eigene Prüfdateien
+  (20 dB leiser) 81 % vs. 83 % für 2026-10-16_1111 – Unterschied 2 von 110 Dateien, im Rauschen. Weckwort-Prüfung
+  jetzt 13–14 Dateien (neue, schwerere Mitschnitte); alle Modelle verlieren darauf. Fehlalarme Befehle 79 → 63.
+- Fehler gefunden: `b001_nochmal_57.wav` wurde automatisch nach `wie_viel` sortiert (Modell 76 %), obwohl die Waage
+  „nochmal“ verstanden hatte. Die Prüfung Waage ↔ Modell galt nur für ziel_*. Jetzt für alle `b…`-Dateien:
+  uneinig → nachfragen (kws_mitschnitt.py, LIESMICH).

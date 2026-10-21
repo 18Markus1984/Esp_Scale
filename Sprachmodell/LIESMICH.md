@@ -176,8 +176,8 @@ Inhalt = schon da). **Gleichzeitig holt es neue Wort-Aufnahmen** (Setup → Ton 
 und legt sie direkt in `Aufnahmen\<wort>\` ab; was dort schon liegt, wird übersprungen (ohne:
 `--ohne-aufnahmen`). Dann rechnen **alle Modelle** jede Datei durch. Sind sich die sicheren Modelle
 einig (Weckwort über der Weckschwelle, Befehl ab 60 %, anderes Wort ab 70 %) und hat die Mehrheit
-aller Modelle dasselbe Wort vorn, wird automatisch
-einsortiert: nur das gemeinte Wort wird ausgeschnitten und als `Aufnahmen\<wort>\m_<name>.wav`
+aller Modelle dasselbe Wort vorn (und, bei `b…`-Dateien, dasselbe Wort, das die Waage verstanden hatte),
+wird automatisch einsortiert: nur das gemeinte Wort wird ausgeschnitten und als `Aufnahmen\<wort>\m_<name>.wav`
 gespeichert. Ist **kein Modell sicher**, spielt das Skript die Datei ab und fragt:
 
     Enter = Vorschlag   h = hallo_waage   u = anderes Wort   Nummer = Wort aus der Liste
