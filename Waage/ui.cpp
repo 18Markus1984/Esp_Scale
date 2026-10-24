@@ -503,14 +503,24 @@ static void system_cb(int index) {
 // Erst nach dem Abnehmen (Waage wieder leer) wird erneut gespeichert.
 static uint32_t as_stable_since = 0;
 static bool as_done = false;
+static float as_saved_g = 0;   // zuletzt automatisch gespeichertes Gewicht
+static bool as_changed = false;  // neu wegen Gewichtsänderung
 
 static void autosave_check() {
   float net = scale_net();
   if (fabsf(net) < EMPTY_G) {  // leer -> bereit für die nächste Wägung
     as_done = false;
+    as_changed = false;
     as_stable_since = 0;
     s_pot_rejected = false;
     return;
+  }
+  // Nachgelegt oder entnommen: das neue Gewicht wird wieder gespeichert (wie bei der Ansage,
+  // gleiche Schwelle). Früher nur einmal pro Auflegen, bis die Waage wieder leer war.
+  if (as_done && fabsf(net - as_saved_g) > speak_change_g(as_saved_g)) {
+    as_done = false;
+    as_changed = true;
+    as_stable_since = 0;
   }
   if (!g_set.autosave || as_done || cd_active || net < AUTOSAVE_MIN_G || scale_overload()) return;
   if (!scale_stable()) {
@@ -526,6 +536,11 @@ static void autosave_check() {
   if (now - as_stable_since < AUTOSAVE_STABLE_MS) return;
 
   as_done = true;
+  // nur kurz ausgeschlagen (Stoß) und wieder beim gespeicherten Gewicht: nicht doppelt speichern
+  bool back = as_changed && fabsf(net - as_saved_g) <= speak_change_g(as_saved_g);
+  as_changed = false;
+  if (back) return;
+  as_saved_g = net;
   const char *note = s_pot_mode != POT_NONE ? g_pots[s_pot_idx].name : "";
   int r = log_add(net, note);
   sound_play(r == 0 ? SND_WARN : SND_SAVE);

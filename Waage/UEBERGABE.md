@@ -1050,3 +1050,12 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
 - Fehler gefunden: `b001_nochmal_57.wav` wurde automatisch nach `wie_viel` sortiert (Modell 76 %), obwohl die Waage
   „nochmal“ verstanden hatte. Die Prüfung Waage ↔ Modell galt nur für ziel_*. Jetzt für alle `b…`-Dateien:
   uneinig → nachfragen (kws_mitschnitt.py, LIESMICH).
+
+### Stand 22.10.2026: Auto-Speichern beim Nachlegen, Ansage 179,96 g
+- **Auto-Speichern** (`autosave_check`, ui.cpp): speicherte nur einmal pro Auflegen (`as_done` bis die Waage leer
+  war), angesagt wurde dagegen jede Änderung. Jetzt wie die Ansage: ändert sich das Gewicht um mehr als
+  `speak_change_g` (1 g bzw. 0,5 %) gegenüber dem zuletzt gespeicherten (`as_saved_g`), wird nach 2 s Ruhe wieder
+  gespeichert; nur kurzer Ausschlag zurück zum alten Wert = nicht doppelt (`as_changed`). Sim `AS2TEST`
+  (200 → 350 → Stoß 360/350 → 120 g: 199,7 / 349,8 / 119,8 gespeichert), Baseline t_AS2TEST.txt.
+- **Ansage „179 komma eins null“ statt 180** (`build_weight`, sound.cpp): Ganzzahl wurde abgeschnitten und nur die
+  Nachkommastelle gerundet (179,96 → 179 + lroundf(9,6) = 10). Jetzt erst auf die Stellen runden, dann teilen.

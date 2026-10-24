@@ -659,11 +659,16 @@ static void build_weight(msg_t *mp, float grams, int unit) {
     add_word(&m, "minus");  // auf Englisch derselbe Dateiname
     v = -v;
   }
-  int whole = (int)v;
-  add_number(&m, whole);
+  // Erst auf die angezeigten Stellen runden, dann teilen: 179,96 g ist "180", nicht
+  // "179 komma 10" (früher Ganzzahl abgeschnitten und nur die Nachkommastelle gerundet)
   int dec = unit_decimals(unit);
+  long scale = 1;
+  for (int i = 0; i < dec; i++) scale *= 10;
+  long all = lroundf(v * scale);
+  int whole = (int)(all / scale);
+  add_number(&m, whole);
   if (dec > 0) {
-    int frac = (int)lroundf((v - whole) * powf(10, dec));
+    int frac = (int)(all % scale);
     if (frac > 0) {
       add_word(&m, en ? "point" : "komma");
       char digits[8];
