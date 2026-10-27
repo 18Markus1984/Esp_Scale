@@ -63,6 +63,13 @@ int main(int argc,char**argv){
   g_set.lang = en ? LANG_EN : LANG_DE;
   ui_init(); run(1400); S("startbild"); run(1900); S("lagecheck");  // erst das Startbild (ui_splash.cpp) run(4000);
   S("wiegen");
+  if(getenv("VHELP")){ extern void voice_sim_cmd(const char*); extern void voice_help_tick();
+    voice_sim_cmd("!"); run(400); S("vh_hinweis"); voice_sim_cmd("tara"); run(300); S("vh_verstanden"); run(1600); S("vh_weg");
+    ui_target_start(250); run(800); voice_sim_cmd("!"); run(400); S("vh_hinweis_ziel"); voice_sim_cmd("stopp"); run(2000);
+    home(); voice_sim_cmd("!"); run(300); voice_sim_cmd("hilfe"); run(500); S("vh_hilfe"); drag(206,300,206,120,300); run(400); S("vh_hilfe_unten");
+    tap(206,352); run(500); S("vh_hilfe_zu");
+    home(); ui_open_page(page_setup_create()); run(600); tt("Ton"); run(700); S("vh_ton"); drag(206,280,206,150,300); run(400); tt("Befehle"); run(800); S("vh_befehle");
+    drag(206,300,206,120,300); run(400); S("vh_befehle_unten"); drag(206,300,206,120,300); run(400); S("vh_befehle_ende"); return 0; }
   for(int uu=1;uu<4;uu++){ g_set.unit=uu; run(400); char nb[32]; snprintf(nb,sizeof nb,"wiegen_unit%d",uu); S(nb);} g_set.unit=0; run(300);
   scale_tare(); run(2500); S("wiegen_null");
   tile(1); S("modi"); tile(2); S("system"); tile(0);

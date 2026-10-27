@@ -10,6 +10,7 @@
 #include "ui_theme.h"
 #include "mic.h"
 #include "voice.h"
+#include "voice_help.h"
 #include "kws.h"
 #include "config.h"
 #include "hal.h"
@@ -120,12 +121,14 @@ static void m_screen_del_cb(lv_event_t *e) {
   if (lv_event_get_target(e) != lv_event_get_current_target(e)) return;
   mic_listen(false);    // Pegelmessung wieder ausschalten
   voice_capture(false);  // Mitschnitt nur, solange diese Seite offen ist
+  voice_help_block(false);
 }
 
 lv_obj_t *page_mic_create() {
   lv_obj_t *s = ui_screen_create();
   m_ring = ui_ring(s, 396);
   lv_obj_add_event_cb(s, m_screen_del_cb, LV_EVENT_DELETE, NULL);
+  voice_help_block(true);  // die Seite zeigt das Zuhören selbst (Ring), kein Hinweis darüber
 
   lv_obj_t *t = ui_label(s, "Mikrofon", &font_sg_14, C_MUTED);
   lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 50);

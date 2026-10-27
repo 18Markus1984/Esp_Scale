@@ -1059,3 +1059,22 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   (200 → 350 → Stoß 360/350 → 120 g: 199,7 / 349,8 / 119,8 gespeichert), Baseline t_AS2TEST.txt.
 - **Ansage „179 komma eins null“ statt 180** (`build_weight`, sound.cpp): Ganzzahl wurde abgeschnitten und nur die
   Nachkommastelle gerundet (179,96 → 179 + lroundf(9,6) = 10). Jetzt erst auf die Stellen runden, dann teilen.
+
+### Stand 26.10.2026: Sprachsteuerung verständlicher (was kann man sagen?)
+- **Arbeitsumgebung neu aufgebaut** (Sandbox war leer): Quellen aus /mnt/user-data/outputs/Waage.zip, Waveshare-Treiber
+  und lv_conf.h aus `git clone https://github.com/18Markus1984/Esp_Scale` (/home/claude/ardu/repo → drivers/),
+  Core 3.1.1 + Libs + Toolchain + esptool von GitHub (setup.sh), LVGL 8.3.10 (git) + bogde/HX711 nach
+  /root/Arduino/libraries, `platform.local.txt` mit runtime.tools.*-Pfaden, Discovery in platform.txt auskommentiert,
+  universal-ctags (apt) + Prototypen-Einfügen in check.sh. Host-Sim: Testumgebung/ (make, `VHELP=1 ./sim de|en`).
+- **Neu `voice_help.cpp/.h`:**
+  - Nach dem Weckwort (auch Doppeltipp) deckender Hinweis auf `lv_layer_top()` (nicht anklickbar): Mikrofon,
+    „Ich höre zu …“, „Sag zum Beispiel:“ + 3 Beispiele je nach Lage (Ziel läuft: Wie viel?/Stopp/Tara; Knopf aus
+    `VOICE_NEXT_LABELS` auf der Seite: Weiter/Wie viel?/Zurück; sonst Tara/Wie viel?/250 Gramm), „„Hilfe“ zeigt alle
+    Befehle“. Nach einem Befehl 1,3 s Haken + verstandener Befehl. Ersetzt den Toast „Ich höre zu …“.
+    Auf der Mikrofonseite aus (`voice_help_block`). Takt: `voice_help_tick()` in home_update_cb nach voice_loop.
+  - Befehl „Hilfe“: Liste aller Befehle über der aktuellen Seite (bleibt erhalten), „Schließen“ oder nach 45 s zu.
+  - Setup → Ton → **Befehle** (Kennung 28, „Liste ›“): dieselbe Liste als Seite (`page_voice_cmds_create`).
+  - `ui_has_button()` (ui.cpp); „Weiter“-Knopfliste jetzt `VOICE_NEXT_LABELS` (voice_help.cpp).
+  - Sim: `voice_sim_cmd("!")` setzt jetzt auch `s_awake`, Befehle setzen `s_last` (Bestätigung sichtbar).
+- **Weboberfläche:** Einstellungen → Ton: Knopf „Alle Sprachbefehle“ klappt dieselbe Liste auf (`VCMDS`), EN-Texte im
+  EN-Wörterbuch. Englische Anführungszeichen am Gerät wie bisher “…“ (Schrift hat kein ”).

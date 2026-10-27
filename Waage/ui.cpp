@@ -14,6 +14,7 @@
 #include "sound.h"
 #include "ui_power.h"
 #include "voice.h"
+#include "voice_help.h"
 #include "batt.h"
 #include "tools.h"
 #include "crash.h"
@@ -237,6 +238,10 @@ static lv_obj_t *find_btn(lv_obj_t *obj, const char *const labels[], int count) 
     if (r) return r;
   }
   return NULL;
+}
+
+bool ui_has_button(const char *const labels[], int count) {
+  return find_btn(lv_scr_act(), labels, count) != NULL;
 }
 
 bool ui_click_button(const char *const labels[], int count) {
@@ -810,6 +815,7 @@ static void home_update_cb(lv_timer_t *t) {
   net_loop();
   storage_loop();
   voice_loop();
+  voice_help_tick();  // nach „Hallo Waage“: Beispiele einblenden
   batt_loop();
   tools_tick();  // Küchentimer, Langzeitmessung
   upd_loop();    // Online-Update: Ton, WLAN freigeben, Neustart
@@ -951,13 +957,7 @@ static void home_update_cb(lv_timer_t *t) {
     lv_obj_set_style_text_color(save_lbl, over ? C_FAINT : C_TEXT, 0);
   }
 
-  // Sprachbefehle in den anderen Profilen: kurze Meldung beim Weckwort
-  {
-    static bool was_awake = false;
-    bool aw = voice_awake();
-    if (aw && !was_awake && !simple) show_toast("Ich höre zu …", C_ACCENT);
-    was_awake = aw;
-  }
+  // Nach dem Weckwort: Hinweis mit Beispielen über der Seite (voice_help.cpp, alle Profile)
 
   // Einfach: Lautsprecher leuchtet, solange angesagt wird; keine Statuszeile
   if (simple) {

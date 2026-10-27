@@ -36,6 +36,7 @@ void ui_pots_changed();
 // Drückt auf der aktuellen Seite den ersten Knopf, dessen Beschriftung
 // in der Liste steht (für Sprachbefehle). true = gefunden
 bool ui_click_button(const char *const labels[], int count);
+bool ui_has_button(const char *const labels[], int count);  // gibt es einen solchen Knopf (aktiv) auf der Seite?
 
 // Touch nach einem Seitenwechsel kurz sperren (verhindert Durchklicken)
 void ui_input_lock();

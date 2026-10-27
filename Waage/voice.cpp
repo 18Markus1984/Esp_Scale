@@ -34,6 +34,7 @@
 //  überhaupt genug hört.
 // ============================================================
 #include "voice.h"
+#include "voice_help.h"
 #include "config.h"
 
 #if USE_VOICE && defined(ARDUINO)
@@ -938,9 +939,7 @@ static void run_cmd(const char *c) {
     if (ok && !g_set.speak_ev) sound_say("gespeichert");
     if (!ok) sound_say("geht_nicht");
   } else if (strcmp(c, "weiter") == 0) {
-    static const char *const NEXT_LABELS[] = { "Weiter", "Fertig", "Start", "Tippen", "Los",
-                                               "Nächste Runde", "Übernehmen", "Mixen" };
-    if (!ui_click_button(NEXT_LABELS, sizeof(NEXT_LABELS) / sizeof(NEXT_LABELS[0]))) {
+    if (!ui_click_button(VOICE_NEXT_LABELS, VOICE_NEXT_COUNT)) {
       if (!sound_say("geht_nicht")) sound_play(SND_WARN);  // "Das geht hier gerade nicht."
     } else {
       sound_say("weiter");
@@ -961,6 +960,7 @@ static void run_cmd(const char *c) {
     int g = atoi(c + 5);
     if (g > 0 && !ui_target_start(g)) sound_play(SND_WARN);  // sagt "Ziel … Gramm. Jetzt einfüllen."
   } else if (strcmp(c, "hilfe") == 0) {
+    voice_help_show_all();  // Liste aller Befehle über der aktuellen Seite
     if (!sound_say("hilfe")) sound_play(SND_WARN);
   } else if (strcmp(c, "nochmal") == 0) {
     if (!sound_repeat() && !sound_say("geht_nicht")) sound_play(SND_WARN);
@@ -1209,9 +1209,17 @@ void voice_stop() {
 void voice_rec_session(bool on) { s_session += on ? 1 : (s_session > 0 ? -1 : 0); }
 void voice_hold(bool on) { s_hold = on; }
 void voice_sim_cmd(const char *cls) {
-  if (!strcmp(cls, "!")) s_ev_wake = true;         // wie "Hallo Waage" erkannt
-  else if (!strcmp(cls, "?")) s_ev_notund = true;  // etwas gesagt, nichts verstanden
-  else run_cmd(cls);
+  if (!strcmp(cls, "!")) {  // wie "Hallo Waage" erkannt
+    s_ev_wake = true;
+    s_awake = true;
+    s_awake_until = s_clock + AWAKE_MS;
+  } else if (!strcmp(cls, "?")) {
+    s_ev_notund = true;  // etwas gesagt, nichts verstanden
+  } else {
+    snprintf(s_last, sizeof(s_last), "%s", cls);  // wie an der Waage: zuletzt verstanden
+    s_last_ms = hal_millis();
+    run_cmd(cls);
+  }
 }
 void voice_sim_feed(const int16_t *pcm, int n) {
   while (n > 0) {
