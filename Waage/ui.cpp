@@ -82,6 +82,7 @@ static const ui_list_item_t GROUP_SPIELE[] = {
   { "Trinkspiel", "Schluck schätzen", ICON_TRINK },
   { "Blindgießen", "Menge ohne Anzeige", ICON_BLIND },
   { "Halbe-Halbe", "genau in der Mitte teilen", ICON_HALB },
+  { "Ex", "Glas auf Zeit leeren", ICON_EX },
 };
 
 static const ui_list_item_t SYSTEM_ITEMS[] = {
@@ -100,11 +101,11 @@ static const page_create_fn PAGES_KUECHE[] = { page_rezept_create,  page_cocktai
 static const page_create_fn PAGES_WERKSTATT[] = { page_spule_create, page_zaehlen_create,  page_porto_create,
                                                    page_mix_create,   page_langzeit_create, page_muenzen_create };
 static const page_create_fn PAGES_SPIELE[] = { page_spiel_create, page_trink_create, page_blind_create,
-                                               page_halb_create };
+                                               page_halb_create,  page_ex_create };
 
 static const ui_list_item_t *const GROUP_ITEMS[] = { GROUP_KUECHE, GROUP_WERKSTATT, GROUP_SPIELE };
 static const page_create_fn *const GROUP_PAGES[] = { PAGES_KUECHE, PAGES_WERKSTATT, PAGES_SPIELE };
-static const int GROUP_COUNT[] = { 6, 6, 4 };
+static const int GROUP_COUNT[] = { 6, 6, 5 };
 
 static const page_create_fn SYSTEM_PAGES[] = {
   page_web_quick_create,  // Weboberfläche (startet sie gleich)

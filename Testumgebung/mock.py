@@ -128,7 +128,9 @@ class H(http.server.BaseHTTPRequestHandler):
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Lena","value":38.0,"unit":"g"},
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Tom","value":52.0,"unit":"g"},
             {"day":"2026-09-21","game":"Trinkspiel","name":"Lena","value":14.0,"unit":"ml"},
-            {"day":"2026-09-21","game":"Trinkspiel","name":"Mia","value":9.0,"unit":"ml"}])
+            {"day":"2026-09-21","game":"Trinkspiel","name":"Mia","value":9.0,"unit":"ml"},
+            {"day":"2026-10-30","game":"Ex","name":"Tom","value":3.9,"unit":"s","extra":500,"xunit":"ml"},
+            {"day":"2026-10-30","game":"Ex","name":"Lena","value":5.2,"unit":"s","extra":330,"xunit":"ml"}])
         if p=="/api/player_add": return self.j({"ok":1})
         if p=="/api/settings": return self.j(SET)
         if p=="/api/players": return self.j(st.get("names",["Lena","Tom","Mia"]))

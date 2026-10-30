@@ -167,16 +167,21 @@ bool player_add(const char *name);             // neuen Spieler anlegen und spei
 #define FILE_SCORES "/Waage/Spiel/bestenliste.txt"
 #define SCORE_MAX 200
 
+// Optional zweiter Wert (z. B. Ex: Zeit in s und getrunkene ml): Datum;Spiel;Name;Wert;Einheit;Wert2;Einheit2
 typedef struct {
   char day[11];
   char game[12];
   char name[20];
   float value;
   char unit[4];
+  float extra;     // 0 = keiner
+  char xunit[4];
 } score_t;
 
 bool score_add(const char *game, const char *name, float value, const char *unit);
+bool score_add2(const char *game, const char *name, float value, const char *unit, float extra, const char *xunit);
 int  scores_load(score_t *out, int max);  // neueste zuerst
+bool score_best(const char *game, score_t *out);  // kleinster Wert dieses Spiels, false = noch keiner
 
 // ---------------- Ergebnisse der Modi mitschreiben ----------------
 // In den Modi-Seiten regelmäßig aufrufen. Schreibt einmal pro Auflegen ins

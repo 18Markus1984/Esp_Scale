@@ -57,6 +57,7 @@ Für den QR-Code (System → Weboberfläche) in derselben Datei außerdem:
 | `page_muenzen.cpp` | Münzzähler und Kassensturz |
 | `page_blind.cpp` | Spiel Blindgießen |
 | `page_halb.cpp` | Spiel Halbe-Halbe (in der Mitte teilen) |
+| `page_ex.cpp` | Spiel Ex (Glas auf Zeit leeren) |
 | `tools.*` | Hintergrunddienste: Küchentimer, Langzeitmessung |
 | `page_zaehlen.cpp` | Modus Zählen: Referenz lernen, zählen, per Bluetooth senden |
 | `page_porto.cpp` | Modus Porto: Briefklasse und Preis (Stand 2026) |
@@ -221,7 +222,7 @@ Der Akku bleibt dauerhaft angeschlossen, geschaltet wird über die PWR-Taste:
 
 Alle Modi der Waage gibt es auch im Browser, gruppiert wie am Gerät: Küche (Rezept,
 Cocktail, Ziel, Portionieren, Timer, Tassen & Löffel), Werkstatt (Spule, Zählen, Porto,
-2K mischen, Langzeit, Münzen) und Spiele (Schätzen, Trinken, Blindgießen, Halbe-Halbe).
+2K mischen, Langzeit, Münzen) und Spiele (Schätzen, Trinken, Blindgießen, Halbe-Halbe, Ex).
 Timer und Langzeitmessung laufen auf der Waage weiter, auch wenn der Browser zu ist; die
 Startseite zeigt laufende Timer, eine laufende Messung und einen abgelaufenen Timer mit
 „Alarm aus“.

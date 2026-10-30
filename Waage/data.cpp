@@ -731,13 +731,49 @@ bool player_add(const char *name) {
 // ------------------------------------------------------------
 //  Bestenliste: alle Spiele in einer Datei
 // ------------------------------------------------------------
-bool score_add(const char *game, const char *name, float value, const char *unit) {
+bool score_add2(const char *game, const char *name, float value, const char *unit, float extra, const char *xunit) {
   char day[11];
   log_today(day);
-  char line[80], val[12];
+  char line[96], val[12], x[12];
   fmt_num(val, sizeof(val), value, 1);
-  snprintf(line, sizeof(line), "%s;%s;%s;%s;%s", day[0] ? day : "?", game, name, val, unit);
+  int n = snprintf(line, sizeof(line), "%s;%s;%s;%s;%s", day[0] ? day : "?", game, name, val, unit);
+  if (xunit && xunit[0] && n < (int)sizeof(line)) {
+    fmt_num(x, sizeof(x), extra, 0);
+    snprintf(line + n, sizeof(line) - n, ";%s;%s", x, xunit);
+  }
   return storage_append(FILE_SCORES, line);
+}
+
+bool score_add(const char *game, const char *name, float value, const char *unit) {
+  return score_add2(game, name, value, unit, 0, NULL);
+}
+
+// Eine Zeile lesen: Datum;Spiel;Name;Wert;Einheit[;Wert2;Einheit2]
+static bool score_parse(const char *line, score_t *s) {
+  char val[16] = "", x[16] = "";
+  memset(s, 0, sizeof(*s));
+  int k = sscanf(line, "%10[^;];%11[^;];%19[^;];%15[^;];%3[^;\r];%15[^;];%3[^;\r]", s->day, s->game, s->name, val,
+                 s->unit, x, s->xunit);
+  if (k < 4) return false;
+  s->value = parse_num(val);
+  if (k >= 7) s->extra = parse_num(x);
+  else s->xunit[0] = 0;
+  return true;
+}
+
+bool score_best(const char *game, score_t *out) {
+  char *b = buf();
+  if (!b) return false;
+  int n = storage_read(FILE_SCORES, b, BUF_LEN);
+  if (n <= 0) return false;
+  bool found = false;
+  for (char *line = strtok(b, "\n"); line; line = strtok(NULL, "\n")) {
+    score_t s;
+    if (!score_parse(line, &s) || strcmp(s.game, game) != 0) continue;
+    if (!found || s.value < out->value) *out = s;
+    found = true;
+  }
+  return found;
 }
 
 int scores_load(score_t *out, int max) {
@@ -748,13 +784,8 @@ int scores_load(score_t *out, int max) {
   int count = 0;
   char *line = strtok(b, "\n");
   while (line && count < max) {
-    score_t s = {};
-    char val[16] = "";
-    // Datum;Spiel;Name;Wert;Einheit
-    if (sscanf(line, "%10[^;];%11[^;];%19[^;];%15[^;];%3s", s.day, s.game, s.name, val, s.unit) >= 4) {
-      s.value = parse_num(val);
-      out[count++] = s;
-    }
+    score_t s;
+    if (score_parse(line, &s)) out[count++] = s;
     line = strtok(NULL, "\n");
   }
   // neueste zuerst

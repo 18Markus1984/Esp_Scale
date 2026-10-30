@@ -22,6 +22,7 @@ lv_obj_t *page_langzeit_create();                     // Langzeitmessung auf SD
 lv_obj_t *page_muenzen_create();                      // Münzzähler / Kassensturz
 lv_obj_t *page_blind_create();                        // Spiel Blindgießen
 lv_obj_t *page_halb_create();                         // Spiel Halbe-Halbe (in der Mitte teilen)
+lv_obj_t *page_ex_create();                           // Spiel Ex (Glas auf Zeit leeren)
 lv_obj_t *page_zaehlen_create();                      // Zählen + Bluetooth
 lv_obj_t *page_porto_create();                        // Portoklasse
 lv_obj_t *page_rezept_create();                       // Rezepte von der SD-Karte

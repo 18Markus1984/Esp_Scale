@@ -927,6 +927,24 @@ const i18n_pair_t I18N_EN[] = {
   { "Leiser", "Quieter" },
   { "Serie 30 s", "Series 30 s" },
   { "Wort mehrmals sagen, mit Pausen", "Say the word several times, with pauses" },
+  // ---- Spiel Ex ----
+  { "Ex", "Chug" },
+  { "Glas auf Zeit leeren", "empty a glass against the clock" },
+  { "Rekord", "Record" },
+  { "noch keiner", "none yet" },
+  { "Glas abstellen. Anheben startet die Zeit, Abstellen stoppt sie.", "Put the glass down. Lifting starts the clock, putting it down stops it." },
+  { "Glas abstellen", "Put the glass down" },
+  { "Anheben startet die Zeit", "Lifting starts the clock" },
+  { "Ex!", "Chug!" },
+  { "Gestoppt – misst …", "Stopped – measuring …" },
+  { "Neuer Rekord!", "New record!" },
+  { "Geschafft", "Done" },
+  { "Unter 50 ml – zählt nicht", "Under 50 ml – doesn't count" },
+  { "%d ml · %s ml/s", "%d ml · %s ml/s" },
+  { "Ex · %d / %d", "Chug · %d / %d" },
+  { "Ex: Sieger %s", "Chug: winner %s" },
+  { "Zeit · getrunken", "Time · drunk" },
+  { "%d ml · zählt nicht", "%d ml · doesn't count" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

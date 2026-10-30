@@ -168,6 +168,13 @@ int main(int argc,char**argv){
   for(int p=1;p<3;p++){ FW(0,4000); FW(210,4000); FW(210+140+p*7,4000); tt("Fertig"); run(500); }
   run(2000); S("blind_ergebnis");
   home(); FW(0,4000); scale_tare();
+  // Ex: abstellen -> anheben startet -> abstellen stoppt
+  ui_open_page(page_ex_create()); run(700); S("ex_setup"); tt("Los"); run(600); S("ex_abstellen");
+  FW(342,4000); S("ex_bereit"); FW(0,3150); S("ex_laeuft"); FW(14,400); S("ex_misst"); FW(14,3000); S("ex_ergebnis"); tt("Weiter"); run(500);
+  FW(0,3000); FW(320,4000); FW(0,5200); FW(14,3000); S("ex_ergebnis2"); tt("Weiter"); run(500);
+  FW(0,3000); FW(60,4000); FW(0,2000); FW(14,3000); S("ex_unter50"); tt("Endstand"); run(800); S("ex_endstand");
+  home(); FW(0,4000); scale_tare(); ui_open_page(page_ex_create()); run(700); S("ex_setup_rekord");
+  home(); FW(0,4000); scale_tare();
   // Münzen
   ui_open_page(page_muenzen_create()); run(700); S("muenzen_liste"); tap(206,206); run(700);
   FW(8.5f*37,4000); S("muenzen_2euro"); tt("+ Summe"); run(800); S("muenzen_summe");

@@ -50,7 +50,7 @@ void settings_load() {
   g_set.profile = p.getInt("profile", PROFILE_STANDARD);
   if (g_set.profile < 0 || g_set.profile >= PROFILE_COUNT) g_set.profile = PROFILE_STANDARD;
   g_set.cats = (uint8_t)p.getInt("cats", CAT_ALL) & CAT_ALL;
-  g_set.modes_off = (uint16_t)p.getInt("modes_off", 0);
+  g_set.modes_off = (uint32_t)p.getInt("modes_off", 0);
   // Bereits eingerichtete Waagen (Einstellungen schon gespeichert) überspringen den Assistenten
   g_set.setup_done = p.getBool("setup_done", p.isKey("unit"));
   g_set.upd_auto = p.getBool("upd_auto", true);

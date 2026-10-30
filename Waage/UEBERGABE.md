@@ -1078,3 +1078,25 @@ ersten Zugriff, ohne SD-Karte wird nichts gemerkt. Simulator: `RECCOUNT=1`. Trai
   - Sim: `voice_sim_cmd("!")` setzt jetzt auch `s_awake`, Befehle setzen `s_last` (Bestätigung sichtbar).
 - **Weboberfläche:** Einstellungen → Ton: Knopf „Alle Sprachbefehle“ klappt dieselbe Liste auf (`VCMDS`), EN-Texte im
   EN-Wörterbuch. Englische Anführungszeichen am Gerät wie bisher “…“ (Schrift hat kein ”).
+
+### Stand 30.10.2026: Spiel „Ex“ (Glas auf Zeit leeren)
+Neuer Modus Spiele -> **Ex** (`page_ex.cpp`, 5. Eintrag der Gruppe Spiele, Symbol `ICON_EX` = avg_pace U+F6BB,
+neu in `font_icons_26.c`, erzeugt aus Material Symbols **Rounded** – npm-Paket `material-symbols`, woff2 mit
+fonttools nach ttf; GitHub-Downloads sind im Sandbox-Proxy gesperrt). Ablauf je Mitspieler: Glas abstellen
+(ab 20 g, ruhig) -> **Anheben startet** die Zeit -> **Aufsetzen stoppt** sie. Start/Stopp über den
+ungefilterten Wert (`scale_gross_raw() - Tara`, Schwelle 10 g, Seitentimer 50 ms, Auflösung ca. 0,1 s), die
+getrunkene Menge wird danach gemessen, sobald das Glas ruhig steht (frühestens 600 ms nach dem Aufsetzen).
+Wird das Glas vorher wieder angehoben, läuft die Zeit weiter. Unter 3 ml = „Nichts getrunken? Nochmal“.
+Ergebnis: Zeit groß, darunter „ml · ml/s“, „Neuer Rekord!“ wenn schneller als der bisherige Bestwert.
+Endstand: gültige Versuche (ab **50 ml**) vor ungültigen, darin die schnellste Zeit; ungültige zeigen
+„46 ml · zählt nicht“. Einrichtung zeigt den Rekord (Name · Zeit · ml). Spieldatei `spiele.txt`, Protokoll
+„Ex: Sieger …“.
+**Bestenliste mit zweitem Wert:** Zeile `Datum;Spiel;Name;Wert;Einheit[;Wert2;Einheit2]`, `score_t` hat
+`extra`/`xunit`, neu `score_add2()` und `score_best()` (kleinster Wert eines Spiels). Ex speichert
+`…;Ex;Name;4,3;s;330;ml`. Parser liest Einheit jetzt mit `%3[^;\r]` (vorher `%3s`, hätte „s;3“ gelesen).
+`/api/scores` liefert `extra`/`xunit`, POST nimmt sie an; Web-Bestenliste zeigt „3,9 s · 500 ml“.
+**modes_off** jetzt `uint32_t` (Ex ist Bit 16, passte nicht mehr in 16 Bit); Web-Profil kennt „Ex“.
+**Web:** Kachel „Ex“ unter Spiele, Seite `#/ex` mit Regeln und Bestenliste. Gespielt wird nur an der Waage –
+der Browser fragt nur alle 0,6 s nach, für eine Zeitmessung zu grob.
+Geprüft: check.sh BUILD_OK (86 % Flash), Simulator-Tour de/en (`ex_*`), Web-Seite mit Mock (keine JS-Fehler).
+Offen: am Gerät testen (Start/Stopp-Schwelle, ob Abstellen sofort stoppt).

@@ -40,7 +40,7 @@ typedef struct {
   // Profile und Kategorien (welche Modi auf dem Startbildschirm erscheinen)
   int      profile;   // PROFILE_STANDARD … PROFILE_EINFACH
   uint8_t  cats;      // sichtbare Gruppen: Bit 0 Küche, Bit 1 Werkstatt, Bit 2 Spiele
-  uint16_t modes_off; // ausgeblendete Modi, Bit = Index über alle Gruppen
+  uint32_t modes_off; // ausgeblendete Modi, Bit = Index über alle Gruppen (Spiele ab Bit 12, Ex = 16)
                       // (Küche 0–5, Werkstatt 6–11, Spiele 12–15)
   bool     setup_done; // Einrichtungs-Assistent erledigt (sonst startet er nach dem Startbild)
   bool     upd_auto;   // neue Firmware nach dem Einschalten automatisch installieren (sonst nachfragen)

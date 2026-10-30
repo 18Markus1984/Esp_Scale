@@ -855,7 +855,9 @@ static void h_scores() {
   for (int i = 0; i < n; i++) {
     if (i) s += ",";
     s += "{\"day\":\"" + esc(rows[i].day) + "\",\"game\":\"" + esc(rows[i].game) + "\",\"name\":\"" +
-         esc(rows[i].name) + "\",\"value\":" + String(rows[i].value, 1) + ",\"unit\":\"" + esc(rows[i].unit) + "\"}";
+         esc(rows[i].name) + "\",\"value\":" + String(rows[i].value, 1) + ",\"unit\":\"" + esc(rows[i].unit) + "\"";
+    if (rows[i].xunit[0]) s += ",\"extra\":" + String(rows[i].extra, 0) + ",\"xunit\":\"" + esc(rows[i].xunit) + "\"";
+    s += "}";
   }
   send_json(s + "]");
 }
@@ -914,7 +916,9 @@ static void h_score_add() {
     return;
   }
   player_add(name.c_str());  // neue Namen wandern in die Spielerliste
-  ok(score_add(game.c_str(), name.c_str(), v, unit.length() ? unit.c_str() : "g"));
+  String xunit = jval(b, "xunit");
+  ok(score_add2(game.c_str(), name.c_str(), v, unit.length() ? unit.c_str() : "g", jval(b, "extra").toFloat(),
+                xunit.c_str()));
 }
 
 static void h_player_add() {
@@ -1156,7 +1160,7 @@ static void h_profile() {
 static void h_modes() {
   String b = s_server.arg("plain");
   if (jval(b, "cats").length()) g_set.cats = (uint8_t)(jval(b, "cats").toInt() & CAT_ALL);
-  if (jval(b, "modes_off").length()) g_set.modes_off = (uint16_t)jval(b, "modes_off").toInt();
+  if (jval(b, "modes_off").length()) g_set.modes_off = (uint32_t)jval(b, "modes_off").toInt();
   ui_profile_changed();
   ok();
 }
