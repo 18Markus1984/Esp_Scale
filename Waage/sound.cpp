@@ -346,6 +346,21 @@ static const char *const ONES_EN[20] = { "zero", "one", "two", "three", "four", 
 static const char *const TENS_EN[10] = { "", "", "twenty", "thirty", "forty", "fifty",
                                          "sixty", "seventy", "eighty", "ninety" };
 
+// "one hundred and twenty": nur wenn das Paket and.wav hat (ältere Pakete ohne bleiben bei
+// "one hundred twenty", sonst fehlte ein Wort und die ganze Ansage)
+static bool en_has_and() {
+  static char pack[24] = "";
+  static bool has = false;
+  if (strncmp(pack, g_set.voice, sizeof(pack)) != 0) {
+    strncpy(pack, g_set.voice, sizeof(pack) - 1);
+    pack[sizeof(pack) - 1] = 0;
+    char path[96];
+    word_path(path, sizeof(path), "and", false);
+    has = storage_exists(path);
+  }
+  return has;
+}
+
 static void add_number_en(msg_t *m, int n) {
   if (n >= 1000) {
     add_number_en(m, n / 1000);
@@ -358,6 +373,7 @@ static void add_number_en(msg_t *m, int n) {
     add_word(m, "hundred");
     n %= 100;
     if (n == 0) return;
+    if (en_has_and()) add_word(m, "and");
   }
   if (n < 20) {
     if (n > 0 || m->count == 0) add_word(m, ONES_EN[n]);

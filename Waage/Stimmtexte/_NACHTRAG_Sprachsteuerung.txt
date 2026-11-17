@@ -1,0 +1,405 @@
+# Nachtrag: die 22 Sätze der Sprachsteuerung je Stimmpaket
+# Roboter und Roboter-EN haben sie schon. Jede Zeile = eine WAV-Datei, Abschnitte einzeln kopieren,
+# die #-Zeilen nicht mitlesen lassen. Schneiden: python stimme_schneiden.py aufnahme.mp3 "Paket" --ansagen
+# (englische Pakete zusätzlich --lang en). Mehrere Kommas in einem Satz: besser eine Datei pro Zeile
+# ausgeben lassen und mit --ordner schneiden. Die ersten 10 Zeilen sind Bausteine für Zahlen: kurz und neutral.
+
+============================================================
+## Bernd das Brot (Deutsch) -> --ansagen
+Ziel.
+Jetzt einfüllen, wenn es denn unbedingt sein muss.
+Akku.
+Prozent.
+wird geladen, ich wünschte, das ginge bei mir auch.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was ist denn?
+Ich hab nichts verstanden und will es auch gar nicht, sag halt Hilfe.
+Na gut, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit, und danach lass mich bitte in Ruhe.
+Zielwiegen beendet, endlich wieder Stille.
+Waage bereit, leider.
+Weiter, es hört ja nie auf.
+Zurück zur Startseite, alles wieder von vorn, wie immer.
+Das geht hier nicht, wie so vieles in meinem Leben.
+Akku fast leer, ich bin auch erschöpft.
+Der Timer ist abgelaufen, genau wie meine Hoffnung.
+Die Uhrzeit kenne ich nicht, für mich ist eh immer derselbe graue Tag.
+Ich schalte mich gleich aus, endlich Ruhe.
+
+============================================================
+## Drachenlord (Deutsch) -> --ansagen
+Ziel.
+Jetzt einfüllen.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich nicht verstanden, sag Hilfe.
+Sag Hallo Waage oder tipp zweimal oben auf die Waage, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet.
+Waage bereit.
+Weiter.
+Zurück zur Startseite.
+Das geht hier gerade nicht.
+Akku fast leer, bitte laden.
+Der Timer ist abgelaufen.
+Die Uhrzeit kenne ich noch nicht.
+Die Waage schaltet sich gleich aus.
+
+============================================================
+## KI-AnimeGirl (Deutsch) -> --ansagen
+Ziel.
+Jetzt einfüllen, los geht's.
+Akku.
+Prozent.
+wird geladen, ich tanke Energie.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Jaaa?
+Hm, das hab ich nicht verstanden, sag einfach Hilfe.
+Okay, aufgepasst, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, gut gemacht.
+Waage bereit, ich freu mich.
+Weiter, auf zum nächsten Schritt.
+Zurück zur Startseite, hui.
+Oh nein, das geht hier gerade nicht.
+Mein Akku ist fast leer, bitte aufladen.
+Piep piep, dein Timer ist abgelaufen.
+Die Uhrzeit weiß ich leider nicht, sorry.
+Ich mach gleich ein Nickerchen, bis später.
+
+============================================================
+## KI-Männlich (Deutsch) -> --ansagen
+Ziel.
+Jetzt einfüllen, ganz in Ruhe.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich leider nicht verstanden, sag einfach Hilfe.
+Sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen ist beendet.
+Die Waage ist bereit.
+Weiter geht's.
+Zurück zur Startseite.
+Das geht auf dieser Seite leider nicht.
+Der Akku ist fast leer, bitte bald laden.
+Dein Timer ist abgelaufen.
+Die Uhrzeit kenne ich leider noch nicht.
+Ich schalte mich gleich aus.
+
+============================================================
+## KI-Weiblich (Deutsch) -> --ansagen
+Ziel.
+Jetzt kannst du einfüllen.
+Akku.
+Prozent.
+wird gerade geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das hab ich nicht verstanden, sag gern Hilfe.
+Sag einfach Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Okay, Zielwiegen beendet.
+Hallo, ich bin bereit.
+Weiter, zum nächsten Schritt.
+Wir gehen zurück zur Startseite.
+Das klappt hier gerade leider nicht.
+Mein Akku ist fast leer, lädst du mich bitte.
+Dein Timer ist abgelaufen.
+Wie spät es ist, weiß ich leider noch nicht.
+Ich schalte mich gleich aus, bis bald.
+
+============================================================
+## Rick (Deutsch) -> --ansagen
+Ziel.
+Jetzt einfüllen, und zwar zügig.
+Akku.
+Prozent.
+wird geladen, sogar Akkus brauchen mal Pause von dir.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was denn?
+Sprich deutlich oder sag Hilfe, ich hab nicht ewig Zeit.
+Hör zu, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, war eh langweilig.
+Waage bereit, wehe du langweilst mich.
+Weiter, die Zeit läuft.
+Zurück zur Startseite, sauberer Neustart der Zeitlinie.
+Geht hier nicht, das bricht mindestens drei Naturgesetze.
+Akku fast leer, steck mich an, bevor ich implodiere.
+Timer abgelaufen, schneller als ein Sprung durchs Portal.
+Uhrzeit unbekannt, Zeit ist sowieso nur ein Konstrukt.
+Ich schalte gleich ab, genau wie du beim Zuhören.
+
+============================================================
+## Freundin (Deutsch) -> --ansagen
+Ziel.
+Jetzt kannst du einfüllen, Schatz.
+Akku.
+Prozent.
+wird geladen, danke dir.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja, Schatz?
+Das hab ich nicht verstanden, sag einfach Hilfe.
+Sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Okay, Zielwiegen beendet.
+Hallo Schatz, ich bin bereit.
+Weiter geht's.
+Zurück zur Startseite.
+Das geht hier gerade leider nicht.
+Mein Akku ist fast leer, lädst du mich bitte auf.
+Schatz, dein Timer ist abgelaufen.
+Wie spät es ist, weiß ich leider noch nicht.
+Ich schalte mich gleich aus, bis später, Schatz.
+
+============================================================
+## Deadpool-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, I'll narrate.
+Battery.
+percent.
+charging, give me a sec to regenerate.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Talk to me?
+Didn't catch that, I'm not a mind reader, say help.
+Okay reader, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, plot twist.
+Scale ready, cue the opening credits.
+Next, skipping the boring part.
+Back to the start page, smash cut.
+Can't do that here, the writers said no.
+Battery low, even I can't heal that, charge me.
+Time's up, and that's the end of the montage.
+No idea what time it is, I lost track during the last fight scene.
+Switching off soon, stay for the scene after the credits.
+
+============================================================
+## Homer-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, and save some for me.
+Battery.
+percent.
+charging, like me after a big lunch.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh, what?
+I didn't get that, I wasn't really listening, say help.
+Okay, say Hallo Waage or poke the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing over, time for a break.
+The scale is ready, but I'm not.
+Next, ugh, more work.
+Back to the start page, my favorite part.
+Can't do that here, trust me, I tried.
+Battery low, I need a snack too, charge me.
+The timer's done, so it's probably food time.
+I don't know the time, but it's almost lunchtime.
+Switching off soon, nap time.
+
+============================================================
+## Indy-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, slow and steady.
+Battery.
+percent.
+charging, the expedition can wait.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Yes?
+I didn't catch that, keep it simple and say help.
+Listen closely, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, we'll come back for it.
+Scale ready, let's start digging.
+Next, keep moving.
+Back to the start page, back to base camp.
+Not here, that path is a dead end.
+Battery low, we won't get far without a charge.
+Time's up, the torch is burning out.
+I don't know the time, I lost my watch in the last temple.
+Switching off soon, the light is fading.
+
+============================================================
+## Morty-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, carefully, please.
+Battery.
+percent.
+charging, phew, that's a relief.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Uh, yes?
+Sorry, I didn't get that, maybe say help.
+Okay, um, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's okay too.
+Scale ready, I'm kind of nervous.
+Next, okay, okay.
+Back to the start page, safe and sound.
+I can't do that here, I'm sorry.
+Battery low, please charge it before something bad happens.
+The timer's done, oh man, I hope nothing burned.
+I don't know what time it is, I lost track again.
+Switching off soon, okay, bye.
+
+============================================================
+## Optimus-EN (Englisch) -> --ansagen --lang en
+Target.
+Begin filling now.
+Battery.
+percent.
+charging, my energy returns.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I am listening?
+I did not understand, speak the word help.
+Hear me, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing ended, stand down.
+Scale ready, awaiting your command.
+Onward, to the next step.
+Returning to the start page.
+That is not possible here, choose another path.
+My energy is fading, recharge me soon.
+The timer has run out, the moment has come.
+The time is unknown to me, even my sensors cannot tell.
+I will power down soon, until we meet again.
+
+============================================================
+## Patrick-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, yay.
+Battery.
+percent.
+charging, it's nap time for the battery.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh?
+I didn't understand, but that happens a lot, say help.
+Ooh, I know this one, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, I think we won.
+Scale ready, I'm ready too, I think.
+Next, ooh, I love surprises.
+Back to the start page, I like it here.
+That doesn't work here, I tried with my brain.
+Battery low, it's tired, like me.
+The timer's done, beep beep.
+I don't know the time, I never do.
+Switching off soon, sleepy time.
+
+============================================================
+## Peter-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, go go go.
+Battery.
+percent.
+charging, the scale's on a coffee break.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Yeah, what?
+I have no idea what you just said, say help.
+Alright, listen up, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's enough of that.
+Scale ready, let's do this.
+Next, keep it rolling.
+Back to the start page, like nothing ever happened.
+Can't do that here, not even I'm that dumb.
+Battery low, plug me in before I pass out.
+The timer went off, I hope it's pie.
+I don't know the time, I just go by when I'm hungry.
+Switching off soon, nighty night.
+
+============================================================
+## Rick-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, and make it quick.
+Battery.
+percent.
+charging, even batteries need a break from you.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+What?
+Speak clearly or say help, I don't have all day.
+Listen, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing over, it was boring anyway.
+Scale ready, don't bore me.
+Next, keep up.
+Back to the start page, clean reset of the timeline.
+Can't do that here, it breaks at least three laws of physics.
+Battery low, plug me in before I implode.
+Timer's done, faster than a jump through a portal.
+Time unknown, time is a construct anyway.
+Switching off soon, just like your attention span.
+
+============================================================
+## Sheldon-EN (Englisch) -> --ansagen --lang en
+Target.
+Fill it in now, at a reasonable pace.
+Battery.
+percent.
+charging, a sensible decision.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I'm listening?
+That was not a valid command, please say help.
+Allow me to explain, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, how unscientific.
+Scale ready, calibration is impeccable.
+Next, in the correct order.
+Returning to the start page, as is customary.
+That is not possible here, I checked the rules.
+Battery low, charging is not optional.
+The timer has expired, punctuality matters.
+I do not know the time, which is deeply unsettling.
+Switching off soon, sleep is essential for cognitive function.

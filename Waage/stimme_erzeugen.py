@@ -54,7 +54,8 @@ WORDS_EN = {w: w for w in [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
     "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
-    "point", "minus", "grams", "kilograms", "ounces", "pounds", "pieces", "meters", "milliliters"]}
+    "point", "minus", "grams", "kilograms", "ounces", "pounds", "pieces", "meters", "milliliters",
+    "and"]}  # and: "one hundred and five" (nur wenn vorhanden)
 WORDS_EN.update({"tare": "Tare", "saved": "saved", "goal_reached": "target reached", "overload": "overload",
                  "pot_detected": "pot detected", "done": "done", "scale_empty": "scale empty",
                  "to_go": "to go", "too_much": "too much"})

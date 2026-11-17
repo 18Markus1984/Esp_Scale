@@ -1153,3 +1153,11 @@ localhost direkt per MediaRecorder; oder „Mikrofon der Waage“ (`/api/own/rec
 `/api/own`). Weitere: `/api/own/create`, `/use`, `/play`.
 Geprüft: check.sh BUILD_OK (87 %), Simulator de/en (protokoll_50tage, kaffee_*, espresso_*, rezept_*menge*,
 eigen_*), Web mit Mock (WAV-Umrechnung 44,1 kHz Stereo -> 16 kHz Mono geprüft, keine JS-Fehler).
+
+### Stand 17.11.2026 (abends): zusätzliche Stimmdateien geschnitten, EN „and“
+Aus Markus' Aufnahmen (MP3, Sprachprogramm) geschnitten, nicht im Repo (Stimmen bleiben auf der SD):
+Drachenlord (41 Zahlen/Einheiten inkl. milliliter, 7 Ansagen), Bernd das Brot (komplettes Paket, 48 Dateien),
+and.wav für alle EN-Charaktere (Roboter-EN per espeak-ng). Schneiden: Wörter an den längsten Pausen,
+Sätze mit inneren Pausen per Textlänge (DP über die Pausen), Bernd „Fertig. Mist.“ von Hand nachgezogen.
+Firmware: EN-Zahlen sagen „one hundred and five“, wenn das Paket and.wav hat (`en_has_and()`, sonst wie bisher).
+`and` auch in voice_own (EN) und stimme_erzeugen.py WORDS_EN. stimme_schneiden.py kennt „and“ noch nicht.

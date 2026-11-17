@@ -82,6 +82,90 @@ Ich schalte mich gleich aus, endlich Ruhe.
 
 ======================================================================
 
+# Freundin (Deutsch)
+# Charakter: eigene Stimme, liebevoll und locker (Ordner frei benennbar)
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Wortliste (50 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Freundin"
+## Zahlen und Einheiten neutral sprechen, die 7 Statusansagen stehen schon im Charakter darin
+null.
+eins.
+ein.
+zwei.
+drei.
+vier.
+fünf.
+sechs.
+sieben.
+acht.
+neun.
+zehn.
+elf.
+zwölf.
+dreizehn.
+vierzehn.
+fünfzehn.
+sechzehn.
+siebzehn.
+achtzehn.
+neunzehn.
+zwanzig.
+dreißig.
+vierzig.
+fünfzig.
+sechzig.
+siebzig.
+achtzig.
+neunzig.
+hundert.
+tausend.
+und.
+komma.
+minus.
+Gramm.
+Kilogramm.
+Unzen.
+Pfund.
+Stück.
+Meter.
+Alles auf null, Schatz, leg los.
+Hab ich mir gemerkt, Schatz.
+Perfekt, genau richtig, du bist toll.
+Uff, das ist zu schwer für mich, nimm bitte was runter.
+Den Topf kenn ich, den zieh ich gleich ab.
+Fertig, lass es dir schmecken, Schatz.
+Die Waage ist leer, ich warte auf dich.
+Milliliter.
+noch.
+zu viel.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Freundin" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt kannst du einfüllen, Schatz.
+Akku.
+Prozent.
+wird geladen, danke dir.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja, Schatz?
+Das hab ich nicht verstanden, sag einfach Hilfe.
+Sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Okay, Zielwiegen beendet.
+Hallo Schatz, ich bin bereit.
+Weiter geht's.
+Zurück zur Startseite.
+Das geht hier gerade leider nicht.
+Mein Akku ist fast leer, lädst du mich bitte auf.
+Schatz, dein Timer ist abgelaufen.
+Wie spät es ist, weiß ich leider noch nicht.
+Ich schalte mich gleich aus, bis später, Schatz.
+
+======================================================================
+
 # Rick (Deutsch)
 # Charakter: arroganter Wissenschaftler, genervt, sarkastisch
 # Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
