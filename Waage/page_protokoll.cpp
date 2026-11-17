@@ -58,7 +58,7 @@ static lv_obj_t *page_day_create() {
   lv_obj_set_scroll_dir(list, LV_DIR_VER);
   lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_OFF);
 
-  static log_entry_t rows[ROWS_MAX];
+  static log_entry_t *rows = (log_entry_t *)big_calloc(ROWS_MAX, sizeof(log_entry_t));
   int total = 0;
   int n = 0;
   if (!storage_ok()) {

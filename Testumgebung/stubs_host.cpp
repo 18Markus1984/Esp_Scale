@@ -65,6 +65,7 @@ void upd_check(){ sim_upd = UPD_AVAILABLE; }
 void upd_check_quiet(){ sim_upd = getenv("SIM_UPD") ? UPD_AVAILABLE : UPD_LATEST; }
 void upd_mark_valid(){} bool upd_pending_verify(){ return getenv("SIM_PENDING")!=NULL; } bool upd_wants_wifi(){ return false; } void upd_restart(){}
 const char *upd_boot_notice(bool *ok){ *ok = true; return getenv("SIM_UPD_NOTICE") ? "Aktualisiert auf Version 1.4.2" : NULL; } void upd_install(){ sim_upd = UPD_DOWNLOAD; sim_upd_prog = 42; }
+bool upd_boot_pending(){ return getenv("SIM_UPD_BOOT")!=NULL; } void upd_boot_start(){ sim_upd = UPD_DOWNLOAD; sim_upd_prog = 7; } bool upd_boot_mode(){ return getenv("SIM_UPD_BOOT")!=NULL; }
 upd_state_t upd_state(){ return sim_upd; } bool upd_busy(){ return sim_upd==UPD_CONNECT||sim_upd==UPD_CHECK||sim_upd==UPD_DOWNLOAD; }
 const char *upd_latest(){ return "1.5.0"; } int upd_progress(){ return sim_upd_prog; } const char *upd_error(){ return sim_upd_err; } const char *upd_detail(){ return sim_upd_err[0] ? "HTTP -1 · Block 15 KB" : ""; } void upd_loop(){}
 void net_wifi_release(){}

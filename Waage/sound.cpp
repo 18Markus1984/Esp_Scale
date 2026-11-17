@@ -531,7 +531,7 @@ bool sound_voice_available() {
 
 int sound_voice_packs(char names[][24], int max) {
   // Alle Unterordner lesen (beide Sprachen), dann nur die passenden behalten
-  static char dirs[64][STORAGE_NAME_LEN];
+  static char (*dirs)[STORAGE_NAME_LEN] = (char (*)[STORAGE_NAME_LEN])big_calloc(64, STORAGE_NAME_LEN);
   int n = storage_list_dirs(VOICE_DIR, dirs, 64);
   int k = 0;
   for (int i = 0; i < n && k < max; i++) {
@@ -961,7 +961,7 @@ bool sound_speaking() { return false; } bool sound_busy() { return false; }
 bool sound_speech_busy() { return false; } bool sound_tone_recent(uint32_t ms) { return false; }
 void sound_speak_stop() {}
 int sound_voice_packs(char names[][24], int max) {
-  static char dirs[64][STORAGE_NAME_LEN];
+  static char (*dirs)[STORAGE_NAME_LEN] = (char (*)[STORAGE_NAME_LEN])big_calloc(64, STORAGE_NAME_LEN);
   int n = storage_list_dirs("/Waage/Stimme", dirs, 64), k = 0;
   for (int i = 0; i < n && k < max; i++)
     if (pack_ok_host(dirs[i])) { strncpy(names[k], dirs[i], 23); names[k][23] = 0; k++; }

@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef ARDUINO
+#include <esp_heap_caps.h>
+#endif
 #include <strings.h>
 #include <ctype.h>
 #include <math.h>
@@ -25,6 +28,15 @@ static char *buf() {
 #endif
   if (!b) b = (char *)malloc(BUF_LEN);
   return b;
+}
+
+void *big_calloc(size_t n, size_t size) {
+  void *p = NULL;
+#ifdef ARDUINO
+  p = heap_caps_calloc(n, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#endif
+  if (!p) p = calloc(n, size);
+  return p;
 }
 
 // ------------------------------------------------------------
@@ -269,7 +281,7 @@ int log_read(const char *day, log_entry_t *out, int max, int *total) {
     char *nl = strchr(b, '\n');
     if (nl) start = nl + 1;
   }
-  static log_entry_t tmp[60];
+  static log_entry_t *tmp = (log_entry_t *)big_calloc(60, sizeof(log_entry_t));
   if (max > 60) max = 60;
   log_ctx c = { tmp, 0, max };
   each_line(start, log_line, &c);
@@ -376,10 +388,10 @@ bool recipe_load_dir(const char *dir, const char *file, recipe_t *r) {
 }
 
 int recipes_list_dir(const char *dir, char files[][48], char names[][40], int counts[], int max) {
-  static char list[30][STORAGE_NAME_LEN];
+  static char (*list)[STORAGE_NAME_LEN] = (char (*)[STORAGE_NAME_LEN])big_calloc(30, STORAGE_NAME_LEN);
   int n = storage_list(dir, list, 30);
   int k = 0;
-  static recipe_t r;
+  static recipe_t &r = *(recipe_t *)big_calloc(1, sizeof(recipe_t));
   for (int i = 0; i < n && k < max; i++) {
     if (!strstr(list[i], ".txt")) continue;
     if (!recipe_load_dir(dir, list[i], &r)) continue;

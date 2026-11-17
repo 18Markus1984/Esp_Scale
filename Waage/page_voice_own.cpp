@@ -15,6 +15,7 @@
 #include "sound.h"
 #include "storage.h"
 #include "settings.h"
+#include "data.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -38,7 +39,7 @@ static void use_this() {
 static int o_group = -1;                 // -1 = Übersicht
 static ui_list_item_t o_items[52];
 static int o_map[52];
-static char o_subs[52][40];
+static char (*o_subs)[40] = NULL;  // im PSRAM, beim ersten Aufbau
 
 static lv_obj_t *page_own_group_create();
 
@@ -80,6 +81,7 @@ static void list_title(lv_obj_t *s, const char *txt) {
 }
 
 lv_obj_t *page_voice_own_create() {
+  if (!o_subs) o_subs = (char (*)[40])big_calloc(52, 40);
   lv_obj_t *s = ui_screen_create();
   if (!storage_ok()) {
     lv_obj_t *l = ui_label(s, "Keine SD-Karte", &font_sg_18, C_MUTED);

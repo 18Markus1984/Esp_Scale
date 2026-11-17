@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 // ============================================================
 //  Daten auf der SD-Karte: Töpfe, Protokoll, Rezepte
 //  Dezimalzahlen in den Dateien mit Komma, Trennzeichen ";"
@@ -195,5 +196,7 @@ bool recipe_save(const recipe_t *r, char *file_out, int len);  // neuer Dateinam
 bool recipe_delete(const char *file);
 
 // Hilfen
+// Große Arbeitspuffer im PSRAM (interner RAM fehlt sonst TLS/WLAN beim Online-Update), einmal anlegen
+void *big_calloc(size_t n, size_t size);
 float parse_num(const char *s);                 // "1234,5" oder "1234.5"
 void  fmt_num(char *buf, int len, float v, int decimals);  // mit Komma

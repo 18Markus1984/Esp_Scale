@@ -279,10 +279,16 @@ bool storage_copy(const char *src, const char *dst) {
     in.close();
     return false;
   }
-  static uint8_t buf[2048];
+  const int BUF = 2048;
+  static uint8_t *buf = (uint8_t *)heap_caps_calloc(1, BUF, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!buf) {
+    in.close();
+    out.close();
+    return false;
+  }
   bool ok = true;
   while (in.available()) {
-    int n = in.read(buf, sizeof(buf));
+    int n = in.read(buf, BUF);
     if (n <= 0) break;
     if (out.write(buf, n) != (size_t)n) {
       ok = false;

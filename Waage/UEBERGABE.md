@@ -1161,3 +1161,18 @@ and.wav für alle EN-Charaktere (Roboter-EN per espeak-ng). Schneiden: Wörter a
 Sätze mit inneren Pausen per Textlänge (DP über die Pausen), Bernd „Fertig. Mist.“ von Hand nachgezogen.
 Firmware: EN-Zahlen sagen „one hundred and five“, wenn das Paket and.wav hat (`en_has_and()`, sonst wie bisher).
 `and` auch in voice_own (EN) und stimme_erzeugen.py WORDS_EN. stimme_schneiden.py kennt „and“ noch nicht.
+
+### Stand 17.11.2026 (spät): Online-Update „HTTP -1 · Block 6 KB“ / „Zu wenig Speicher“
+Ursache: Nach einer Weile Betrieb (Spracherkennung, Weboberfläche, neue Seiten) ist der interne RAM so
+zerstückelt, dass der TLS-Handshake scheitert (größter freier Block 6 KB) bzw. der Update-Task (12 KB Stapel)
+nicht angelegt werden kann. Seit den letzten Funktionen lag auch mehr statischer Speicher intern.
+**Lösung 1 – Update nach Neustart:** `upd_install()` merkt sich Adresse und Version (NVS `upd_url`/`upd_ver`),
+zeigt „Startet neu, dann lädt das Update …“ (`UPD_REBOOT`, Web-Zustand `reboot`) und startet neu. Beim Start
+(`ui_init`) prüft `upd_boot_pending()`: dann keine Spracherkennung, `upd_boot_start()` direkt nach `net_begin()`,
+nach dem Startbild die Fortschrittsseite (`page_update_progress_create`). Nur ein Versuch (Schlüssel werden
+sofort gelöscht); scheitert er, startet die Spracherkennung nachträglich und die Waage läuft normal weiter.
+Gilt für Taste, Auto-Update nach dem Start und Weboberfläche.
+**Lösung 2 – weniger interner RAM:** große Arbeitspuffer in den PSRAM (`big_calloc` in data.cpp): Download-Puffer
+(4 KB), Bestenliste/Protokoll im Web, Protokollseite, `log_read`, Rezeptliste, Rezept-Puffer im Web, Stimmpaket-
+Liste, `storage_copy`, Untertitel der eigenen Stimme. Statischer interner RAM 213 KB -> 185 KB (-28 KB).
+Am Gerät prüfen: Update über die Taste nach längerem Betrieb mit Spracherkennung.

@@ -1005,6 +1005,8 @@ const i18n_pair_t I18N_EN[] = {
   { "Bausteine und Einheiten", "Building blocks and units" },
   { "Zahlen", "Numbers" },
   { "Gramm", "grams" },
+  // ---- Update nach Neustart ----
+  { "Startet neu, dann lädt das Update …", "Restarting, then the update downloads …" },
 };
 
 const int I18N_EN_COUNT = sizeof(I18N_EN) / sizeof(I18N_EN[0]);

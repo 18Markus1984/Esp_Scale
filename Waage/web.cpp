@@ -281,7 +281,7 @@ static void h_recipes() {
 }
 
 static void h_recipe() {
-  static recipe_t r;
+  static recipe_t &r = *(recipe_t *)big_calloc(1, sizeof(recipe_t));
   if (!recipe_load_dir(arg_dir(), s_server.arg("file").c_str(), &r)) {
     send_json("{\"file\":\"\",\"name\":\"\",\"portions\":2,\"ing\":[]}");
     return;
@@ -300,7 +300,7 @@ static void h_recipe() {
 
 static void h_recipe_save() {
   String body = s_server.arg("plain");
-  static recipe_t r;
+  static recipe_t &r = *(recipe_t *)big_calloc(1, sizeof(recipe_t));
   memset(&r, 0, sizeof(r));
   strncpy(r.name, jval(body, "name").c_str(), sizeof(r.name) - 1);
   r.portions = jval(body, "portions").toInt();
@@ -455,7 +455,7 @@ static void h_log_days() {
 }
 
 static void h_log() {
-  static log_entry_t rows[60];
+  static log_entry_t *rows = (log_entry_t *)big_calloc(60, sizeof(log_entry_t));
   int total = 0;
   int n = log_read(s_server.arg("day").c_str(), rows, 60, &total);
   String s = "[";
@@ -850,7 +850,7 @@ static void h_update_mode() {
 
 // ---- Bestenliste: Ergebnisse aller Spiele in einer Datei ----
 static void h_scores() {
-  static score_t rows[60];
+  static score_t *rows = (score_t *)big_calloc(60, sizeof(score_t));
   int n = scores_load(rows, 60);
   String s = "[";
   for (int i = 0; i < n; i++) {
@@ -1241,7 +1241,7 @@ static void h_lt() {
 static void h_ota() {
   if (s_server.hasArg("check")) upd_check();
   else if (s_server.hasArg("install")) upd_install();
-  static const char *const ST[] = { "idle", "connect", "check", "latest", "available", "download", "done", "error" };
+  static const char *const ST[] = { "idle", "connect", "check", "latest", "available", "download", "done", "error", "reboot" };
   String s = "{\"ver\":\"" + esc(fw_version()) + "\",\"local\":" + (fw_is_local() ? "true" : "false") +
              ",\"repo\":\"" + esc(upd_repo()) + "\",\"state\":\"" + ST[upd_state()] + "\",\"latest\":\"" +
              esc(upd_latest()) + "\",\"progress\":" + upd_progress() + ",\"error\":\"" + esc(upd_error()) + "\",\"detail\":\"" + esc(upd_detail()) +

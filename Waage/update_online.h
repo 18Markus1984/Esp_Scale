@@ -20,6 +20,7 @@ typedef enum {
   UPD_DOWNLOAD,   // lädt und schreibt
   UPD_DONE,       // fertig, Neustart folgt
   UPD_ERROR,
+  UPD_REBOOT,     // startet für die Installation neu (Download direkt nach dem Start, viel freier Speicher)
 } upd_state_t;
 
 const char *fw_version();      // "1.4.2", lokal gebaut "0.0.0"
@@ -27,7 +28,11 @@ bool        fw_is_local();     // nicht von der GitHub Action gebaut
 const char *upd_repo();        // "name/Esp_Scale"
 
 void        upd_check();       // neueste Version suchen
-void        upd_install();     // gefundene Version installieren (nur bei UPD_AVAILABLE)
+void        upd_install();     // gefundene Version installieren (nur bei UPD_AVAILABLE): Neustart, dann Download
+// Nach dem Neustart fürs Update (ui.cpp, vor Spracherkennung und Weboberfläche):
+bool        upd_boot_pending();  // steht ein Update an?
+void        upd_boot_start();    // Download jetzt starten (frischer Speicher)
+bool        upd_boot_mode();     // läuft gerade so ein Start?
 upd_state_t upd_state();
 bool        upd_busy();        // verbindet, sucht oder lädt gerade
 const char *upd_latest();      // gefundene Version, z. B. "1.5.0"

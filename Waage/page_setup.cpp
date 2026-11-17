@@ -640,6 +640,7 @@ static void fu_timer_cb(lv_timer_t *t) {
     case UPD_DOWNLOAD: snprintf(b, sizeof(b), T("Lade … %d %%"), upd_progress()); break;
     case UPD_DONE: snprintf(b, sizeof(b), "%s", T("Fertig, starte neu …")); break;
     case UPD_ERROR: snprintf(b, sizeof(b), "%s", T(upd_error())); break;
+    case UPD_REBOOT: snprintf(b, sizeof(b), "%s", T("Startet neu, dann lädt das Update …")); break;
   }
   ui_label_update(fu_state, b);
   int v = st == UPD_DOWNLOAD || st == UPD_DONE ? upd_progress() * 10 : 0;
@@ -650,7 +651,7 @@ static void fu_timer_cb(lv_timer_t *t) {
   bool busy = upd_busy() || st == UPD_DONE;
   if (busy) lv_obj_add_flag(fu_btn, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_clear_flag(fu_btn, LV_OBJ_FLAG_HIDDEN);
-  if (st == UPD_DOWNLOAD || st == UPD_DONE) {
+  if (st == UPD_DOWNLOAD || st == UPD_DONE || st == UPD_REBOOT) {
     lv_obj_add_flag(fu_back, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(fu_auto, LV_OBJ_FLAG_HIDDEN);
   } else {
@@ -664,7 +665,7 @@ static void fu_timer_cb(lv_timer_t *t) {
   lv_obj_set_style_border_width(fu_btn, inst ? 0 : 2, 0);
   bool det = st == UPD_ERROR && upd_detail()[0];
   lv_obj_set_style_text_color(fu_sub, det ? C_MUTED : C_FAINT, 0);  // Grund gut lesbar
-  if (st == UPD_DOWNLOAD) ui_label_update(fu_sub, T("Nicht ausschalten"));
+  if (st == UPD_DOWNLOAD || st == UPD_REBOOT) ui_label_update(fu_sub, T("Nicht ausschalten"));
   else if (det) ui_label_update(fu_sub, upd_detail());
   else {
     snprintf(b, sizeof(b), "github.com/%s", upd_repo());
@@ -737,6 +738,12 @@ static lv_obj_t *page_update_create() {
 lv_obj_t *page_update_auto_create() {
   fu_from_boot = true;
   upd_install();
+  return page_update_create();
+}
+
+// Nach dem Neustart fürs Update: nur die Fortschrittsseite (der Download läuft schon)
+lv_obj_t *page_update_progress_create() {
+  fu_from_boot = true;
   return page_update_create();
 }
 

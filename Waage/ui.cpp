@@ -1782,7 +1782,9 @@ static void rebuild_home() {
 static uint8_t s_bu = 0;           // 0 noch nicht, 3 wartet, 1 sucht, 2 erledigt
 static uint32_t s_bu_at = 0;
 
+static bool s_upd_boot = false;  // dieser Start dient dem Online-Update (upd_boot_pending)
 static void boot_update_start() {
+  if (s_upd_boot) return;  // dieser Start lädt schon das Update
   if (s_bu) return;
   s_bu = 2;
   if (fw_is_local() || !net_has_credentials()) return;
@@ -1845,6 +1847,11 @@ static void start_finish() {
   }
   // Keine Überblendung: halbtransparentes Zeichnen erzeugt helle Kästen
   lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_MOVE_LEFT, 250, 0, true);
+  // Neustart fürs Update: Fortschritt zeigen (nach Erfolg startet die Waage neu)
+  if (s_upd_boot) {
+    lv_timer_t *t = lv_timer_create([](lv_timer_t *tm) { ui_open_page(page_update_progress_create()); }, 300, NULL);
+    lv_timer_set_repeat_count(t, 1);
+  }
   // Ergebnis eines Online-Updates vor dem Neustart melden
   bool upd_ok = true;
   const char *n = upd_boot_notice(&upd_ok);
@@ -2011,11 +2018,15 @@ void ui_init() {
   }
   sound_begin();
   if (g_set.voice_on && crash_safe_mode()) g_set.voice_on = false;  // nach Absturz-Schleife: erst einmal aus
-  if (g_set.voice_on) voice_begin();  // Spracherkennung, falls eingeschaltet
+  // Neustart fürs Online-Update: Spracherkennung erst nach dem nächsten Start, ihr Speicher fehlt
+  // sonst TLS und WLAN (upd_install startet dafür neu)
+  s_upd_boot = upd_boot_pending();
+  if (g_set.voice_on && !s_upd_boot) voice_begin();  // Spracherkennung, falls eingeschaltet
   pots_load();
   recipes_create_example();
   cocktails_create_examples();
   net_begin();
+  if (s_upd_boot) upd_boot_start();  // gleich laden, solange der Speicher frisch ist
   scale_init();
   scale_set_autozero(g_set.azt);
   build_home();

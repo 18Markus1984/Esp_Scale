@@ -15,6 +15,7 @@
 #include <esp_ota_ops.h>
 #include "i18n.h"
 #include "voice.h"
+#include "settings.h"
 #include "crash.h"
 #include "storage.h"
 #include "hal.h"
@@ -41,6 +42,8 @@ static upd_state_t s_seen = UPD_IDLE;
 static bool s_was_task = false;
 static bool s_quiet = false;  // Suche nach dem Start: ohne Töne
 static uint32_t s_avail_ms = 0;  // wann die neue Version gefunden wurde
+static uint32_t s_reboot_ms = 0;  // UPD_REBOOT: seit wann
+static bool s_boot_mode = false;  // dieser Start dient dem Update
 
 const char *fw_version() {
   return FW_VERSION;
@@ -63,7 +66,7 @@ upd_state_t upd_state() {
 }
 
 bool upd_busy() {
-  return s_task;
+  return s_task || s_state == UPD_REBOOT;
 }
 
 const char *upd_latest() {
@@ -243,7 +246,14 @@ static void do_check() {
 static void do_install() {
   s_state = UPD_DOWNLOAD;
   s_progress = 0;
-  static uint8_t buf[4096];
+  // Puffer im PSRAM: spart 4 KB internen Speicher, den TLS und WLAN dringender brauchen
+  const size_t BUF = 4096;
+  uint8_t *buf = (uint8_t *)heap_caps_malloc(BUF, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!buf) buf = (uint8_t *)malloc(BUF);
+  if (!buf) {
+    fail("Zu wenig Arbeitsspeicher, bitte neu starten");
+    return;
+  }
   int len = -1, got = 0;
   bool begun = false;
   const char *err = "Download fehlgeschlagen";
@@ -313,7 +323,7 @@ static void do_install() {
     while (got < len) {
       int avail = st->available();
       if (avail > 0) {
-        int n = st->readBytes(buf, avail > (int)sizeof(buf) ? sizeof(buf) : avail);
+        int n = st->readBytes(buf, avail > (int)BUF ? BUF : avail);
         if (n > 0) {
           if (Update.write(buf, n) != (size_t)n) {
             write_err = true;
@@ -340,6 +350,7 @@ static void do_install() {
       break;
     }
   }
+  free(buf);
   if (!begun || len <= 0 || got < len) {
     if (begun) Update.abort();
     crash_phase(NULL, 0);
@@ -476,9 +487,54 @@ void upd_check_quiet() {
   start(false);
 }
 
+// Installieren: Läuft die Waage schon eine Weile, ist der interne Speicher zerstückelt
+// (Spracherkennung, Weboberfläche, LVGL-Seiten). Dann bricht TLS ab ("HTTP -1 · Block 6 KB").
+// Deshalb die Adresse merken und neu starten: direkt nach dem Start lädt die Waage das Update,
+// bevor Spracherkennung und Weboberfläche Speicher belegen (upd_boot_start).
 void upd_install() {
   s_quiet = false;
-  if (s_state == UPD_AVAILABLE && s_url[0]) start(true);
+  if (s_state != UPD_AVAILABLE || !s_url[0]) return;
+  if (s_boot_mode) {  // schon im Update-Start: gleich laden
+    start(true);
+    return;
+  }
+  Preferences p;
+  p.begin("waage", false);
+  p.putString("upd_url", s_url);
+  p.putString("upd_ver", s_latest);
+  p.end();
+  s_state = UPD_REBOOT;
+  s_reboot_ms = millis();
+}
+
+bool upd_boot_pending() {
+  Preferences p;
+  p.begin("waage", true);
+  bool pend = p.isKey("upd_url") && p.getString("upd_url", "").length() > 0;
+  p.end();
+  return pend;
+}
+
+bool upd_boot_mode() { return s_boot_mode; }
+
+void upd_boot_start() {
+  Preferences p;
+  p.begin("waage", false);
+  String u = p.getString("upd_url", ""), v = p.getString("upd_ver", "");
+  p.remove("upd_url");  // nur ein Versuch: klappt es nicht, startet die Waage normal weiter
+  p.remove("upd_ver");
+  p.end();
+  if (!u.length()) return;
+  strncpy(s_url, u.c_str(), sizeof(s_url) - 1);
+  s_url[sizeof(s_url) - 1] = 0;
+  strncpy(s_latest, v.c_str(), sizeof(s_latest) - 1);
+  s_latest[sizeof(s_latest) - 1] = 0;
+  s_boot_mode = true;
+  s_quiet = false;
+  printf("Update: Start fürs Update %s, frei intern %u (Block %u)\r\n", s_latest,
+         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+  start(true);
 }
 
 void upd_loop() {
@@ -521,6 +577,11 @@ void upd_loop() {
       s_rot_paused = false;
     }
     voice_hold(false);
+    // Update-Start ohne Erfolg (kein WLAN, Abbruch): Spracherkennung jetzt doch starten
+    if (s_boot_mode && st == UPD_ERROR) {
+      s_boot_mode = false;
+      if (g_set.voice_on && !voice_running() && !voice_starting()) voice_begin();
+    }
   }
   // WLAN wieder abgeben, wenn es nur für die Suche an war. Ist eine neue
   // Version da, bleibt es noch ein paar Minuten an (Installieren folgt meist).
@@ -532,6 +593,7 @@ void upd_loop() {
   }
   s_was_task = s_task;
   if (st == UPD_DONE && millis() - s_done_ms > 3000) upd_restart();
+  if (st == UPD_REBOOT && millis() - s_reboot_ms > 1500) upd_restart();  // gleich geht es mit dem Download weiter
 }
 
 // ------------------------------------------------------------
