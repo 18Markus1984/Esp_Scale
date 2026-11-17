@@ -215,8 +215,14 @@ int main(int argc,char**argv){
   FW(560,3000); tt("Wiegen"); run(400); S("rezept_menge_gewogen"); tt("Übernehmen"); run(800); S("rezept_vorschau_skaliert");
   FW(0,3000); scale_tare();
   // Eigene Stimme
-  strcpy(g_set.voice,"Roboter"); home(); ui_open_page(page_voice_own_create()); run(700); S("eigen_anlegen"); tt("Anlegen"); run(1500); S("eigen_liste");
-  drag(206,300,206,240,300); run(400); S("eigen_liste2"); tap(206,206); run(700); S("eigen_gruppe"); tap(206,206); run(800); S("eigen_aufnahme");
+  system("rm -rf 'sdcard/Waage/Stimme/Eigene Stimme' 'sdcard/Waage/Stimme/Eigene Stimme EN'");
+  strcpy(g_set.voice,"Roboter"); home(); ui_open_page(page_voice_own_create()); run(700); S("eigen_start"); tt("Los geht's"); run(800); S("eigen_schritt1");
+  tt("Später"); run(600); S("eigen_schritt2");
+  for(int k=0;k<6;k++){ tt("Später"); run(400); } S("eigen_gruppe_fertig");
+  tt("Fertig"); run(700); S("eigen_uebersicht"); drag(206,300,206,200,300); run(400); S("eigen_uebersicht2");
+  for(int k=0;k<3;k++) drag(206,200,206,300,300); run(400); tap(206,206); run(700); S("eigen_weiter");
+  tt("Übersicht"); run(600); drag(206,300,206,140,300); run(400); tap(206,206); run(700); S("eigen_gruppe");
+  for(int k=0;k<3;k++) drag(206,300,206,190,300); run(400); tap(206,206); run(800); S("eigen_schritt_lang");
   sim_force_g=-1; }
   // Gruppen
   home(); tile(1); tap(206,206); run(600); S("gruppe_kueche"); for(int k=0;k<4;k++) drag(206,300,206,190,300); run(500); S("gruppe_kueche_unten");

@@ -694,15 +694,16 @@ static void decide() {
 static void put32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
 static void put16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
 
-// Eigene Ansage: Stille vorn/hinten abschneiden (80 ms Rand) und auf gleiche Lautstärke bringen
-static void rec_trim_normalize() {
+// Eigene Ansage: Stille vorn/hinten abschneiden (80 ms Rand) und auf gleiche Lautstärke bringen.
+// false = nichts Brauchbares gehört (zu leise oder kürzer als 0,25 s): dann nichts überschreiben.
+static bool rec_trim_normalize() {
   int16_t *a = s_rec_buf + 22;
   int n = s_rec_len, peak = 0;
   for (int i = 0; i < n; i++) {
     int v = a[i] < 0 ? -a[i] : a[i];
     if (v > peak) peak = v;
   }
-  if (peak < 200) return;  // nur Rauschen: so lassen
+  if (peak < 600) return false;  // nur Rauschen
   int thr = peak / 12, s0 = 0, e = n - 1;
   while (s0 < n && (a[s0] < 0 ? -a[s0] : a[s0]) < thr) s0++;
   while (e > s0 && (a[e] < 0 ? -a[e] : a[e]) < thr) e--;
@@ -710,12 +711,14 @@ static void rec_trim_normalize() {
   s0 = s0 > pad ? s0 - pad : 0;
   e = e + pad < n ? e + pad : n - 1;
   int len = e - s0 + 1;
+  if (len < KWS_RATE / 4 + 2 * pad) return false;
   float f = 0.85f * 32767.0f / peak;
   for (int i = 0; i < len; i++) {
     int v = (int)(a[s0 + i] * f);
     a[i] = v > 32767 ? 32767 : (v < -32768 ? -32768 : v);
   }
   s_rec_len = len;
+  return true;
 }
 
 static void rec_save() {
@@ -723,7 +726,15 @@ static void rec_save() {
   if (s_rec_path[0]) {  // eigene Ansage für ein Stimmpaket
     strncpy(path, s_rec_path, sizeof(path) - 1);
     path[sizeof(path) - 1] = 0;
-    rec_trim_normalize();
+    if (!rec_trim_normalize()) {  // nichts gehört: alte Aufnahme behalten
+      free(s_rec_buf);
+      s_rec_buf = NULL;
+      s_rec_path[0] = 0;
+      printf("Sprache: Aufnahme %s zu leise/kurz, nicht gespeichert\r\n", path);
+      s_rec_state = -2;
+      s_rec_done_ms = hal_millis();
+      return;
+    }
   } else {
     const char *id = voice_word_id(s_rec_word);
     storage_mkdir(REC_DIR);
@@ -953,7 +964,7 @@ bool voice_wake() {
 
 int voice_rec_state() {
   // "gespeichert" nach 1,2 s wieder auf bereit
-  if ((s_rec_state == 4 || s_rec_state == -1) && hal_millis() - s_rec_done_ms > 1200) s_rec_state = 0;
+  if ((s_rec_state == 4 || s_rec_state < 0) && hal_millis() - s_rec_done_ms > 1200) s_rec_state = 0;
   return s_rec_state;
 }
 float voice_rec_progress() {

@@ -1176,3 +1176,31 @@ Gilt für Taste, Auto-Update nach dem Start und Weboberfläche.
 (4 KB), Bestenliste/Protokoll im Web, Protokollseite, `log_read`, Rezeptliste, Rezept-Puffer im Web, Stimmpaket-
 Liste, `storage_copy`, Untertitel der eigenen Stimme. Statischer interner RAM 213 KB -> 185 KB (-28 KB).
 Am Gerät prüfen: Update über die Taste nach längerem Betrieb mit Spracherkennung.
+
+### Stand 17.11.2026 (nachts): Eigene Stimme geführt, Anlegen ohne Kopieren
+Fehlerbild von Markus: „Anlegen/Liste geht nicht“, „Handy nimmt nicht auf“, Nutzer wissen nicht, was sie sagen sollen.
+Ursache Anlegen: `own_create()` kopierte ~70 Dateien synchron (UI-Callback bzw. Web-Handler) -> Wächter/Hänger,
+und ohne Vorlage blieb das Paket „nicht vorhanden“. Handy: auf http:// gibt es kein getUserMedia, iOS kein
+`capture` für Audio.
+**Anlegen kopiert nichts mehr:** Ordner + `_basis.txt` (Name der Vorlage = bisher gewählte Stimme), sofort fertig.
+`own_exists()` = `_basis.txt` vorhanden (alte Pakete: gramm.wav/grams.wav). `own_base()` (gecacht), `own_is_pack()`.
+sound.cpp: `word_path_lv()` mit 3 Stufen – gewähltes Paket, Vorlage der eigenen Stimme (nur wenn die eigene Stimme
+gewählt ist), `_Zusatz`; `play_wav`, `have_word`, `en_has_and` nutzen alle Stufen. `pack_ok()` zählt die eigene
+Stimme, wenn sie angelegt ist und die Vorlage passt (auch Host-Version).
+**Aufnahme:** `rec_trim_normalize()` liefert false bei zu leise (Spitze < 600) oder < 0,25 s -> Zustand **-2**
+„nichts gehört“, die alte Datei bleibt. Start mit kurzem Klick (SND_CLICK) statt Parkpiepser, Vorhören wird abgebrochen.
+**Gerät geführt** (`page_voice_own.cpp`): Einstieg „Los geht's“ -> direkt Schritt 1. Schrittseite: Gruppe · k von N,
+wann die Waage das sagt (`own_slot_t.when`, neu für alle DE/EN-Einträge), „Sag zum Beispiel“ + Vorschlag
+(Schrift nach Länge 34/24/18), „oder mit eigenen Worten“, runder Knopf **halten = aufnehmen** (PRESSED/RELEASED,
+300 ms Nachlauf, während der Aufnahme weiß mit „läuft“), danach automatisch vorspielen; „Anhören“ / „Später“ bzw.
+„Passt ›“, unten „Übersicht“. Ende einer Gruppe: Abschlussseite (Haken nur mit Aufnahmen, „Einschalten“,
+„Weiter: <nächste Gruppe>“, „Fertig“). Übersicht: „Weiter aufnehmen“ (erste offene Ansage), „Einschalten“, 4 Gruppen.
+Gruppe 2 heißt jetzt „Wörter und Einheiten“.
+**Web `#/eigen` geführt:** gleiche Schritte; Aufnahme mit dem Mikrofon der Waage über einen Halten-Knopf
+(pointerdown -> `/api/own/rec`, pointerup -> 300 ms später `/rec_stop`, Status über neues leichtes
+`/api/own/state` alle 300 ms, rot + Pegel während der Aufnahme). Zusätzlich „Sprachmemo hochladen“ (Datei,
+Browser rechnet in 16 kHz WAV um). `/api/own` liefert je Ansage `w` (wann). `/api/own/create` sofort.
+Geprüft: check.sh BUILD_OK, Simulator de/en (eigen_start, eigen_schritt1/2, eigen_gruppe_fertig, eigen_uebersicht,
+eigen_schritt_lang), Web mit Mock de/en (Anlegen, Halten -> gespeichert, Gruppe fertig, Liste; keine JS-Fehler),
+Design-Review (Knopfbreiten im Kreis, „Später“ statt „Überspringen“, Halten-Hinweis im Knopf).
+Am Gerät prüfen: Aufnahme halten/loslassen, Vorhören, Wiedergabe mit Vorlage-Ersatz für nicht Aufgenommenes.

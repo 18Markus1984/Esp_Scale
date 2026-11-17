@@ -4,6 +4,7 @@
 #include "hal.h"
 #include "data.h"
 #include "storage.h"
+#include "voice_own.h"
 #include <math.h>
 #include <string.h>
 #include <strings.h>
@@ -202,23 +203,37 @@ static void play_note(uint16_t freq, uint16_t ms, cat_t cat) {
 static char s_prev_pack[24];
 static volatile const char *s_cur_pack = NULL;
 
-static void word_path(char *path, int len, const char *name, bool extra) {
-  if (s_cur_pack) snprintf(path, len, VOICE_DIR "/%s/%s.wav", (const char *)s_cur_pack, name);
-  else if (extra) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.lang == LANG_EN ? "_Zusatz-EN" : "_Zusatz", name);
-  else if (g_set.voice[0]) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.voice, name);
-  else snprintf(path, len, VOICE_DIR "/%s.wav", name);
+// Stufen: 0 = gewähltes Paket, 1 = Vorlage der eigenen Stimme (nur wenn die eigene Stimme
+// gewählt ist: was noch nicht selbst aufgenommen ist, kommt von dort), 2 = _Zusatz.
+// false = diese Stufe gibt es gerade nicht.
+#define WORD_LEVELS 3
+static bool word_path_lv(char *path, int len, const char *name, int lv) {
+  if (lv == 0) {
+    if (s_cur_pack) snprintf(path, len, VOICE_DIR "/%s/%s.wav", (const char *)s_cur_pack, name);
+    else if (g_set.voice[0]) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.voice, name);
+    else snprintf(path, len, VOICE_DIR "/%s.wav", name);
+    return true;
+  }
+  if (s_cur_pack) return false;  // Vorhören: genau diese Datei
+  if (lv == 1) {
+    if (!own_is_pack(g_set.voice)) return false;
+    const char *b = own_base();
+    if (!b[0] || own_is_pack(b)) return false;
+    snprintf(path, len, VOICE_DIR "/%s/%s.wav", b, name);
+    return true;
+  }
+  snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.lang == LANG_EN ? "_Zusatz-EN" : "_Zusatz", name);
+  return true;
 }
+
 
 static bool play_wav(const char *name) {
   char path[96];
   if (!storage_ok()) return false;
-  word_path(path, sizeof(path), name, false);
   storage_lock();
-  File f = SD_MMC.open(path, FILE_READ);
-  if (!f) {
-    word_path(path, sizeof(path), name, true);
-    f = SD_MMC.open(path, FILE_READ);
-  }
+  File f;
+  for (int lv = 0; lv < WORD_LEVELS && !f; lv++)
+    if (word_path_lv(path, sizeof(path), name, lv)) f = SD_MMC.open(path, FILE_READ);
   uint8_t hdr[44];
   bool good = f && f.read(hdr, 44) == 44 && !memcmp(hdr, "RIFF", 4) && !memcmp(hdr + 8, "WAVE", 4);
   storage_unlock();
@@ -348,6 +363,7 @@ static const char *const TENS_EN[10] = { "", "", "twenty", "thirty", "forty", "f
 
 // "one hundred and twenty": nur wenn das Paket and.wav hat (ältere Pakete ohne bleiben bei
 // "one hundred twenty", sonst fehlte ein Wort und die ganze Ansage)
+static bool have_word(const char *name);
 static bool en_has_and() {
   static char pack[24] = "";
   static bool has = false;
@@ -355,8 +371,7 @@ static bool en_has_and() {
     strncpy(pack, g_set.voice, sizeof(pack) - 1);
     pack[sizeof(pack) - 1] = 0;
     char path[96];
-    word_path(path, sizeof(path), "and", false);
-    has = storage_exists(path);
+    has = have_word("and");
   }
   return has;
 }
@@ -495,10 +510,17 @@ static const char *check_word() {
 }
 
 // Hat der Ordner (Paketname, "" = direkt in /Waage/Stimme) Bausteine der eingestellten Sprache?
+// Die eigene Stimme zählt, sobald sie angelegt ist und ihre Vorlage passt (oder "gramm" selbst
+// aufgenommen ist).
 static bool pack_ok(const char *pack) {
   char path[96];
   if (pack[0]) snprintf(path, sizeof(path), VOICE_DIR "/%s/%s.wav", pack, check_word());
   else snprintf(path, sizeof(path), VOICE_DIR "/%s.wav", check_word());
+  if (storage_exists(path)) return true;
+  if (!own_is_pack(pack) || !own_exists()) return false;
+  const char *b = own_base();
+  if (!b[0] || own_is_pack(b)) return false;
+  snprintf(path, sizeof(path), VOICE_DIR "/%s/%s.wav", b, check_word());
   return storage_exists(path);
 }
 
@@ -791,10 +813,9 @@ static const char *word_file(const char *file) {
 // ------------------------------------------------------------
 static bool have_word(const char *name) {
   char path[96];
-  word_path(path, sizeof(path), name, false);
-  if (storage_exists(path)) return true;
-  word_path(path, sizeof(path), name, true);
-  return storage_exists(path);
+  for (int lv = 0; lv < WORD_LEVELS; lv++)
+    if (word_path_lv(path, sizeof(path), name, lv) && storage_exists(path)) return true;
+  return false;
 }
 
 // Alle Wörter einer Nachricht vorhanden? Sonst lieber gar nicht ansagen
@@ -931,7 +952,11 @@ void sound_play(sound_t s) { (void)s; }
 // Stimmpakete wie auf dem Gerät auflisten (für die Auswahlseite im Simulator)
 static bool pack_ok_host(const char *pack) {
   char path[96];
-  snprintf(path, sizeof(path), "/Waage/Stimme/%s/%s.wav", pack, g_set.lang == LANG_EN ? "grams" : "gramm");
+  const char *w = g_set.lang == LANG_EN ? "grams" : "gramm";
+  snprintf(path, sizeof(path), "/Waage/Stimme/%s/%s.wav", pack, w);
+  if (storage_exists(path)) return true;
+  if (!own_is_pack(pack) || !own_exists() || !own_base()[0] || own_is_pack(own_base())) return false;
+  snprintf(path, sizeof(path), "/Waage/Stimme/%s/%s.wav", own_base(), w);
   return storage_exists(path);
 }
 bool sound_voice_available() { return g_set.voice[0] && pack_ok_host(g_set.voice); }

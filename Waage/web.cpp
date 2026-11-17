@@ -934,7 +934,8 @@ static void h_own() {
   for (int i = 0; i < n; i++) {
     if (i) s += ",";
     s += "{\"f\":\"" + String(sl[i].file) + "\",\"t\":\"" + esc(sl[i].text) + "\",\"g\":" + sl[i].group +
-         ",\"s\":" + sl[i].max_s + ",\"m\":" + (ex && own_is_mine(sl[i].file) ? "1" : "0") + "}";
+         ",\"s\":" + sl[i].max_s + ",\"m\":" + (ex && own_is_mine(sl[i].file) ? "1" : "0") + ",\"w\":\"" +
+         esc(sl[i].when) + "\"}";
   }
   send_json(s + "]}");
 }
@@ -949,7 +950,12 @@ static bool own_slot_ok(const String &f) {
 
 static void h_own_create() {
   hit();
-  ok(own_create(s_server.arg("from").c_str()), "Kopieren fehlgeschlagen (SD-Karte?)");
+  ok(own_create(s_server.arg("from").c_str()), "Anlegen fehlgeschlagen (SD-Karte?)");  // kopiert nichts, geht sofort
+}
+
+// klein und schnell zum Nachfragen während der Aufnahme (die volle Liste ist ~10 KB)
+static void h_own_state() {
+  send_json(String("{\"rec\":") + voice_rec_state() + ",\"prog\":" + String(voice_rec_progress(), 2) + "}");
 }
 
 static void h_own_use() {
@@ -1000,7 +1006,8 @@ static void h_own_rec() {
   char path[96];
   own_path(path, sizeof(path), f.c_str());
   voice_rec_session(true);
-  sound_play_tone(SND_PARK);
+  sound_speak_stop();          // Vorhören abbrechen
+  sound_play_tone(SND_CLICK);  // kurzer Klick, die Aufnahme beginnt gleich danach
   bool good = voice_rec_file(path, maxs * 1000);
   if (good) s_own_rec_f = f;
   else voice_rec_session(false);
@@ -1456,6 +1463,7 @@ static void routes() {
   s_server.on("/api/own/play", h_own_play);
   s_server.on("/api/own/rec", h_own_rec);
   s_server.on("/api/own/rec_stop", h_own_rec_stop);
+  s_server.on("/api/own/state", h_own_state);
   s_server.on("/api/scores", HTTP_POST, h_score_add);
   s_server.on("/api/msa", HTTP_POST, h_msa_save);
   s_server.on("/api/recipes", h_recipes);

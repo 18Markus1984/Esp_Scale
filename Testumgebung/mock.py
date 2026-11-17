@@ -14,6 +14,21 @@ SET={"unit":0,"whole":False,"autosave":False,"cal_date":os.environ.get("MOCK_CAL
      "lang":int(os.environ.get("WAAGE_LANG","0")),"profile":0,"cats":7,"modes_off":0,"setup_done":not os.environ.get("MOCK_FIRSTRUN"),"voice_model":True,"voice_info":"trainiert 2026-10-12, 31000 Beispiele, Prüfung 93 %","voice_err":"","upd_auto":True,"fw_local":False,"theme":int(os.environ.get("WAAGE_THEME","0")),"ref_g":500,"ref_days":30,"ref_tol":0.5,"ref_last":"12.09.2026","ref_meas":500.3,"ref_ok":True,"ref_next":"12.10.2026","ref_due":False,"time":"14:32","ssid":"" if os.environ.get("MOCK_NOWLAN") else "FRITZ!Box 7590","factor":-21.73,"porto":[{"name":"Standardbrief","max":20,"ct":95},{"name":"Kompaktbrief","max":50,"ct":110},{"name":"Großbrief","max":500,"ct":180},{"name":"Maxibrief","max":1000,"ct":290}]}
 DAYS=[{"day":"2026-09-20","count":4},{"day":"2026-09-19","count":9},{"day":"2026-09-17","count":3},{"day":"2026-09-15","count":6}]
 TH=[int(os.environ.get("WAAGE_THEME","0"))]
+OWN={"exists":not os.environ.get("MOCK_OWN_NEW"),"use":False,"f":None,"t":0,"stop":0,"slots":[
+  {"f":"tara","t":"Tara","g":0,"s":6,"m":1,"w":"nach Tara (Waage auf null)"},{"f":"gespeichert","t":"Gespeichert","g":0,"s":6,"m":0,"w":"wenn ein Gewicht gespeichert wurde"},
+  {"f":"ziel_erreicht","t":"Ziel erreicht","g":0,"s":6,"m":0,"w":"wenn das Zielgewicht erreicht ist"},
+  {"f":"ja","t":"Ja?","g":1,"s":3,"m":0,"w":"nach „Hallo Waage“: sie hört jetzt zu"},{"f":"hilfe","t":"Sag Hallo Waage, dann zum Beispiel Tara, wie viel, speichern …","g":1,"s":20,"m":0,"w":"auf „Hilfe“: erklärt, was man sagen kann"},
+  {"f":"ziel","t":"Ziel","g":2,"s":3,"m":0,"w":"Baustein: „Ziel“ 250 Gramm"},{"f":"null","t":"null","g":3,"s":3,"m":0,"w":"Zahl, wird mit anderen zusammengesetzt"}]}
+def own_rec():
+    if not OWN["f"]: return 0
+    if not OWN["stop"]: return 2
+    dt=time.time()-OWN["stop"]
+    if dt<0.4: return 3
+    if dt<1.6:
+        for x in OWN["slots"]:
+            if x["f"]==OWN["f"]: x["m"]=1
+        return 4
+    OWN["f"]=None; return 0
 # Messmittelprüfungen in /Waage/Pruefung (Format wie msa_store.cpp, ältere Datei im Browser-Format)
 def msa_csv(nom,tol,v,src,date,cal="2026-10-10 18:22",pts=(200,500,1000,2000)):
     import statistics as stt
@@ -124,10 +139,18 @@ class H(http.server.BaseHTTPRequestHandler):
             if d=="/Waage/Sprache": return self.j({"dir":d,"dirs":["Aufnahmen"],"files":[{"name":"kws_de.bin","size":108996}],"total":7841796,"used":5520})
             if d=="/Waage/Sprache/Aufnahmen": return self.j({"dir":d,"dirs":["hallo_waage","tara","ziel_250"],"files":[],"total":7841796,"used":5520})
             return self.j({"dir":d,"dirs":[],"files":[{"name":"pfannkuchen.txt","size":118},{"name":"waffeln.txt","size":142},{"name":"pizzateig.txt","size":131}],"total":31000000,"used":2400000})
-        if p=="/api/own": return self.j({"pack":"Eigene Stimme","exists":True,"use":False,"voice":"Roboter","rec":0,"prog":0,
-            "slots":[{"f":"tara","t":"Tara","g":0,"s":6,"m":1},{"f":"gespeichert","t":"Gespeichert","g":0,"s":6,"m":0},
-                     {"f":"ja","t":"Ja?","g":1,"s":3,"m":0},{"f":"hilfe","t":"Sag Hallo Waage …","g":1,"s":20,"m":0},
-                     {"f":"ziel","t":"Ziel","g":2,"s":3,"m":0},{"f":"null","t":"null","g":3,"s":3,"m":0}]})
+        # Eigene Stimme: Zustand wie an der Waage (rec 1/2 -> 3 -> 4), MOCK_OWN_NEW=1 = noch nicht angelegt
+        if p=="/api/own": return self.j({"pack":"Eigene Stimme","exists":OWN["exists"],"use":OWN["use"],"voice":"Roboter","rec":own_rec(),"prog":0,"slots":OWN["slots"]})
+        if p=="/api/own/state":
+            r=own_rec(); return self.j({"rec":r,"prog":min(1,(time.time()-OWN["t"])/6) if r==2 else 0})
+        if p=="/api/own/create": OWN["exists"]=True; return self.j({"ok":1})
+        if p=="/api/own/use": OWN["use"]=True; return self.j({"ok":1})
+        if p=="/api/own/rec": OWN["f"]=q.get("f"); OWN["t"]=time.time(); OWN["stop"]=0; return self.j({"ok":1})
+        if p=="/api/own/rec_stop": OWN["stop"]=time.time(); return self.j({"ok":1})
+        if p=="/api/own/mark":
+            for x in OWN["slots"]:
+                if x["f"]==q.get("f"): x["m"]=1
+            return self.j({"ok":1})
         if p.startswith("/api/own/"): return self.j({"ok":1})
         if p=="/api/scores": return self.j([
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Lena","value":38.0,"unit":"g"},

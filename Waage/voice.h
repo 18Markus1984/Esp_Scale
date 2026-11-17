@@ -54,7 +54,8 @@ void voice_rec_stop();               // Serie vorzeitig beenden und speichern
 bool voice_rec_file(const char *path, int max_ms);
 bool voice_rec_series();             // läuft/lief gerade eine Serie?
 void voice_rec_session(bool on);     // Aufnahmeseite offen: Mikrofon bereithalten
-// 0 bereit, 1 gleich geht's los, 2 nimmt auf, 3 speichert, 4 gespeichert, -1 Fehler
+// 0 bereit, 1 gleich geht's los, 2 nimmt auf, 3 speichert, 4 gespeichert, -1 Fehler,
+// -2 nichts gehört (zu leise/zu kurz, eigene Ansage: alte Datei bleibt)
 int voice_rec_state();
 float voice_rec_progress();          // 0 … 1 während der Aufnahme
 int voice_rec_ms(int word);          // Länge der Aufnahme
