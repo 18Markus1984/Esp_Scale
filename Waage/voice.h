@@ -50,6 +50,8 @@ int voice_word_count(int i);         // vorhandene Aufnahmen (zählt auf der SD-
 // series: 30 s am Stück, das Wort mehrmals mit Pausen sagen (Datei s001.wav …)
 bool voice_rec_start(int word, bool series = false);
 void voice_rec_stop();               // Serie vorzeitig beenden und speichern
+// eigene Ansage (Stimmpaket): aufnehmen bis max_ms oder voice_rec_stop(), Stille weg, normalisiert
+bool voice_rec_file(const char *path, int max_ms);
 bool voice_rec_series();             // läuft/lief gerade eine Serie?
 void voice_rec_session(bool on);     // Aufnahmeseite offen: Mikrofon bereithalten
 // 0 bereit, 1 gleich geht's los, 2 nimmt auf, 3 speichert, 4 gespeichert, -1 Fehler

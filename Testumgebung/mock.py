@@ -124,6 +124,11 @@ class H(http.server.BaseHTTPRequestHandler):
             if d=="/Waage/Sprache": return self.j({"dir":d,"dirs":["Aufnahmen"],"files":[{"name":"kws_de.bin","size":108996}],"total":7841796,"used":5520})
             if d=="/Waage/Sprache/Aufnahmen": return self.j({"dir":d,"dirs":["hallo_waage","tara","ziel_250"],"files":[],"total":7841796,"used":5520})
             return self.j({"dir":d,"dirs":[],"files":[{"name":"pfannkuchen.txt","size":118},{"name":"waffeln.txt","size":142},{"name":"pizzateig.txt","size":131}],"total":31000000,"used":2400000})
+        if p=="/api/own": return self.j({"pack":"Eigene Stimme","exists":True,"use":False,"voice":"Roboter","rec":0,"prog":0,
+            "slots":[{"f":"tara","t":"Tara","g":0,"s":6,"m":1},{"f":"gespeichert","t":"Gespeichert","g":0,"s":6,"m":0},
+                     {"f":"ja","t":"Ja?","g":1,"s":3,"m":0},{"f":"hilfe","t":"Sag Hallo Waage …","g":1,"s":20,"m":0},
+                     {"f":"ziel","t":"Ziel","g":2,"s":3,"m":0},{"f":"null","t":"null","g":3,"s":3,"m":0}]})
+        if p.startswith("/api/own/"): return self.j({"ok":1})
         if p=="/api/scores": return self.j([
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Lena","value":38.0,"unit":"g"},
             {"day":"2026-09-20","game":"Schaetzspiel","name":"Tom","value":52.0,"unit":"g"},

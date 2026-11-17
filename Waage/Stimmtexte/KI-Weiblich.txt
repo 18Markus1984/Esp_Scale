@@ -1,0 +1,37 @@
+# KI-Weiblich (Deutsch)
+# Charakter: warm, herzlich
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Weiblich" --status
+Tara, wir fangen bei null an.
+Gespeichert, ich hab es mir gemerkt.
+Ziel erreicht, perfekt.
+Oh, das ist zu schwer für mich.
+Ah, den Topf kenne ich.
+Fertig, lass es dir schmecken.
+Die Waage ist leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Weiblich" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt kannst du einfüllen.
+Akku.
+Prozent.
+wird gerade geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das hab ich nicht verstanden, sag gern Hilfe.
+Sag einfach Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Okay, Zielwiegen beendet.
+Hallo, ich bin bereit.
+Weiter, zum nächsten Schritt.
+Wir gehen zurück zur Startseite.
+Das klappt hier gerade leider nicht.
+Mein Akku ist fast leer, lädst du mich bitte.
+Dein Timer ist abgelaufen.
+Wie spät es ist, weiß ich leider noch nicht.
+Ich schalte mich gleich aus, bis bald.

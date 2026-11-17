@@ -30,7 +30,7 @@ static const vcmd_t CMDS[] = {
   { NULL, "Wie viel?", "das Gewicht ansagen" },
   { NULL, "Speichern", "Gewicht ins Protokoll" },
   { "Zielwiegen", "250 Gramm", "Ziel setzen: 50, 100, 150, 200, 250, 300, 500, 1000" },
-  { NULL, "Stopp", "Ziel beenden (auch „Abbrechen“)" },
+  { NULL, "Stopp", "Ziel beenden, klingelnden Timer aus (auch „Abbrechen“)" },
   { "Bedienen", "Weiter", "nächster Schritt, z. B. im Rezept" },
   { NULL, "Zurück", "zur Startseite" },
   { NULL, "Nochmal", "letzte Ansage wiederholen" },

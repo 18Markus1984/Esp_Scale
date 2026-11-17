@@ -58,6 +58,8 @@ Für den QR-Code (System → Weboberfläche) in derselben Datei außerdem:
 | `page_blind.cpp` | Spiel Blindgießen |
 | `page_halb.cpp` | Spiel Halbe-Halbe (in der Mitte teilen) |
 | `page_ex.cpp` | Spiel Ex (Glas auf Zeit leeren) |
+| `page_kaffee.cpp` | Kaffee: Filter und Espresso |
+| `voice_own.*`, `page_voice_own.cpp` | Eigene Stimme aufnehmen (Waage und Browser) |
 | `tools.*` | Hintergrunddienste: Küchentimer, Langzeitmessung |
 | `page_zaehlen.cpp` | Modus Zählen: Referenz lernen, zählen, per Bluetooth senden |
 | `page_porto.cpp` | Modus Porto: Briefklasse und Preis (Stand 2026) |

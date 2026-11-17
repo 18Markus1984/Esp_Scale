@@ -13,6 +13,8 @@
 #    python3 stimme_schneiden.py nachtrag.mp3 Jarvis --nachtrag      (nur "noch", "zu viel" ergänzen)
 #    python3 stimme_schneiden.py ansagen/ Jarvis --ansagen --ordner  (Sätze der Sprachsteuerung:
 #        "Ja?", "Nicht verstanden …", Hilfe … je eine Datei, Reihenfolge: --liste x x --ansagen)
+#    python3 stimme_schneiden.py status.mp3 Rick --status    (nur die 7 Statusansagen ersetzen)
+#    Texte je Charakter (Bernd das Brot, Rick …): stimme_texte.py, fertige Listen in Stimmtexte/
 #    Fehlen sie, nimmt die Waage diese Sätze aus /Waage/Stimme/_Zusatz.
 #
 #  Ergebnis: Ordner "Jarvis" mit 50 Dateien -> auf die SD-Karte nach
@@ -151,21 +153,30 @@ def main():
                    help="nur die neuen Wörter (noch, zu viel) aufnehmen und zu einem bestehenden Paket hinzufügen")
     p.add_argument("--ansagen", action="store_true",
                    help="Sätze der Sprachsteuerung (Ja?, Hilfe …); mehrteilige Sätze besser mit --ordner")
+    p.add_argument("--status", action="store_true",
+                   help="nur die 7 Statusansagen (tara, gespeichert …) neu aufnehmen, z. B. Charaktersprüche")
+    p.add_argument("--charakter", default=None,
+                   help="mit --liste: Texte dieses Charakters aus stimme_texte.py (Standard: Paketname)")
     args = p.parse_args()
     if len(args.dateien) < 2:
         p.error("mindestens eine Aufnahme und der Paketname")
     args.paket = args.dateien[-1]
     quellen = args.dateien[:-1]
-    global ORDER, TEXTS
+    global ORDER, TEXTS, NEU
     if args.lang == "en":
         ORDER, TEXTS = ORDER_EN, TEXTS_EN
     if args.nachtrag:  # bestehendes Paket ergänzen: nur die neuen Wörter
         ORDER, TEXTS = ORDER[-NEU:], TEXTS[-NEU:]
-    if args.ansagen:
+    if args.ansagen or args.status:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import stimme_erzeugen as E
-        z = E.ZUSATZ_EN if args.lang == "en" else E.ZUSATZ
+        import stimme_texte as ST
+        _, st, zu = ST.texte(args.charakter or args.paket)
+        if args.lang == "en" and not (args.charakter or args.paket).upper().endswith("-EN") and \
+                (args.charakter or args.paket) not in ST.CHAR:
+            st, zu = dict(ST.STATUS_EN), dict(ST.ZUSATZ_EN)
+        z = zu if args.ansagen else st
         ORDER, TEXTS = list(z), list(z.values())
+        NEU = 0  # feste Liste, keine ältere Variante ohne die neuesten Wörter
 
     if args.liste:
         print("\n".join(TEXTS))

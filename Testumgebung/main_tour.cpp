@@ -193,6 +193,31 @@ int main(int argc,char**argv){
   float halves[3]={57.0f,61.5f,58.6f};
   for(int p=0;p<3;p++){ FW(0,5000); if(p==0) S("halb_leeren"); FW(118.0f,5000); if(p==0) S("halb_ganz_erkannt"); FW(0,5000); if(p==0) S("halb_teilen"); FW(halves[p],5000); run(2000); if(p==0) S("halb_aufloesung"); tt(p<2?"Nächster":"Ergebnis"); run(600); }
   S("halb_endstand"); FW(0,3000); sim_force_g=-1; }
+  // ---- Neu: Protokoll über 40 Tage, Kaffee, Rezept nach Menge, eigene Stimme ----
+  { extern float sim_force_g; auto FW=[&](float g,int ms){ sim_force_g=g; run(ms); };
+  // 50 Protokolltage in Anlegereihenfolge (früher wurden nur die ersten 40 Dateien gelesen)
+  for(int d=0; d<50; d++){ char p[96]; int m=9+(d+10)/30, dd=1+(d+10)%30; snprintf(p,sizeof p,"sdcard/Waage/Protokoll/2026-%02d-%02d.txt",m,dd); put(p,"10:00:00;100,0;g;\n"); }
+  { char days[30][11]; int n=log_days(days,30); printf("LOGDAYS n=%d neuester=%s aeltester=%s\n",n,n?days[0]:"-",n?days[n-1]:"-"); }
+  openp(page_protokoll_create(),"protokoll_50tage");
+  // Kaffee: Filter
+  home(); FW(0,3000); scale_tare(); ui_open_page(page_kaffee_create()); run(700); S("kaffee_setup");
+  tt("Los"); run(500); FW(18.2f,3000); S("kaffee_dosis"); tt("Übernehmen"); run(600); S("kaffee_bereit");
+  FW(18.2f+20,1500); S("kaffee_bloom"); FW(18.2f+38,3000); S("kaffee_bloom_warten"); run(32000); FW(18.2f+150,4000); S("kaffee_aufgiessen");
+  FW(18.2f+292,4000); S("kaffee_ziel"); tt("Fertig"); run(700); S("kaffee_fertig");
+  // Kaffee: Espresso
+  home(); FW(0,3000); scale_tare(); ui_open_page(page_kaffee_create()); run(700); tt("Espresso"); run(300); S("espresso_setup");
+  tt("Los"); run(500); FW(18.0f,3000); tt("Übernehmen"); run(600); FW(180,3000); S("espresso_tasse"); tt("Tara + bereit"); run(600); S("espresso_bereit");
+  FW(180+12,4000); S("espresso_laeuft"); FW(180+36.4f,8000); S("espresso_ziel"); tt("Fertig"); run(700); S("espresso_fertig");
+  home(); FW(0,3000); scale_tare();
+  // Rezept nach vorhandener Menge
+  openp(page_rezept_create(),"rezept_liste3"); tap(206,206); run(800); S("rezept_vorschau3");
+  tt("Tippen: nach vorhandener Menge"); run(800); S("rezept_nach_menge");
+  FW(560,3000); tt("Wiegen"); run(400); S("rezept_menge_gewogen"); tt("Übernehmen"); run(800); S("rezept_vorschau_skaliert");
+  FW(0,3000); scale_tare();
+  // Eigene Stimme
+  strcpy(g_set.voice,"Roboter"); home(); ui_open_page(page_voice_own_create()); run(700); S("eigen_anlegen"); tt("Anlegen"); run(1500); S("eigen_liste");
+  drag(206,300,206,240,300); run(400); S("eigen_liste2"); tap(206,206); run(700); S("eigen_gruppe"); tap(206,206); run(800); S("eigen_aufnahme");
+  sim_force_g=-1; }
   // Gruppen
   home(); tile(1); tap(206,206); run(600); S("gruppe_kueche"); for(int k=0;k<4;k++) drag(206,300,206,190,300); run(500); S("gruppe_kueche_unten");
   home(); tile(1); drag(206,300,206,190,300); run(400); tap(206,206); run(600); for(int k=0;k<4;k++) drag(206,300,206,190,300); run(500); S("gruppe_werkstatt_unten");

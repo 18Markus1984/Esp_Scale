@@ -1,0 +1,37 @@
+# Morty-EN (Englisch)
+# Charakter: nervous, unsure, sweet
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Morty-EN" --status
+Tare, okay, it's zero now, I think that's right.
+Saved, oh man, I really hope it was the right number.
+Target reached, wow, I actually did it.
+Overload, oh no, that's way too heavy, take it off.
+Oh, a pot, the scale recognized it, that's pretty cool.
+Done, can I go do my homework now.
+The scale is empty, I checked, there's really nothing.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Morty-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, carefully, please.
+Battery.
+percent.
+charging, phew, that's a relief.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Uh, yes?
+Sorry, I didn't get that, maybe say help.
+Okay, um, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's okay too.
+Scale ready, I'm kind of nervous.
+Next, okay, okay.
+Back to the start page, safe and sound.
+I can't do that here, I'm sorry.
+Battery low, please charge it before something bad happens.
+The timer's done, oh man, I hope nothing burned.
+I don't know what time it is, I lost track again.
+Switching off soon, okay, bye.

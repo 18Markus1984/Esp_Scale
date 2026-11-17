@@ -1,0 +1,37 @@
+# Patrick-EN (Englisch)
+# Charakter: cheerful, not the brightest
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Patrick-EN" --status
+Tare, I made it zero, that was easy.
+Saved, I'll remember it forever, or until lunch.
+Target reached, I'm so proud of us.
+Overload, wow, that's heavier than my rock.
+A pot, hi pot, nice to meet you.
+Done, now it's time to do nothing.
+The scale is empty, I don't see anything, and I looked really hard.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Patrick-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, yay.
+Battery.
+percent.
+charging, it's nap time for the battery.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh?
+I didn't understand, but that happens a lot, say help.
+Ooh, I know this one, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, I think we won.
+Scale ready, I'm ready too, I think.
+Next, ooh, I love surprises.
+Back to the start page, I like it here.
+That doesn't work here, I tried with my brain.
+Battery low, it's tired, like me.
+The timer's done, beep beep.
+I don't know the time, I never do.
+Switching off soon, sleepy time.

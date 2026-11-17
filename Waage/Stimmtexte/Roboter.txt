@@ -1,0 +1,37 @@
+# Roboter (Deutsch)
+# Charakter: Maschine, knapp und technisch (espeak-ng, stimme_erzeugen.py)
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter" --status
+Tara ausgeführt.
+Messwert gespeichert.
+Zielwert erreicht.
+Warnung, Überlast.
+Behälter erkannt.
+Vorgang abgeschlossen.
+Plattform leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Befüllung starten.
+Akku.
+Prozent.
+Ladevorgang aktiv.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Eingabe?
+Befehl nicht erkannt, sage Hilfe.
+Bedienhinweis, sage Hallo Waage oder tippe zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielmodus beendet.
+System bereit.
+Nächster Schritt.
+Rückkehr zur Startseite.
+Funktion hier nicht verfügbar.
+Energie kritisch, bitte laden.
+Timer abgelaufen.
+Systemzeit unbekannt.
+Abschaltung in Kürze.

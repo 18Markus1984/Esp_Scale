@@ -44,6 +44,7 @@
 #include <esp_heap_caps.h>
 #include "mic.h"
 #include "ui.h"
+#include "tools.h"
 #include "scale.h"
 #include "sound.h"
 #include "settings.h"
@@ -267,6 +268,10 @@ void voice_loop() {
       ui_go_home();
       break;
     case CMD_STOP:
+      if (timer_any_ringing()) {  // nur den Wecker aus
+        timer_alarm_off();
+        break;
+      }
       sound_parking_reset();
       ui_go_home();
       break;
@@ -286,6 +291,7 @@ const char *voice_word_id(int i) { return ""; }
 const char *voice_word_text(int i) { return ""; }
 int voice_word_count(int i) { return 0; }
 bool voice_rec_start(int word, bool series) { return false; }
+bool voice_rec_file(const char *path, int max_ms) { return false; }
 void voice_rec_session(bool on) {}
 void voice_hold(bool on) {}
 void voice_rec_stop() {}
@@ -302,6 +308,7 @@ const char *voice_capture_last() { return ""; }
 #else  // eigene Schlüsselwort-Erkennung (kws.*)
 #include "kws.h"
 #include "ui.h"
+#include "tools.h"
 #include "scale.h"
 #include "sound.h"
 #include "settings.h"
@@ -335,6 +342,7 @@ static void ensure_task();
 #define AFTER_CMD_MS 1200  // nach einem Befehl dasselbe Wort nicht nochmal erkennen
 #define REC_WAIT_MS 350    // nach dem Piepton warten (Ton nicht mitaufnehmen)
 #define AFTER_SOUND_MS 250 // nach eigener Ansage/Ton so lange nicht auswerten (Nachhall)
+#define TONE_MASK_MS 140   // kurzer Ton (Parkpiepser): so lange Stille statt Mikrofon einspeisen
 #define REC_DIR DIR_SPEECH "/Aufnahmen"
 
 // ---- Wörter: feste Liste (wie Sprachmodell/kws_common.py) ----
@@ -451,6 +459,7 @@ static int16_t *s_rec_buf = NULL;         // 22 Werte Platz für den WAV-Kopf, d
 static bool s_rec_series = false;         // Serienaufnahme (30 s, Datei s001.wav …)
 static int s_rec_len = 0, s_rec_pos = 0, s_rec_wait = 0;
 static uint32_t s_rec_done_ms = 0;
+static char s_rec_path[96] = "";          // eigene Ansage: Ziel-Datei (sonst Trainings-Aufnahme)
 
 const char *voice_model_path() {
   return g_set.lang == LANG_EN ? DIR_SPEECH "/kws_en.bin" : DIR_SPEECH "/kws_de.bin";
@@ -685,16 +694,46 @@ static void decide() {
 static void put32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
 static void put16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
 
+// Eigene Ansage: Stille vorn/hinten abschneiden (80 ms Rand) und auf gleiche Lautstärke bringen
+static void rec_trim_normalize() {
+  int16_t *a = s_rec_buf + 22;
+  int n = s_rec_len, peak = 0;
+  for (int i = 0; i < n; i++) {
+    int v = a[i] < 0 ? -a[i] : a[i];
+    if (v > peak) peak = v;
+  }
+  if (peak < 200) return;  // nur Rauschen: so lassen
+  int thr = peak / 12, s0 = 0, e = n - 1;
+  while (s0 < n && (a[s0] < 0 ? -a[s0] : a[s0]) < thr) s0++;
+  while (e > s0 && (a[e] < 0 ? -a[e] : a[e]) < thr) e--;
+  int pad = KWS_RATE / 1000 * 80;
+  s0 = s0 > pad ? s0 - pad : 0;
+  e = e + pad < n ? e + pad : n - 1;
+  int len = e - s0 + 1;
+  float f = 0.85f * 32767.0f / peak;
+  for (int i = 0; i < len; i++) {
+    int v = (int)(a[s0 + i] * f);
+    a[i] = v > 32767 ? 32767 : (v < -32768 ? -32768 : v);
+  }
+  s_rec_len = len;
+}
+
 static void rec_save() {
-  const char *id = voice_word_id(s_rec_word);
   char dir[80], path[100];
-  storage_mkdir(REC_DIR);
-  snprintf(dir, sizeof(dir), REC_DIR "/%s", id);
-  storage_mkdir(dir);
-  int n = 1;
-  do {
-    snprintf(path, sizeof(path), "%s/%c%03d.wav", dir, s_rec_series ? 's' : 'a', n++);
-  } while (storage_exists(path) && n < 1000);
+  if (s_rec_path[0]) {  // eigene Ansage für ein Stimmpaket
+    strncpy(path, s_rec_path, sizeof(path) - 1);
+    path[sizeof(path) - 1] = 0;
+    rec_trim_normalize();
+  } else {
+    const char *id = voice_word_id(s_rec_word);
+    storage_mkdir(REC_DIR);
+    snprintf(dir, sizeof(dir), REC_DIR "/%s", id);
+    storage_mkdir(dir);
+    int n = 1;
+    do {
+      snprintf(path, sizeof(path), "%s/%c%03d.wav", dir, s_rec_series ? 's' : 'a', n++);
+    } while (storage_exists(path) && n < 1000);
+  }
   uint8_t *h = (uint8_t *)s_rec_buf;
   uint32_t bytes = s_rec_len * 2;
   memcpy(h, "RIFF", 4);
@@ -712,7 +751,8 @@ static void rec_save() {
   bool ok = storage_write_bin(path, s_rec_buf, 44 + bytes);
   free(s_rec_buf);
   s_rec_buf = NULL;
-  if (ok && s_counts_ok && s_counts[s_rec_word] >= 0) s_counts[s_rec_word]++;
+  if (ok && !s_rec_path[0] && s_counts_ok && s_rec_word >= 0 && s_counts[s_rec_word] >= 0) s_counts[s_rec_word]++;
+  s_rec_path[0] = 0;
   printf("Sprache: Aufnahme %s %s\r\n", path, ok ? "gespeichert" : "fehlgeschlagen");
   s_rec_state = ok ? 4 : -1;
   s_rec_done_ms = hal_millis();
@@ -813,8 +853,19 @@ static void process(const int16_t *pcm, int n) {
   // Erkennung. Während die Waage selbst spricht oder piept, wird gar nicht
   // gerechnet: spart Rechenzeit (die Ansage läuft auf demselben Kern) und
   // die Waage hört sich nicht selbst. Danach kurz warten (Nachhall).
-  if (sound_busy()) {
+  if (sound_speech_busy()) {
     s_snd_busy = true;
+    return;
+  }
+  // Kurzer Ton (Parkpiepser, Klick): statt 450 ms + Nachhall auszusetzen nur den Ton selbst
+  // ausblenden – als Stille weiterfüttern, damit das Weckwort zwischen zwei Piepsern im
+  // Zusammenhang bleibt. Vorher hörte die Erkennung bei schnellem Piepen praktisch nie zu.
+  if (sound_tone_recent(TONE_MASK_MS)) {
+    static int16_t zero[512];
+    if (s_want && kws_ready() && !s_reset_req) {
+      for (int k = 0; k < n; k += 512)
+        if (kws_feed(zero, n - k < 512 ? n - k : 512)) decide();
+    }
     return;
   }
   if (s_snd_busy) {
@@ -845,6 +896,29 @@ bool voice_rec_start(int word, bool series) {
   s_rec_word = word;
   s_rec_pos = 0;
   s_rec_wait = KWS_RATE / 1000 * REC_WAIT_MS;
+  s_rec_state = 1;
+#ifdef ARDUINO
+  ensure_task();
+#endif
+  return true;
+}
+
+// Eigene Ansage aufnehmen: bis max_ms oder voice_rec_stop(), dann gekürzt und normalisiert
+// nach path (16 kHz, Mono, 16 Bit). Startet das Mikrofon auch ohne Spracherkennung.
+bool voice_rec_file(const char *path, int max_ms) {
+  if (!path || !path[0] || !storage_ok()) return false;
+  if (s_rec_state == 1 || s_rec_state == 2 || s_rec_state == 3) return false;
+  if (max_ms < 1000) max_ms = 1000;
+  if (max_ms > 20000) max_ms = 20000;
+  s_rec_series = true;  // "Stopp" darf vorzeitig speichern
+  s_rec_len = KWS_RATE / 1000 * max_ms;
+  s_rec_buf = (int16_t *)big_alloc((22 + s_rec_len) * sizeof(int16_t));
+  if (!s_rec_buf) return false;
+  strncpy(s_rec_path, path, sizeof(s_rec_path) - 1);
+  s_rec_path[sizeof(s_rec_path) - 1] = 0;
+  s_rec_word = -1;
+  s_rec_pos = 0;
+  s_rec_wait = KWS_RATE / 1000 * 150;  // Klick des Knopfs nicht mit aufnehmen
   s_rec_state = 1;
 #ifdef ARDUINO
   ensure_task();
@@ -948,7 +1022,10 @@ static void run_cmd(const char *c) {
     ui_go_home();
     sound_say("zurueck");  // "Zurück zur Startseite."
   } else if (strcmp(c, "stopp") == 0) {
-    if (ui_target_goal() > 0) {
+    if (timer_any_ringing()) {  // klingelnder Timer: nur den Wecker aus, Rezept/Cocktail bleibt offen
+      timer_alarm_off();
+      sound_play(SND_CLICK);
+    } else if (ui_target_goal() > 0) {
       ui_target_stop();
       if (!sound_say("ziel_beendet")) sound_play(SND_DONE);
     } else {

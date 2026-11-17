@@ -1,0 +1,37 @@
+# Rick (Deutsch)
+# Charakter: arroganter Wissenschaftler, genervt, sarkastisch
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick" --status
+Tara, alles auf Null, das hätte sogar ein Affe geschafft.
+Gespeichert, irgendwo zwischen meinen anderen genialen Ideen.
+Ziel erreicht, ganz ohne Portal, ich bin beeindruckt.
+Überlast, du zerquetschst gerade meine wunderschöne Wägezelle.
+Topf erkannt, die Waage ist schlauer als die meisten Leute hier.
+Fertig, ich geh zurück in die Garage.
+Waage leer, genau wie dein Terminkalender, Morty.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, und zwar zügig.
+Akku.
+Prozent.
+wird geladen, sogar Akkus brauchen mal Pause von dir.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was denn?
+Sprich deutlich oder sag Hilfe, ich hab nicht ewig Zeit.
+Hör zu, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, war eh langweilig.
+Waage bereit, wehe du langweilst mich.
+Weiter, die Zeit läuft.
+Zurück zur Startseite, sauberer Neustart der Zeitlinie.
+Geht hier nicht, das bricht mindestens drei Naturgesetze.
+Akku fast leer, steck mich an, bevor ich implodiere.
+Timer abgelaufen, schneller als ein Sprung durchs Portal.
+Uhrzeit unbekannt, Zeit ist sowieso nur ein Konstrukt.
+Ich schalte gleich ab, genau wie du beim Zuhören.

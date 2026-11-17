@@ -200,24 +200,42 @@ int log_add(float grams, const char *note) {
   return valid ? 1 : -1;
 }
 
-static int cmp_desc(const void *a, const void *b) {
-  return -strcmp((const char *)a, (const char *)b);
+// Alle Dateien durchgehen und nur die neuesten max Tage behalten. Früher wurden nur die ersten
+// 40 Dateien des Ordners gelesen (Reihenfolge auf der SD = Anlegedatum) – ab dem 41. Tag fehlten
+// die neuen Protokolle in der Liste.
+struct days_ctx {
+  char (*days)[11];
+  int k, max;
+};
+static void day_cb(const char *name, void *p) {
+  days_ctx *c = (days_ctx *)p;
+  const char *b = strrchr(name, '/');
+  b = b ? b + 1 : name;
+  // nur Dateien der Form 2026-09-18.txt
+  if (strlen(b) != 14 || b[4] != '-' || b[7] != '-' || strcmp(b + 10, ".txt") != 0) return;
+  char d[11];
+  memcpy(d, b, 10);
+  d[10] = 0;
+  // absteigend sortiert einfügen, bei voller Liste fällt der älteste Tag heraus
+  int i = c->k;
+  if (i == c->max) {
+    if (strcmp(d, c->days[c->max - 1]) <= 0) return;
+    i = c->max - 1;
+  } else {
+    c->k++;
+  }
+  while (i > 0 && strcmp(d, c->days[i - 1]) > 0) {
+    memcpy(c->days[i], c->days[i - 1], 11);
+    i--;
+  }
+  memcpy(c->days[i], d, 11);
 }
 
 int log_days(char days[][11], int max) {
-  static char names[40][STORAGE_NAME_LEN];
-  int n = storage_list(DIR_LOG, names, 40);
-  int k = 0;
-  for (int i = 0; i < n && k < max; i++) {
-    // nur Dateien der Form 2026-09-18.txt
-    if (strlen(names[i]) == 14 && names[i][4] == '-' && strstr(names[i], ".txt")) {
-      memcpy(days[k], names[i], 10);
-      days[k][10] = 0;
-      k++;
-    }
-  }
-  qsort(days, k, 11, cmp_desc);
-  return k;
+  if (max <= 0) return 0;
+  days_ctx c = { days, 0, max };
+  storage_each_file(DIR_LOG, day_cb, &c);
+  return c.k;
 }
 
 struct log_ctx {

@@ -15,6 +15,9 @@ void        timer_start(int i, uint32_t secs, const char *name);  // name darf N
 void        timer_stop(int i);
 void        timer_add(int i, int secs);    // laufenden Timer verlängern/verkürzen
 bool        timer_running(int i);
+bool        timer_any_active();    // läuft ein Küchentimer (auch klingelnd)?
+bool        timer_any_ringing();   // klingelt gerade einer?
+void        timer_alarm_off();     // klingelnde Timer beenden (wie Antippen des Alarms)
 bool        timer_ringing(int i);          // abgelaufen, klingelt noch
 int         timer_left(int i);             // Restzeit in s, -1 = läuft nicht
 uint32_t    timer_duration(int i);         // eingestellte Dauer in s

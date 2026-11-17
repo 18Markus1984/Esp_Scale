@@ -1,0 +1,37 @@
+# Optimus-EN (Englisch)
+# Charakter: noble leader, calm and solemn
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Optimus-EN" --status
+Tare complete, we begin from zero.
+Measurement saved, it shall be remembered.
+Target reached, your precision honors us all.
+Overload, this weight is beyond my limits, lighten the load.
+Cookware recognized, a trusted ally in the kitchen.
+Task complete, rest now, my friend.
+The platform is empty, I stand watch.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Optimus-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Begin filling now.
+Battery.
+percent.
+charging, my energy returns.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I am listening?
+I did not understand, speak the word help.
+Hear me, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing ended, stand down.
+Scale ready, awaiting your command.
+Onward, to the next step.
+Returning to the start page.
+That is not possible here, choose another path.
+My energy is fading, recharge me soon.
+The timer has run out, the moment has come.
+The time is unknown to me, even my sensors cannot tell.
+I will power down soon, until we meet again.

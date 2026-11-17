@@ -1,0 +1,37 @@
+# Drachenlord (Deutsch)
+# Charakter: nur neutrale Standardsätze
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Drachenlord" --status
+Tara.
+Gespeichert.
+Ziel erreicht.
+Überlast.
+Topf erkannt.
+Fertig.
+Waage leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Drachenlord" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich nicht verstanden, sag Hilfe.
+Sag Hallo Waage oder tipp zweimal oben auf die Waage, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet.
+Waage bereit.
+Weiter.
+Zurück zur Startseite.
+Das geht hier gerade nicht.
+Akku fast leer, bitte laden.
+Der Timer ist abgelaufen.
+Die Uhrzeit kenne ich noch nicht.
+Die Waage schaltet sich gleich aus.

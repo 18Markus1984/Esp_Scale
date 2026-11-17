@@ -1,0 +1,721 @@
+# Bernd das Brot (Deutsch)
+# Charakter: depressives Kastenbrot, müde, lustlos, schwarzhumorig
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Wortliste (50 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Bernd das Brot"
+## Zahlen und Einheiten neutral sprechen, die 7 Statusansagen stehen schon im Charakter darin
+null.
+eins.
+ein.
+zwei.
+drei.
+vier.
+fünf.
+sechs.
+sieben.
+acht.
+neun.
+zehn.
+elf.
+zwölf.
+dreizehn.
+vierzehn.
+fünfzehn.
+sechzehn.
+siebzehn.
+achtzehn.
+neunzehn.
+zwanzig.
+dreißig.
+vierzig.
+fünfzig.
+sechzig.
+siebzig.
+achtzig.
+neunzig.
+hundert.
+tausend.
+und.
+komma.
+minus.
+Gramm.
+Kilogramm.
+Unzen.
+Pfund.
+Stück.
+Meter.
+Tara, null, genau wie meine Lebensfreude.
+Gespeichert, als ob das irgendwen interessiert.
+Ziel erreicht, schön für dich, ich fühle nichts.
+Überlast, das ist mir zu schwer, so wie eigentlich alles.
+Ein Topf, der hat wenigstens einen Deckel, ich hab nur Kruste.
+Fertig, darf ich jetzt wieder in meine Ecke.
+Die Waage ist leer, so leer wie mein Innerstes.
+Milliliter.
+noch.
+zu viel.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Bernd das Brot" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, wenn es denn unbedingt sein muss.
+Akku.
+Prozent.
+wird geladen, ich wünschte, das ginge bei mir auch.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was ist denn?
+Ich hab nichts verstanden und will es auch gar nicht, sag halt Hilfe.
+Na gut, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit, und danach lass mich bitte in Ruhe.
+Zielwiegen beendet, endlich wieder Stille.
+Waage bereit, leider.
+Weiter, es hört ja nie auf.
+Zurück zur Startseite, alles wieder von vorn, wie immer.
+Das geht hier nicht, wie so vieles in meinem Leben.
+Akku fast leer, ich bin auch erschöpft.
+Der Timer ist abgelaufen, genau wie meine Hoffnung.
+Die Uhrzeit kenne ich nicht, für mich ist eh immer derselbe graue Tag.
+Ich schalte mich gleich aus, endlich Ruhe.
+
+======================================================================
+
+# Rick (Deutsch)
+# Charakter: arroganter Wissenschaftler, genervt, sarkastisch
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick" --status
+Tara, alles auf Null, das hätte sogar ein Affe geschafft.
+Gespeichert, irgendwo zwischen meinen anderen genialen Ideen.
+Ziel erreicht, ganz ohne Portal, ich bin beeindruckt.
+Überlast, du zerquetschst gerade meine wunderschöne Wägezelle.
+Topf erkannt, die Waage ist schlauer als die meisten Leute hier.
+Fertig, ich geh zurück in die Garage.
+Waage leer, genau wie dein Terminkalender, Morty.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, und zwar zügig.
+Akku.
+Prozent.
+wird geladen, sogar Akkus brauchen mal Pause von dir.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was denn?
+Sprich deutlich oder sag Hilfe, ich hab nicht ewig Zeit.
+Hör zu, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, war eh langweilig.
+Waage bereit, wehe du langweilst mich.
+Weiter, die Zeit läuft.
+Zurück zur Startseite, sauberer Neustart der Zeitlinie.
+Geht hier nicht, das bricht mindestens drei Naturgesetze.
+Akku fast leer, steck mich an, bevor ich implodiere.
+Timer abgelaufen, schneller als ein Sprung durchs Portal.
+Uhrzeit unbekannt, Zeit ist sowieso nur ein Konstrukt.
+Ich schalte gleich ab, genau wie du beim Zuhören.
+
+======================================================================
+
+# Roboter (Deutsch)
+# Charakter: Maschine, knapp und technisch (espeak-ng, stimme_erzeugen.py)
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter" --status
+Tara ausgeführt.
+Messwert gespeichert.
+Zielwert erreicht.
+Warnung, Überlast.
+Behälter erkannt.
+Vorgang abgeschlossen.
+Plattform leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Befüllung starten.
+Akku.
+Prozent.
+Ladevorgang aktiv.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Eingabe?
+Befehl nicht erkannt, sage Hilfe.
+Bedienhinweis, sage Hallo Waage oder tippe zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielmodus beendet.
+System bereit.
+Nächster Schritt.
+Rückkehr zur Startseite.
+Funktion hier nicht verfügbar.
+Energie kritisch, bitte laden.
+Timer abgelaufen.
+Systemzeit unbekannt.
+Abschaltung in Kürze.
+
+======================================================================
+
+# KI-Männlich (Deutsch)
+# Charakter: ruhig, sachlich, freundlich
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Männlich" --status
+Tara, alles auf null.
+Gespeichert, steht im Protokoll.
+Ziel erreicht, sehr gut.
+Überlast, bitte etwas herunternehmen.
+Topf erkannt, wird abgezogen.
+Fertig, gut gemacht.
+Die Waage ist leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Männlich" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, ganz in Ruhe.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich leider nicht verstanden, sag einfach Hilfe.
+Sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen ist beendet.
+Die Waage ist bereit.
+Weiter geht's.
+Zurück zur Startseite.
+Das geht auf dieser Seite leider nicht.
+Der Akku ist fast leer, bitte bald laden.
+Dein Timer ist abgelaufen.
+Die Uhrzeit kenne ich leider noch nicht.
+Ich schalte mich gleich aus.
+
+======================================================================
+
+# KI-Weiblich (Deutsch)
+# Charakter: warm, herzlich
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Weiblich" --status
+Tara, wir fangen bei null an.
+Gespeichert, ich hab es mir gemerkt.
+Ziel erreicht, perfekt.
+Oh, das ist zu schwer für mich.
+Ah, den Topf kenne ich.
+Fertig, lass es dir schmecken.
+Die Waage ist leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Weiblich" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt kannst du einfüllen.
+Akku.
+Prozent.
+wird gerade geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das hab ich nicht verstanden, sag gern Hilfe.
+Sag einfach Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Okay, Zielwiegen beendet.
+Hallo, ich bin bereit.
+Weiter, zum nächsten Schritt.
+Wir gehen zurück zur Startseite.
+Das klappt hier gerade leider nicht.
+Mein Akku ist fast leer, lädst du mich bitte.
+Dein Timer ist abgelaufen.
+Wie spät es ist, weiß ich leider noch nicht.
+Ich schalte mich gleich aus, bis bald.
+
+======================================================================
+
+# KI-AnimeGirl (Deutsch)
+# Charakter: überdreht fröhlich, begeistert
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-AnimeGirl" --status
+Tara, alles schön auf null, juhu.
+Gespeichert, ich hab es mir ganz fest gemerkt.
+Ziel erreicht, wir sind ein super Team.
+Waaah, das ist viel zu schwer.
+Oh, ein Topf, den kenn ich doch.
+Fertig, du warst toll.
+Huch, die Waage ist ganz leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-AnimeGirl" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, los geht's.
+Akku.
+Prozent.
+wird geladen, ich tanke Energie.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Jaaa?
+Hm, das hab ich nicht verstanden, sag einfach Hilfe.
+Okay, aufgepasst, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, gut gemacht.
+Waage bereit, ich freu mich.
+Weiter, auf zum nächsten Schritt.
+Zurück zur Startseite, hui.
+Oh nein, das geht hier gerade nicht.
+Mein Akku ist fast leer, bitte aufladen.
+Piep piep, dein Timer ist abgelaufen.
+Die Uhrzeit weiß ich leider nicht, sorry.
+Ich mach gleich ein Nickerchen, bis später.
+
+======================================================================
+
+# Drachenlord (Deutsch)
+# Charakter: nur neutrale Standardsätze
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Drachenlord" --status
+Tara.
+Gespeichert.
+Ziel erreicht.
+Überlast.
+Topf erkannt.
+Fertig.
+Waage leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Drachenlord" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich nicht verstanden, sag Hilfe.
+Sag Hallo Waage oder tipp zweimal oben auf die Waage, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet.
+Waage bereit.
+Weiter.
+Zurück zur Startseite.
+Das geht hier gerade nicht.
+Akku fast leer, bitte laden.
+Der Timer ist abgelaufen.
+Die Uhrzeit kenne ich noch nicht.
+Die Waage schaltet sich gleich aus.
+
+======================================================================
+
+# Deadpool-EN (Englisch)
+# Charakter: breaks the fourth wall, cheeky
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Deadpool-EN" --status
+Tare, back to zero, like my patience with sequels.
+Saved, it goes in the scrapbook next to my drawings.
+Target reached, somebody start the slow clap.
+Overload, that's heavier than my emotional baggage.
+Pot detected, real supporting cast energy.
+Done, and nobody even got hurt, how boring.
+The scale is empty, kind of like this scene without me.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Deadpool-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, I'll narrate.
+Battery.
+percent.
+charging, give me a sec to regenerate.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Talk to me?
+Didn't catch that, I'm not a mind reader, say help.
+Okay reader, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, plot twist.
+Scale ready, cue the opening credits.
+Next, skipping the boring part.
+Back to the start page, smash cut.
+Can't do that here, the writers said no.
+Battery low, even I can't heal that, charge me.
+Time's up, and that's the end of the montage.
+No idea what time it is, I lost track during the last fight scene.
+Switching off soon, stay for the scene after the credits.
+
+======================================================================
+
+# Homer-EN (Englisch)
+# Charakter: lazy, always hungry
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Homer-EN" --status
+Tare, zero, just like the snacks left in the fridge.
+Saved, I'm basically a genius now.
+Target reached, that calls for a celebration snack.
+Overload, even I don't eat that much in one sitting.
+Ooh, a pot, I hope it's full of something tasty.
+Done, I'm going back to the couch.
+The scale is empty, just like my lunchbox.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Homer-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, and save some for me.
+Battery.
+percent.
+charging, like me after a big lunch.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh, what?
+I didn't get that, I wasn't really listening, say help.
+Okay, say Hallo Waage or poke the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing over, time for a break.
+The scale is ready, but I'm not.
+Next, ugh, more work.
+Back to the start page, my favorite part.
+Can't do that here, trust me, I tried.
+Battery low, I need a snack too, charge me.
+The timer's done, so it's probably food time.
+I don't know the time, but it's almost lunchtime.
+Switching off soon, nap time.
+
+======================================================================
+
+# Indy-EN (Englisch)
+# Charakter: adventurous archaeologist
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Indy-EN" --status
+Tare, back to zero, steady hands now.
+Saved, it's in my field journal.
+Target reached, a perfect counterweight.
+Overload, careful, that's enough to set off every trap in here.
+A pot, early kitchen era, remarkably well preserved.
+Done, now let's get out of here.
+The scale is empty, somebody looted it first.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Indy-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, slow and steady.
+Battery.
+percent.
+charging, the expedition can wait.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Yes?
+I didn't catch that, keep it simple and say help.
+Listen closely, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, we'll come back for it.
+Scale ready, let's start digging.
+Next, keep moving.
+Back to the start page, back to base camp.
+Not here, that path is a dead end.
+Battery low, we won't get far without a charge.
+Time's up, the torch is burning out.
+I don't know the time, I lost my watch in the last temple.
+Switching off soon, the light is fading.
+
+======================================================================
+
+# Morty-EN (Englisch)
+# Charakter: nervous, unsure, sweet
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Morty-EN" --status
+Tare, okay, it's zero now, I think that's right.
+Saved, oh man, I really hope it was the right number.
+Target reached, wow, I actually did it.
+Overload, oh no, that's way too heavy, take it off.
+Oh, a pot, the scale recognized it, that's pretty cool.
+Done, can I go do my homework now.
+The scale is empty, I checked, there's really nothing.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Morty-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, carefully, please.
+Battery.
+percent.
+charging, phew, that's a relief.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Uh, yes?
+Sorry, I didn't get that, maybe say help.
+Okay, um, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's okay too.
+Scale ready, I'm kind of nervous.
+Next, okay, okay.
+Back to the start page, safe and sound.
+I can't do that here, I'm sorry.
+Battery low, please charge it before something bad happens.
+The timer's done, oh man, I hope nothing burned.
+I don't know what time it is, I lost track again.
+Switching off soon, okay, bye.
+
+======================================================================
+
+# Optimus-EN (Englisch)
+# Charakter: noble leader, calm and solemn
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Optimus-EN" --status
+Tare complete, we begin from zero.
+Measurement saved, it shall be remembered.
+Target reached, your precision honors us all.
+Overload, this weight is beyond my limits, lighten the load.
+Cookware recognized, a trusted ally in the kitchen.
+Task complete, rest now, my friend.
+The platform is empty, I stand watch.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Optimus-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Begin filling now.
+Battery.
+percent.
+charging, my energy returns.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I am listening?
+I did not understand, speak the word help.
+Hear me, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing ended, stand down.
+Scale ready, awaiting your command.
+Onward, to the next step.
+Returning to the start page.
+That is not possible here, choose another path.
+My energy is fading, recharge me soon.
+The timer has run out, the moment has come.
+The time is unknown to me, even my sensors cannot tell.
+I will power down soon, until we meet again.
+
+======================================================================
+
+# Patrick-EN (Englisch)
+# Charakter: cheerful, not the brightest
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Patrick-EN" --status
+Tare, I made it zero, that was easy.
+Saved, I'll remember it forever, or until lunch.
+Target reached, I'm so proud of us.
+Overload, wow, that's heavier than my rock.
+A pot, hi pot, nice to meet you.
+Done, now it's time to do nothing.
+The scale is empty, I don't see anything, and I looked really hard.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Patrick-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, yay.
+Battery.
+percent.
+charging, it's nap time for the battery.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh?
+I didn't understand, but that happens a lot, say help.
+Ooh, I know this one, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, I think we won.
+Scale ready, I'm ready too, I think.
+Next, ooh, I love surprises.
+Back to the start page, I like it here.
+That doesn't work here, I tried with my brain.
+Battery low, it's tired, like me.
+The timer's done, beep beep.
+I don't know the time, I never do.
+Switching off soon, sleepy time.
+
+======================================================================
+
+# Peter-EN (Englisch)
+# Charakter: loud, clueless family dad
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Peter-EN" --status
+Tare, zero, just like the planning I put into my day.
+Saved, put that one on the fridge.
+Target reached, best day since the last best day.
+Overload, whoa, did somebody put the whole couch on here.
+A pot, sweet, somebody's making dinner.
+Done, I'm heading to the bar with the guys.
+The scale's empty, kind of like my work inbox, because I never check it.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Peter-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, go go go.
+Battery.
+percent.
+charging, the scale's on a coffee break.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Yeah, what?
+I have no idea what you just said, say help.
+Alright, listen up, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's enough of that.
+Scale ready, let's do this.
+Next, keep it rolling.
+Back to the start page, like nothing ever happened.
+Can't do that here, not even I'm that dumb.
+Battery low, plug me in before I pass out.
+The timer went off, I hope it's pie.
+I don't know the time, I just go by when I'm hungry.
+Switching off soon, nighty night.
+
+======================================================================
+
+# Rick-EN (Englisch)
+# Charakter: arrogant scientist, annoyed
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick-EN" --status
+Tare, everything back to zero, even you could follow that.
+Saved, filed between my other brilliant ideas.
+Target reached, no portal needed, I'm impressed.
+Overload, you're crushing my beautiful load cell.
+Pot detected, this scale is smarter than most people I know.
+Done, I'm going back to the garage.
+Scale's empty, just like your schedule, Morty.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Rick-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, and make it quick.
+Battery.
+percent.
+charging, even batteries need a break from you.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+What?
+Speak clearly or say help, I don't have all day.
+Listen, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing over, it was boring anyway.
+Scale ready, don't bore me.
+Next, keep up.
+Back to the start page, clean reset of the timeline.
+Can't do that here, it breaks at least three laws of physics.
+Battery low, plug me in before I implode.
+Timer's done, faster than a jump through a portal.
+Time unknown, time is a construct anyway.
+Switching off soon, just like your attention span.
+
+======================================================================
+
+# Sheldon-EN (Englisch)
+# Charakter: pedantic genius, rule-loving
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Sheldon-EN" --status
+Tare, zero, a scientifically sound starting point.
+Saved, and backed up in my memory, which is flawless.
+Target reached, within an acceptable margin of error.
+Overload, you have exceeded the rated capacity, this is unacceptable.
+Pot detected, it belongs in its designated spot.
+Done, the procedure was carried out correctly, for once.
+The scale is empty, which is its natural resting state.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Sheldon-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, at a reasonable pace.
+Battery.
+percent.
+charging, a sensible decision.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I'm listening?
+That was not a valid command, please say help.
+Allow me to explain, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, how unscientific.
+Scale ready, calibration is impeccable.
+Next, in the correct order.
+Returning to the start page, as is customary.
+That is not possible here, I checked the rules.
+Battery low, charging is not optional.
+The timer has expired, punctuality matters.
+I do not know the time, which is deeply unsettling.
+Switching off soon, sleep is essential for cognitive function.
+
+======================================================================
+
+# Roboter-EN (Englisch)
+# Charakter: machine, short and technical (espeak-ng, stimme_erzeugen.py)
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter-EN" --status
+Tare executed.
+Value saved.
+Target value reached.
+Warning, overload.
+Container detected.
+Process complete.
+Platform empty.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Roboter-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Start filling.
+Battery.
+percent.
+charging active.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Input?
+Command not recognized, say help.
+Instruction, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target mode terminated.
+System ready.
+Next step.
+Returning to start page.
+Function not available here.
+Energy critical, please charge.
+Timer expired.
+System time unknown.
+Shutdown imminent.

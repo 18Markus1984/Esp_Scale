@@ -64,3 +64,7 @@ void ui_cmd_speak();        // Gewicht bzw. Restmenge ansagen
 
 // Name des aktiven Topfs ("" = keiner), z. B. für die Weboberfläche
 const char *ui_active_pot();
+
+// Seite nicht nach der Inaktivitätszeit schließen (z. B. Kaffee, Rezept mit Timer);
+// gilt, solange diese Seite angezeigt wird. NULL = keine.
+void ui_keep_open(lv_obj_t *page);

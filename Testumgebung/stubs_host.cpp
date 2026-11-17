@@ -39,6 +39,8 @@ void net_set_credentials(const char*s,const char*p){ net_store(s,p); strcpy(g_se
 uint32_t net_last_sync_ms(){return last;}
 static int scan_calls=0; void net_scan_start(){scan_calls=0;}
 int net_scan_get(net_ap_t*o,int max){ if(++scan_calls<4) return -1; const char*n[]={"FRITZ!Box 7590","Makerspace THM","Nachbar-WLAN","Gast"}; int r[]={-48,-66,-80,-70}; for(int i=0;i<4;i++){ strcpy(o[i].ssid,n[i]); o[i].rssi=r[i]; o[i].open=(i==3);} return 4; }
+bool storage_copy(const char*src,const char*dst){ char a[256],b[256]; full(src,a); full(dst,b); FILE*i=fopen(a,"rb"); if(!i) return false; FILE*o=fopen(b,"wb"); if(!o){fclose(i);return false;} char buf[4096]; size_t n; while((n=fread(buf,1,sizeof buf,i))>0) fwrite(buf,1,n,o); fclose(i); fclose(o); return true; }
+int storage_each_file(const char*dir,void(*cb)(const char*,void*),void*ctx){ char f[256]; full(dir,f); DIR*d=opendir(f); if(!d) return 0; int n=0; struct dirent*e; while((e=readdir(d))){ if(e->d_type==DT_REG){ cb(e->d_name,ctx); n++; } } closedir(d); return n;}
 int storage_list_dirs(const char*dir,char names[][STORAGE_NAME_LEN],int max){ char f[256]; snprintf(f,sizeof f,"sdcard%s",dir); DIR*d=opendir(f); if(!d) return 0; int n=0; struct dirent*e; while((e=readdir(d))&&n<max){ if(e->d_type==DT_DIR && e->d_name[0]!='.'){ strncpy(names[n],e->d_name,STORAGE_NAME_LEN-1); names[n][STORAGE_NAME_LEN-1]=0; n++; } } closedir(d); return n; }
 #include "web.h"
 static bool wr=false;

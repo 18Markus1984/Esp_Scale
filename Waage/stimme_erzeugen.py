@@ -13,6 +13,7 @@
 #                                       (Piper statt espeak-ng, pip install piper-tts)
 #    python3 stimme_erzeugen.py Roboter --zusatz --nur bereit,weiter   (nur diese Dateien)
 #    python3 stimme_erzeugen.py --liste   (alle Sätze als Text, z. B. zum Einsprechen)
+#    python3 stimme_erzeugen.py Roboter --charakter Roboter   (Status/Ansagen des Charakters, stimme_texte.py)
 #
 #  Der Ordner /Waage/Stimme/_Zusatz (englisch _Zusatz-EN) springt ein, wenn
 #  dem gewählten Paket ein Satz der Sprachsteuerung fehlt ("Ja?", Hilfe …).
@@ -41,59 +42,11 @@ WORDS = {
 }
 
 # Ansagen der Sprachsteuerung (auch einzeln: --zusatz). Dateinamen höchstens 13 Zeichen.
-ZUSATZ = {
-    # Bausteine (werden mit Zahlen zusammengesetzt: kurz, ohne Pause, neutral)
-    "ziel": "Ziel",                    # Ziel | 250 | Gramm | einfuellen
-    "einfuellen": "Jetzt einfüllen.",
-    "akku": "Akku",                    # Akku | 60 | Prozent | (laedt)
-    "prozent": "Prozent",
-    "laedt": "wird geladen.",
-    "uhr": "Uhr",                      # 14 | Uhr | 5
-    "lautstaerke": "Lautstärke",       # Lautstärke | 80 | Prozent
-    "noch": "noch",                    # noch | 120 | Gramm
-    "zu_viel": "zu viel.",             # 20 | Gramm | zu viel
-    "milliliter": "Milliliter",
-    # ganze Sätze
-    "ja": "Ja?",                       # kurz halten (unter 1,5 s)
-    "nicht_verst": "Das habe ich nicht verstanden. Sag Hilfe.",
-    "hilfe": "Sag zuerst Hallo Waage, oder tippe zweimal oben auf die Waage. Dann zum Beispiel: "
-             "Tara. Wie viel. Speichern. Zweihundert Gramm. Stopp. Weiter. Zurück. "
-             "Nochmal. Lauter. Leiser. Akku. Uhrzeit.",
-    "ziel_beendet": "Zielwiegen beendet.",
-    "bereit": "Waage bereit.",
-    "weiter": "Weiter.",
-    "zurueck": "Zurück zur Startseite.",
-    "geht_nicht": "Das geht hier gerade nicht.",
-    "akku_leer": "Akku fast leer. Bitte laden.",
-    "timer_ab": "Der Timer ist abgelaufen.",
-    "zeit_unbek": "Die Uhrzeit kenne ich noch nicht.",
-    "schaltet_aus": "Die Waage schaltet sich gleich aus.",
-}
-ZUSATZ_EN = {
-    "target": "Target",
-    "fill_now": "Fill in now.",
-    "battery": "Battery",
-    "percent": "percent",
-    "charging": "charging.",
-    "oclock": "o'clock",
-    "volume": "Volume",
-    "to_go": "to go",
-    "too_much": "too much.",
-    "milliliters": "milliliters",
-    "yes": "Yes?",
-    "not_underst": "I did not understand. Say help.",
-    "help": "First say: Hallo Waage. Or tap the top of the scale twice. Then for example: "
-            "tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery, time.",
-    "target_off": "Target weighing stopped.",
-    "ready": "Scale ready.",
-    "next": "Next.",
-    "back": "Back to the start page.",
-    "cannot": "That is not possible right now.",
-    "batt_low": "Battery low. Please charge.",
-    "timer_done": "The timer has finished.",
-    "time_unknown": "I do not know the time yet.",
-    "power_off": "The scale will switch off soon.",
-}
+# Texte (neutral und je Charakter) stehen in stimme_texte.py.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import stimme_texte as ST
+ZUSATZ = dict(ST.ZUSATZ_DE)
+ZUSATZ_EN = dict(ST.ZUSATZ_EN)
 WORDS.update(ZUSATZ)
 
 # Englisch: Dateinamen = englische Wörter (an grams.wav erkennt die Waage die Sprache)
@@ -150,12 +103,17 @@ def speak_piper(onnx, text, raw):
 _piper = {}
 
 
-def main(out_dir, lang="de", zusatz=False, piper=None, only=None):
+def main(out_dir, lang="de", zusatz=False, piper=None, only=None, charakter=None):
     os.makedirs(out_dir, exist_ok=True)
     if zusatz:
-        words = ZUSATZ_EN if lang == "en" else ZUSATZ
+        words = dict(ZUSATZ_EN if lang == "en" else ZUSATZ)
     else:
-        words = WORDS_EN if lang == "en" else WORDS
+        words = dict(WORDS_EN if lang == "en" else WORDS)
+    if charakter:  # Status- und Sprachsteuerungs-Sätze des Charakters (stimme_texte.py)
+        _, st, zu = ST.texte(charakter)
+        for k, v in list(st.items()) + list(zu.items()):
+            if k in words or not zusatz:
+                words[k] = v
     if only:
         words = {k: v for k, v in words.items() if k in only}
     for name, text in words.items():
@@ -188,6 +146,11 @@ if __name__ == "__main__":
         i = argv.index("--piper")
         piper = argv[i + 1]
         del argv[i:i + 2]
+    charakter = None
+    if "--charakter" in argv:
+        i = argv.index("--charakter")
+        charakter = argv[i + 1]
+        del argv[i:i + 2]
     only = None
     if "--nur" in argv:
         i = argv.index("--nur")
@@ -199,4 +162,5 @@ if __name__ == "__main__":
             print("%-14s %s" % (k, v))
         sys.exit(0)
     args = [a for a in argv if not a.startswith("--") and a != "en"]
-    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang, "--zusatz" in argv, piper, only)
+    main(args[0] if args else ("Stimme-EN" if lang == "en" else "Stimme"), lang, "--zusatz" in argv, piper, only,
+         charakter)

@@ -50,8 +50,11 @@ bool storage_write_bin(const char *path, const void *data, int len);
 bool storage_remove(const char *path);
 bool storage_exists(const char *path);
 bool storage_mkdir(const char *path);
+bool storage_copy(const char *src, const char *dst);  // überschreibt dst
 
 // Dateinamen (ohne Ordner) eines Verzeichnisses, unsortiert
 int  storage_list(const char *dir, char names[][STORAGE_NAME_LEN], int max);
 // Nur die Unterordner eines Verzeichnisses (z. B. Stimmpakete)
 int  storage_list_dirs(const char *dir, char names[][STORAGE_NAME_LEN], int max);
+// jede Datei eines Ordners an cb geben (keine Obergrenze), Rückgabe: Anzahl
+int  storage_each_file(const char *dir, void (*cb)(const char *name, void *ctx), void *ctx);

@@ -267,6 +267,56 @@ static int list(const char *dir, char names[][STORAGE_NAME_LEN], int max, bool d
   return n;
 }
 
+// Datei kopieren (stückweise, auch große WAV-Dateien)
+bool storage_copy(const char *src, const char *dst) {
+  if (!s_ok) return false;
+  Lock l;
+  File in = SD_MMC.open(src, FILE_READ);
+  if (!in) return false;
+  SD_MMC.remove(dst);
+  File out = SD_MMC.open(dst, FILE_WRITE);
+  if (!out) {
+    in.close();
+    return false;
+  }
+  static uint8_t buf[2048];
+  bool ok = true;
+  while (in.available()) {
+    int n = in.read(buf, sizeof(buf));
+    if (n <= 0) break;
+    if (out.write(buf, n) != (size_t)n) {
+      ok = false;
+      break;
+    }
+  }
+  in.close();
+  out.close();
+  return ok;
+}
+
+// Alle Dateien eines Ordners (ohne Obergrenze), z. B. um die neuesten Protokolltage zu finden
+int storage_each_file(const char *dir, void (*cb)(const char *name, void *ctx), void *ctx) {
+  if (!s_ok) return 0;
+  Lock l;
+  File d = SD_MMC.open(dir);
+  if (!d || !d.isDirectory()) {
+    if (!d) check_card();
+    return 0;
+  }
+  int n = 0;
+  File f = d.openNextFile();
+  while (f) {
+    if (!f.isDirectory()) {
+      cb(f.name(), ctx);
+      n++;
+    }
+    f.close();
+    f = d.openNextFile();
+  }
+  d.close();
+  return n;
+}
+
 int storage_list_dirs(const char *dir, char names[][STORAGE_NAME_LEN], int max) {
   return list(dir, names, max, true);
 }

@@ -65,6 +65,8 @@ void sound_speak_weight_word(float grams, int unit, const char *word);  // "… 
 void sound_play_tone(sound_t s);                   // nur der Ton, ohne Sprachansage
 bool sound_speaking();                             // Ansage läuft oder wartet
 bool sound_busy();                                 // Ton oder Ansage läuft (Spracherkennung pausiert)
+bool sound_speech_busy();                          // nur Ansage/langer Ton (kurze Töne zählen nicht)
+bool sound_tone_recent(uint32_t ms);               // kurzer Ton in den letzten ms gestartet
 void sound_speak_stop();                           // laufende und wartende Ansagen abbrechen
 
 // ---- Rückmeldungen der Sprachsteuerung ----
@@ -73,6 +75,7 @@ void sound_speak_stop();                           // laufende und wartende Ansa
 // ein Ton). Fehlt ein Wort im gewählten Paket, nimmt die Waage es aus
 // /Waage/Stimme/_Zusatz (englisch _Zusatz-EN).
 bool sound_say(const char *words);                 // "ja", "nicht_verst", "hilfe", "ziel_beendet" (mit Leerzeichen mehrere)
+void sound_preview(const char *pack, const char *name);  // eine Datei eines Pakets abspielen (Vorhören)
 bool sound_say_target(int grams);                  // "Ziel 250 Gramm. Jetzt einfüllen."
 bool sound_say_battery(int pct, bool charging);    // "Akku 60 Prozent (wird geladen)"
 bool sound_say_time(int h, int mi);                // "vierzehn Uhr fünf"

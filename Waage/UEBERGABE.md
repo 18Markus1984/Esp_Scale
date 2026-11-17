@@ -1100,3 +1100,56 @@ Endstand: gültige Versuche (ab **50 ml**) vor ungültigen, darin die schnellste
 der Browser fragt nur alle 0,6 s nach, für eine Zeitmessung zu grob.
 Geprüft: check.sh BUILD_OK (86 % Flash), Simulator-Tour de/en (`ex_*`), Web-Seite mit Mock (keine JS-Fehler).
 Offen: am Gerät testen (Start/Stopp-Schwelle, ob Abstellen sofort stoppt).
+
+### Stand 17.11.2026: Sprachtexte je Charakter, neues Paket „Bernd das Brot“
+Markus hat 16 Stimmpakete auf der SD (Übersicht „Stimmenpakete_Uebersicht.md“, nicht im Repo): DE Rick,
+Roboter, KI-Männlich, KI-Weiblich, KI-AnimeGirl, Drachenlord; EN Deadpool, Homer, Indy, Morty, Optimus,
+Patrick, Peter, Rick, Sheldon, Roboter. Die eigenen Pakete erzeugt er mit einem Sprachprogramm (KI-Stimmen)
+und schneidet sie mit `stimme_schneiden.py`.
+Neu `stimme_texte.py`: neutrale Standardtexte (STATUS_DE/EN, ZUSATZ_DE/EN) und je Charakter eigene
+Statusansagen (7) und Sprachsteuerungs-Sätze (22). Bausteine, die mit Zahlen zusammengesetzt werden (Ziel,
+Akku, Prozent, Uhr, Lautstärke, noch, zu viel, Milliliter), bleiben neutral. Regeln (von `pruefen()`
+geprüft): ein Satz pro Zeile, Punkt am Ende (nur „Ja?“ mit ?), innen nur Kommas – damit das Sprachprogramm
+nach jeder Zeile pausiert. Neues deutsches Paket **Bernd das Brot** (depressiv-schwarzhumorig, eigene Texte,
+`neu`: komplette Wortliste mit 50 Zeilen). Drachenlord bewusst nur neutrale Sätze (echte Person).
+`python3 stimme_texte.py` schreibt `Stimmtexte/<Paket>.txt`, `_ALLE_STIMMEN.txt`, `LIESMICH.md`.
+`stimme_schneiden.py`: neu `--status` (nur die 7 Statusansagen), `--ansagen`/`--status` nehmen die Texte
+des Pakets aus stimme_texte.py (`--charakter` für --liste). `stimme_erzeugen.py`: ZUSATZ kommt aus
+stimme_texte.py, neu `--charakter NAME`. Neu erzeugt (espeak-ng): Roboter und Roboter-EN (Status + Ansagen
+im Maschinenton, behebt das zu kurze Roboter-EN/tare.wav), _Zusatz-EN (neutral, neue Hilfe ohne Punkte).
+_Zusatz (DE, Piper eva_k) nicht neu erzeugt – Piper-Stimmen kommen von GitHub, im Sandbox-Proxy gesperrt.
+Firmware unverändert (Paketname mit Leerzeichen passt in `g_set.voice[24]`).
+
+### Stand 17.11.2026 (nachmittags): Kaffee, Rezept nach Menge, eigene Stimme, Protokoll-, Timer- und Sprachfehler
+**Protokoll nur bis 21.10.:** `log_days()` las über `storage_list(DIR_LOG, …, 40)` nur die ersten 40 Dateien des
+Ordners (SD-Reihenfolge = Anlegedatum), ab dem 41. Tag fehlten neue Tage an Waage und im Web. Neu
+`storage_each_file()` (keine Obergrenze), `log_days()` behält die neuesten `max` Tage sortiert. (Rezepte:
+`recipes_list_dir` liest weiterhin höchstens 30 Dateien.)
+**Rezept schließt sich während der Backzeit:** Rücksprung zur Wiegeseite nach `idle_min` (keine Berührung, kein
+Gewichtswechsel) traf auch Rezepte mit laufendem Küchentimer. `idle_check()` springt nicht mehr, solange ein
+Timer läuft/klingelt (`timer_any_active()`) oder die Seite `ui_keep_open(page)` gesetzt hat (Rezeptschritte,
+Kaffee, eigene Aufnahme).
+**„Stopp“ bei klingelndem Timer:** beendet nur den Wecker (`timer_any_ringing()`, `timer_alarm_off()`), Rezept/
+Cocktail bleiben offen. Hilfetexte angepasst.
+**Parkpiepser + Spracherkennung:** jeder Ton setzte `sound_busy()` für 450 ms + 250 ms Nachhall, bei Piepsern alle
+0,1–1 s hörte die Erkennung praktisch nie zu. Jetzt: nur Ansagen/lange Töne pausieren (`sound_speech_busy()`),
+kurze Töne werden 140 ms als Stille eingespeist (`TONE_MASK_MS`, Zeitbezug bleibt). Nach dem Weckwort piept der
+Parkpiepser nicht (`voice_awake()` in `sound_parking()`). Am Gerät prüfen.
+**Rezept nach vorhandener Menge:** Vorschau: Mengenzeile antippen -> „Wie viel ist noch da?“ (Zutat ‹ ›, ±10 g,
+„Wiegen“ übernimmt das Gewicht). `s_by`/`s_by_g`, `plan_factor()` = vorhanden / Rezeptmenge; Eier werden dann
+nicht mehr nach echtem Eigewicht umgerechnet. Web: „Nach vorhandener Menge“ (Auswahl + Menge + Wiegen).
+**Kaffee** (`page_kaffee.cpp`, Küche 7. Modus, Symbol coffee_maker U+EFF0 in font_icons_26, modes_off-Bit 17 –
+`mode_bit()` in ui.cpp, Web-Profil mit festen Bitnummern): Filter (Verhältnis 1:10–1:20, Bloom = 2× Kaffee bis
+35 s, Zielwasser, Zeit ab erstem Wasser, g/s) und Espresso (1:1–1:4, Tasse + Tara, Start oder erster Tropfen,
+Ton bei Zielausbeute). Ergebnis ins Protokoll. Nur an der Waage (keine Web-Seite).
+**Eigene Stimme** (`voice_own.*`, `page_voice_own.cpp`, Setup -> Ton -> Eigene Stimme, Kennung 29): Ordner
+„Eigene Stimme“ (EN „Eigene Stimme EN“), beim Anlegen werden alle Dateien der gewählten Stimme (+ _Zusatz)
+kopiert (`storage_copy`). Gruppen Ansagen / Sprachsteuerung / Bausteine und Einheiten / Zahlen, je Ansage
+Vorschlagstext, frei besprechbar. Aufnahme mit dem Mikrofon der Waage: `voice_rec_file(path, max_ms)` (Stille
+weg, normalisiert), Vorhören `sound_preview(pack, name)` (Nachricht Typ 3). Eigene Dateien in `_eigen.txt`.
+Web `#/eigen`: Handy-Aufnahme über `<input type=file accept=audio/* capture>` (kein getUserMedia auf http),
+Browser rechnet in 16 kHz Mono-WAV um und lädt nach `/upload?dir=…` hoch, dann `/api/own/mark`; auf https/
+localhost direkt per MediaRecorder; oder „Mikrofon der Waage“ (`/api/own/rec`, `/rec_stop`, Status über
+`/api/own`). Weitere: `/api/own/create`, `/use`, `/play`.
+Geprüft: check.sh BUILD_OK (87 %), Simulator de/en (protokoll_50tage, kaffee_*, espresso_*, rezept_*menge*,
+eigen_*), Web mit Mock (WAV-Umrechnung 44,1 kHz Stereo -> 16 kHz Mono geprüft, keine JS-Fehler).

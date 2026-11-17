@@ -1,0 +1,37 @@
+# KI-Männlich (Deutsch)
+# Charakter: ruhig, sachlich, freundlich
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Männlich" --status
+Tara, alles auf null.
+Gespeichert, steht im Protokoll.
+Ziel erreicht, sehr gut.
+Überlast, bitte etwas herunternehmen.
+Topf erkannt, wird abgezogen.
+Fertig, gut gemacht.
+Die Waage ist leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-Männlich" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, ganz in Ruhe.
+Akku.
+Prozent.
+wird geladen.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Ja?
+Das habe ich leider nicht verstanden, sag einfach Hilfe.
+Sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen ist beendet.
+Die Waage ist bereit.
+Weiter geht's.
+Zurück zur Startseite.
+Das geht auf dieser Seite leider nicht.
+Der Akku ist fast leer, bitte bald laden.
+Dein Timer ist abgelaufen.
+Die Uhrzeit kenne ich leider noch nicht.
+Ich schalte mich gleich aus.

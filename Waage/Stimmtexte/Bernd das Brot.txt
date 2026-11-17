@@ -1,0 +1,81 @@
+# Bernd das Brot (Deutsch)
+# Charakter: depressives Kastenbrot, müde, lustlos, schwarzhumorig
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Wortliste (50 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Bernd das Brot"
+## Zahlen und Einheiten neutral sprechen, die 7 Statusansagen stehen schon im Charakter darin
+null.
+eins.
+ein.
+zwei.
+drei.
+vier.
+fünf.
+sechs.
+sieben.
+acht.
+neun.
+zehn.
+elf.
+zwölf.
+dreizehn.
+vierzehn.
+fünfzehn.
+sechzehn.
+siebzehn.
+achtzehn.
+neunzehn.
+zwanzig.
+dreißig.
+vierzig.
+fünfzig.
+sechzig.
+siebzig.
+achtzig.
+neunzig.
+hundert.
+tausend.
+und.
+komma.
+minus.
+Gramm.
+Kilogramm.
+Unzen.
+Pfund.
+Stück.
+Meter.
+Tara, null, genau wie meine Lebensfreude.
+Gespeichert, als ob das irgendwen interessiert.
+Ziel erreicht, schön für dich, ich fühle nichts.
+Überlast, das ist mir zu schwer, so wie eigentlich alles.
+Ein Topf, der hat wenigstens einen Deckel, ich hab nur Kruste.
+Fertig, darf ich jetzt wieder in meine Ecke.
+Die Waage ist leer, so leer wie mein Innerstes.
+Milliliter.
+noch.
+zu viel.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Bernd das Brot" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, wenn es denn unbedingt sein muss.
+Akku.
+Prozent.
+wird geladen, ich wünschte, das ginge bei mir auch.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Was ist denn?
+Ich hab nichts verstanden und will es auch gar nicht, sag halt Hilfe.
+Na gut, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit, und danach lass mich bitte in Ruhe.
+Zielwiegen beendet, endlich wieder Stille.
+Waage bereit, leider.
+Weiter, es hört ja nie auf.
+Zurück zur Startseite, alles wieder von vorn, wie immer.
+Das geht hier nicht, wie so vieles in meinem Leben.
+Akku fast leer, ich bin auch erschöpft.
+Der Timer ist abgelaufen, genau wie meine Hoffnung.
+Die Uhrzeit kenne ich nicht, für mich ist eh immer derselbe graue Tag.
+Ich schalte mich gleich aus, endlich Ruhe.

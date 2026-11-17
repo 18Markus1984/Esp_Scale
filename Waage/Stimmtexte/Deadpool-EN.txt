@@ -1,0 +1,37 @@
+# Deadpool-EN (Englisch)
+# Charakter: breaks the fourth wall, cheeky
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Deadpool-EN" --status
+Tare, back to zero, like my patience with sequels.
+Saved, it goes in the scrapbook next to my drawings.
+Target reached, somebody start the slow clap.
+Overload, that's heavier than my emotional baggage.
+Pot detected, real supporting cast energy.
+Done, and nobody even got hurt, how boring.
+The scale is empty, kind of like this scene without me.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Deadpool-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, I'll narrate.
+Battery.
+percent.
+charging, give me a sec to regenerate.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Talk to me?
+Didn't catch that, I'm not a mind reader, say help.
+Okay reader, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, plot twist.
+Scale ready, cue the opening credits.
+Next, skipping the boring part.
+Back to the start page, smash cut.
+Can't do that here, the writers said no.
+Battery low, even I can't heal that, charge me.
+Time's up, and that's the end of the montage.
+No idea what time it is, I lost track during the last fight scene.
+Switching off soon, stay for the scene after the credits.

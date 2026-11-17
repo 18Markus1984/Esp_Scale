@@ -50,6 +50,7 @@ LV_FONT_DECLARE(font_sg_34);
 #define ICON_HAKEN     "\xEE\x99\xA8"  // check (U+E668)
 #define ICON_TARA      "\xEE\x8E\x9E"  // adjust (U+E39E)
 #define ICON_EX        "\xEF\x9A\xBB"  // avg_pace (U+F6BB), Spiele -> Ex
+#define ICON_KAFFEE    "\xEE\xBF\xB0"  // coffee_maker (U+EFF0), Küche -> Kaffee
 // in font_icons_80 (Bedien-Erklärung)
 #define ICON80_HAND    "\xEE\xAE\xB9"  // pan_tool_alt (U+EBB9)
 #define ICON80_TIPPEN  "\xEE\xA4\x93"  // touch_app (U+E913)

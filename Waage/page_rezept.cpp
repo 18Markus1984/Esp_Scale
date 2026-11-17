@@ -63,6 +63,10 @@ static int s_eggs = 1;        // gewählte Anzahl
 static float s_factor = 1.0f; // Faktor für alle Zutaten (nach dem Abwiegen: echtes Eigewicht)
 static bool s_factor_real = false;  // Faktor kommt aus dem gewogenen Eigewicht
 static int s_order[RECIPE_MAX_ING]; // Reihenfolge beim Abwiegen: Eier zuerst
+// Nach vorhandener Menge: "560 g Mehl da" -> alle Zutaten im selben Verhältnis
+static int s_by = -1;          // Zutat, nach der skaliert wird, -1 = Portionen/Eier
+static float s_by_g = 0;       // davon vorhanden
+static lv_obj_t *page_by_create();
 
 static bool is_egg(const char *name) {
   char n[16];
@@ -92,8 +96,9 @@ static void egg_setup() {
   s_factor_real = false;
 }
 
-// geplanter Faktor aus der gewählten Anzahl Eier bzw. Portionen
+// geplanter Faktor aus der vorhandenen Menge, sonst aus Eiern bzw. Portionen
 static float plan_factor() {
+  if (s_by >= 0 && s_rec.ing[s_by].grams > 0) return s_by_g / s_rec.ing[s_by].grams;
   if (s_egg >= 0) return (float)s_eggs / s_egg_base;
   return (float)s_portions / s_rec.portions;
 }
@@ -143,6 +148,7 @@ static void pick_cb(int index) {
   }
   if (!recipe_load(l_files[index - 1], &s_rec)) return;
   s_portions = s_rec.portions;
+  s_by = -1;
   egg_setup();
   ui_switch_page(page_preview_create());
 }
@@ -196,21 +202,33 @@ static void pv_refresh() {
     snprintf(b, sizeof(b), i == s_egg ? T("ca. %d g") : "%d g", (int)lroundf(target(i)));
     lv_label_set_text(pv_rows[r][1], b);
   }
-  if (s_egg >= 0) {
+  if (s_by >= 0) {
+    snprintf(b, sizeof(b), "%d g %.14s", (int)lroundf(s_by_g), s_rec.ing[s_by].name);
+  } else if (s_egg >= 0) {
     if (s_eggs == 1) snprintf(b, sizeof(b), "%s", T("1 Ei"));
     else snprintf(b, sizeof(b), T("%d Eier"), s_eggs);
   } else snprintf(b, sizeof(b), T("%d Port."), s_portions);
   lv_label_set_text(pv_port, b);
 }
 
-// Minus/Plus: ganze Eier oder Portionen
+// Minus/Plus: ganze Eier oder Portionen, bei "nach Menge" 10 g
 static void pv_minus_cb(lv_event_t *e) {
+  if (s_by >= 0) {
+    if (s_by_g > 10) s_by_g -= 10;
+    pv_refresh();
+    return;
+  }
   int *n = s_egg >= 0 ? &s_eggs : &s_portions;
   if (*n > 1) (*n)--;
   pv_refresh();
 }
 
 static void pv_plus_cb(lv_event_t *e) {
+  if (s_by >= 0) {
+    if (s_by_g < 9990) s_by_g += 10;
+    pv_refresh();
+    return;
+  }
   int *n = s_egg >= 0 ? &s_eggs : &s_portions;
   if (*n < 20) (*n)++;
   pv_refresh();
@@ -218,6 +236,10 @@ static void pv_plus_cb(lv_event_t *e) {
 
 static lv_obj_t *pv_del;
 static bool pv_confirm = false;
+
+static void pv_by_cb(lv_event_t *e) {
+  ui_switch_page(page_by_create());
+}
 
 static void pv_delete_cb(lv_event_t *e) {
   if (!pv_confirm) {  // erst beim zweiten Tippen löschen
@@ -283,7 +305,20 @@ static lv_obj_t *page_preview_create() {
   }
 
   pv_port = ui_label(s, "", &font_sg_24, C_TEXT);
+  lv_obj_set_width(pv_port, 150);
+  lv_label_set_long_mode(pv_port, LV_LABEL_LONG_DOT);
+  lv_obj_set_style_text_align(pv_port, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(pv_port, LV_ALIGN_CENTER, 0, 46);
+  // Antippen: nach der vorhandenen Menge einer Zutat rechnen
+  lv_obj_add_flag(pv_port, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(pv_port, 12);
+  lv_obj_add_event_cb(pv_port, pv_by_cb, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *byh = ui_label(s, s_by >= 0 ? "Tippen: Menge ändern" : "Tippen: nach vorhandener Menge", &font_sg_14,
+                           C_FAINT);
+  lv_obj_align(byh, LV_ALIGN_CENTER, 0, 84);
+  lv_obj_add_flag(byh, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(byh, 8);
+  lv_obj_add_event_cb(byh, pv_by_cb, LV_EVENT_CLICKED, NULL);
   lv_obj_t *m = ui_round_btn(s, "−", pv_minus_cb);
   lv_obj_align(m, LV_ALIGN_CENTER, -100, 46);
   lv_obj_t *p = ui_round_btn(s, "+", pv_plus_cb);
@@ -306,6 +341,136 @@ static lv_obj_t *page_preview_create() {
 }
 
 // ------------------------------------------------------------
+//  Nach vorhandener Menge: Zutat wählen, Menge einstellen oder wiegen
+// ------------------------------------------------------------
+static int by_ing = -1;
+static float by_g = 0;
+static lv_obj_t *by_name, *by_val, *by_live, *by_info;
+
+static int by_next(int from, int dir) {  // nächste wiegbare Zutat (keine Eier, keine Anweisung)
+  for (int k = 1; k <= s_rec.count; k++) {
+    int i = (from + dir * k + s_rec.count * 2) % s_rec.count;
+    if (s_rec.ing[i].kind == STEP_WEIGH && i != s_egg && s_rec.ing[i].grams > 0) return i;
+  }
+  return -1;
+}
+
+static void by_show() {
+  char b[48];
+  lv_label_set_text(by_name, by_ing >= 0 ? s_rec.ing[by_ing].name : "–");
+  snprintf(b, sizeof(b), "%d g", (int)lroundf(by_g));
+  lv_label_set_text(by_val, b);
+  if (by_ing >= 0) {
+    float f = by_g / s_rec.ing[by_ing].grams;
+    char ff[12];
+    ui_fmt_1dec(ff, sizeof(ff), f * 100.0f);
+    snprintf(b, sizeof(b), T("Rezept: %d g · %s %%"), (int)lroundf(s_rec.ing[by_ing].grams), ff);
+    lv_label_set_text(by_info, b);
+  }
+}
+
+static void by_pick(int i) {
+  by_ing = i;
+  if (i < 0) return;
+  // Start: bisherige Menge bzw. die Menge laut aktuellem Plan
+  by_g = (s_by == i) ? s_by_g : roundf(s_rec.ing[i].grams * plan_factor());
+  by_show();
+}
+
+static void by_prev_cb(lv_event_t *e) { by_pick(by_next(by_ing, -1)); }
+static void by_nextz_cb(lv_event_t *e) { by_pick(by_next(by_ing, 1)); }
+
+static void by_adj_cb(lv_event_t *e) {
+  int d = (int)(intptr_t)lv_event_get_user_data(e);
+  by_g += d;
+  if (by_g < 1) by_g = 1;
+  if (by_g > 9999) by_g = 9999;
+  sound_play(SND_CLICK);
+  by_show();
+}
+
+static void by_weigh_cb(lv_event_t *e) {
+  float g = scale_net();
+  if (g < 1.0f) {
+    sound_play(SND_WARN);
+    return;
+  }
+  by_g = roundf(g);
+  sound_play(SND_TICK);
+  by_show();
+}
+
+static void by_ok_cb(lv_event_t *e) {
+  if (by_ing >= 0) {
+    s_by = by_ing;
+    s_by_g = by_g;
+  }
+  ui_switch_page(page_preview_create());
+}
+
+static void by_off_cb(lv_event_t *e) {
+  s_by = -1;
+  ui_switch_page(page_preview_create());
+}
+
+static void by_timer_cb(lv_timer_t *t) {
+  char b[40], w[16];
+  ui_fmt_weight(w, sizeof(w), scale_net());
+  snprintf(b, sizeof(b), T("Auf der Waage: %s g"), w);
+  ui_label_update(by_live, b);
+}
+
+static lv_obj_t *page_by_create() {
+  lv_obj_t *s = ui_screen_create();
+  lv_obj_t *t = ui_label(s, "Wie viel ist noch da?", &font_sg_18, C_MUTED);
+  lv_obj_align(t, LV_ALIGN_TOP_MID, 0, 48);
+
+  lv_obj_t *pl = ui_round_btn(s, "‹", by_prev_cb);
+  lv_obj_align(pl, LV_ALIGN_CENTER, -132, -104);
+  lv_obj_t *nr = ui_round_btn(s, "›", by_nextz_cb);
+  lv_obj_align(nr, LV_ALIGN_CENTER, 132, -104);
+  by_name = ui_label(s, "", &font_sg_24, C_TEXT);
+  lv_obj_set_width(by_name, 190);
+  lv_label_set_long_mode(by_name, LV_LABEL_LONG_DOT);
+  lv_obj_set_style_text_align(by_name, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(by_name, LV_ALIGN_CENTER, 0, -104);
+
+  by_val = ui_label(s, "", &font_sg_34, C_ACCENT);
+  lv_obj_align(by_val, LV_ALIGN_CENTER, 0, -40);
+  lv_obj_t *m = ui_round_btn(s, "−", NULL);
+  lv_obj_align(m, LV_ALIGN_CENTER, -112, -40);
+  lv_obj_add_event_cb(m, by_adj_cb, LV_EVENT_CLICKED, (void *)(intptr_t)-10);
+  lv_obj_t *p = ui_round_btn(s, "+", NULL);
+  lv_obj_align(p, LV_ALIGN_CENTER, 112, -40);
+  lv_obj_add_event_cb(p, by_adj_cb, LV_EVENT_CLICKED, (void *)(intptr_t)10);
+
+  by_info = ui_label(s, "", &font_sg_14, C_MUTED);
+  lv_obj_align(by_info, LV_ALIGN_CENTER, 0, -6);
+  by_live = ui_label(s, "", &font_sg_14, C_FAINT);
+  lv_obj_align(by_live, LV_ALIGN_CENTER, 0, 18);
+
+  lv_obj_t *row = ui_box(s);
+  lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_style_pad_column(row, 10, 0);
+  lv_obj_align(row, LV_ALIGN_CENTER, 0, 66);
+  lv_obj_t *wb = ui_btn(row, "Wiegen", BTN_NORMAL);
+  lv_obj_add_event_cb(wb, by_weigh_cb, LV_EVENT_CLICKED, NULL);
+  lv_obj_t *ok = ui_btn(row, "Übernehmen", BTN_PRIMARY);
+  lv_obj_add_event_cb(ok, by_ok_cb, LV_EVENT_CLICKED, NULL);
+
+  lv_obj_t *off = ui_btn(s, s_egg >= 0 ? "Nach Eiern" : "Nach Portionen", BTN_NORMAL);
+  lv_obj_align(off, LV_ALIGN_CENTER, 0, 124);
+  lv_obj_add_event_cb(off, by_off_cb, LV_EVENT_CLICKED, NULL);
+
+  by_pick(s_by >= 0 ? s_by : by_next(-1, 1));
+  if (by_ing < 0) lv_label_set_text(by_info, T("Keine Zutat zum Wiegen"));
+  ui_page_timer(s, by_timer_cb, 250);
+  by_timer_cb(NULL);
+  return s;
+}
+
+// ------------------------------------------------------------
 //  Schritt
 // ------------------------------------------------------------
 static lv_obj_t *st_ring, *st_weight, *st_goal;
@@ -318,7 +483,7 @@ static void st_next_cb(lv_event_t *e) {
   s_done_g[s_step] = step_is_note(s_step) ? 0 : scale_net();
   // Eier gewogen: alle weiteren Zutaten nach dem echten Eigewicht ausrichten
   // (unter 10 g wurde wohl nichts aufgelegt, dann bleibt es beim Plan)
-  if (step_ing() == s_egg && s_done_g[s_step] > 10.0f) {
+  if (step_ing() == s_egg && s_done_g[s_step] > 10.0f && s_by < 0) {
     s_factor = s_done_g[s_step] / s_rec.ing[s_egg].grams;
     s_factor_real = true;
   }
@@ -499,6 +664,7 @@ static lv_obj_t *page_note_create() {
     ui_page_timer(s, nt_timer_cb, 250);
     nt_timer_cb(NULL);
   }
+  ui_keep_open(s);  // Anweisung lesen dauert: nicht nach der Inaktivitätszeit schließen
   return s;
 }
 
@@ -519,7 +685,7 @@ static lv_obj_t *page_step_create() {
   st_weight = ui_label(s, "0", &font_sg_80, C_TEXT);
   lv_obj_align(st_weight, LV_ALIGN_CENTER, 0, -30);
 
-  if (ing == s_egg) {
+  if (ing == s_egg && s_by < 0) {
     if (s_eggs == 1) snprintf(b, sizeof(b), "%s", T("1 Ei aufschlagen"));
     else snprintf(b, sizeof(b), T("%d Eier aufschlagen"), s_eggs);
   } else snprintf(b, sizeof(b), T("von %d g"), (int)lroundf(target(ing)));
@@ -550,6 +716,7 @@ static lv_obj_t *page_step_create() {
   sound_parking_reset();
   st_timer = ui_page_timer(s, st_timer_cb, 100);
   st_timer_cb(NULL);
+  ui_keep_open(s);
   return s;
 }
 

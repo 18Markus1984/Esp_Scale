@@ -1,0 +1,37 @@
+# KI-AnimeGirl (Deutsch)
+# Charakter: überdreht fröhlich, begeistert
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-AnimeGirl" --status
+Tara, alles schön auf null, juhu.
+Gespeichert, ich hab es mir ganz fest gemerkt.
+Ziel erreicht, wir sind ein super Team.
+Waaah, das ist viel zu schwer.
+Oh, ein Topf, den kenn ich doch.
+Fertig, du warst toll.
+Huch, die Waage ist ganz leer.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "KI-AnimeGirl" --ansagen
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Ziel.
+Jetzt einfüllen, los geht's.
+Akku.
+Prozent.
+wird geladen, ich tanke Energie.
+Uhr.
+Lautstärke.
+noch.
+zu viel.
+Milliliter.
+Jaaa?
+Hm, das hab ich nicht verstanden, sag einfach Hilfe.
+Okay, aufgepasst, sag Hallo Waage oder tipp zweimal oben, dann zum Beispiel Tara, wie viel, speichern, zweihundert Gramm, stopp, weiter, zurück, nochmal, lauter, leiser, Akku oder Uhrzeit.
+Zielwiegen beendet, gut gemacht.
+Waage bereit, ich freu mich.
+Weiter, auf zum nächsten Schritt.
+Zurück zur Startseite, hui.
+Oh nein, das geht hier gerade nicht.
+Mein Akku ist fast leer, bitte aufladen.
+Piep piep, dein Timer ist abgelaufen.
+Die Uhrzeit weiß ich leider nicht, sorry.
+Ich mach gleich ein Nickerchen, bis später.

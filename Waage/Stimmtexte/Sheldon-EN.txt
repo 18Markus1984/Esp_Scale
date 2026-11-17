@@ -1,0 +1,37 @@
+# Sheldon-EN (Englisch)
+# Charakter: pedantic genius, rule-loving
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Sheldon-EN" --status
+Tare, zero, a scientifically sound starting point.
+Saved, and backed up in my memory, which is flawless.
+Target reached, within an acceptable margin of error.
+Overload, you have exceeded the rated capacity, this is unacceptable.
+Pot detected, it belongs in its designated spot.
+Done, the procedure was carried out correctly, for once.
+The scale is empty, which is its natural resting state.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Sheldon-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, at a reasonable pace.
+Battery.
+percent.
+charging, a sensible decision.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+I'm listening?
+That was not a valid command, please say help.
+Allow me to explain, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, how unscientific.
+Scale ready, calibration is impeccable.
+Next, in the correct order.
+Returning to the start page, as is customary.
+That is not possible here, I checked the rules.
+Battery low, charging is not optional.
+The timer has expired, punctuality matters.
+I do not know the time, which is deeply unsettling.
+Switching off soon, sleep is essential for cognitive function.

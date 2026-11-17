@@ -68,6 +68,7 @@ static const ui_list_item_t GROUP_KUECHE[] = {
   { "Portionieren", "Teig gleich teilen", ICON_PORTION },
   { "Timer", "bis zu drei gleichzeitig", ICON_TIMER },
   { "Tassen & Löffel", "US-Rezepte umrechnen", ICON_TASSE },
+  { "Kaffee", "Filter und Espresso", ICON_KAFFEE },
 };
 static const ui_list_item_t GROUP_WERKSTATT[] = {
   { "Spule", "Restmeter Filament", ICON_SPULE },
@@ -97,7 +98,8 @@ static const ui_list_item_t SYSTEM_ITEMS[] = {
 // NULL = noch nicht gebaut -> Platzhalter wird angezeigt.
 // Reihenfolge muss zu MODI_ITEMS / SYSTEM_ITEMS passen!
 static const page_create_fn PAGES_KUECHE[] = { page_rezept_create,  page_cocktail_create, page_ziel_create,
-                                                page_portion_create, page_timer_create,    page_tassen_create };
+                                                page_portion_create, page_timer_create,    page_tassen_create,
+                                                page_kaffee_create };
 static const page_create_fn PAGES_WERKSTATT[] = { page_spule_create, page_zaehlen_create,  page_porto_create,
                                                    page_mix_create,   page_langzeit_create, page_muenzen_create };
 static const page_create_fn PAGES_SPIELE[] = { page_spiel_create, page_trink_create, page_blind_create,
@@ -105,7 +107,7 @@ static const page_create_fn PAGES_SPIELE[] = { page_spiel_create, page_trink_cre
 
 static const ui_list_item_t *const GROUP_ITEMS[] = { GROUP_KUECHE, GROUP_WERKSTATT, GROUP_SPIELE };
 static const page_create_fn *const GROUP_PAGES[] = { PAGES_KUECHE, PAGES_WERKSTATT, PAGES_SPIELE };
-static const int GROUP_COUNT[] = { 6, 6, 5 };
+static const int GROUP_COUNT[] = { 7, 6, 5 };
 
 static const page_create_fn SYSTEM_PAGES[] = {
   page_web_quick_create,  // Weboberfläche (startet sie gleich)
@@ -122,19 +124,26 @@ static const page_create_fn SYSTEM_PAGES[] = {
 #define N_GROUPS 3
 #define N_SYSTEM ((int)(sizeof(SYSTEM_ITEMS) / sizeof(SYSTEM_ITEMS[0])))
 static const int GROUP_BASE[N_GROUPS] = { 0, 6, 12 };  // Bitnummer des ersten Modus in modes_off
+#define GROUP_MAX 7  // meiste Modi einer Gruppe
 
 static ui_list_item_t s_modi_items[N_GROUPS];
 static int s_modi_map[N_GROUPS], s_modi_n = 0;
-static ui_list_item_t s_mode_items[6];
-static int s_mode_map[6], s_mode_n = 0;
-static ui_list_item_t s_tile_items[6];  // nur eine Gruppe sichtbar: ihre Modi direkt auf der Modi-Seite
-static int s_tile_map[6], s_tile_n = 0, s_tile_group = -1;
+static ui_list_item_t s_mode_items[GROUP_MAX];
+static int s_mode_map[GROUP_MAX], s_mode_n = 0;
+static ui_list_item_t s_tile_items[GROUP_MAX];  // nur eine Gruppe sichtbar: ihre Modi direkt auf der Modi-Seite
+static int s_tile_map[GROUP_MAX], s_tile_n = 0, s_tile_group = -1;
 static ui_list_item_t s_sys_items[8];
 static int s_sys_map[8], s_sys_n = 0;
 
 bool ui_simple() { return g_set.profile == PROFILE_EINFACH; }
 
-static bool mode_visible(int g, int i) { return !(g_set.modes_off & (1u << (GROUP_BASE[g] + i))); }
+// Bit in modes_off: Gruppen ab GROUP_BASE, später angehängte Modi bekommen freie Bits am Ende
+// (sonst verschieben sich gespeicherte Einstellungen): Küche 7. Modus (Kaffee) = Bit 17.
+static int mode_bit(int g, int i) {
+  if (g == 0 && i >= 6) return 17 + (i - 6);
+  return GROUP_BASE[g] + i;
+}
+static bool mode_visible(int g, int i) { return !(g_set.modes_off & (1u << mode_bit(g, i))); }
 
 // Sichtbare Einträge neu zusammenstellen (vor jedem Aufbau der Startseite)
 static void profile_lists() {
@@ -667,6 +676,11 @@ static bool s_start_done = false;  // Lagecheck beim Einschalten abgeschlossen
 static float idle_ref_g = 0;
 static uint32_t idle_weight_ms = 0;
 
+// Seite, die nicht von selbst geschlossen werden soll (gilt nur, solange sie aktiv ist)
+static lv_obj_t *s_keep_scr = NULL;
+void ui_keep_open(lv_obj_t *page) { s_keep_scr = page; }
+static bool ui_keep_open_active() { return s_keep_scr && lv_scr_act() == s_keep_scr; }
+
 static void idle_check() {
   uint32_t now = hal_millis();
   float net = scale_net();
@@ -675,6 +689,13 @@ static void idle_check() {
     idle_weight_ms = now;
   }
   if (g_set.idle_min <= 0 || !s_start_done) return;
+  // Läuft ein Küchentimer (z. B. Backzeit im Rezept) oder eine Seite will offen bleiben (Kaffee,
+  // Rezept mit laufendem Schritt), nicht zur Wiegeseite springen: sonst war das Rezept nach der
+  // Backzeit plötzlich zu.
+  if (timer_any_active() || ui_keep_open_active()) {
+    idle_weight_ms = now;
+    return;
+  }
   uint32_t limit = (uint32_t)g_set.idle_min * 60000UL;
   uint32_t touch_idle = lv_disp_get_inactive_time(NULL);
   if (touch_idle < limit || now - idle_weight_ms < limit) return;

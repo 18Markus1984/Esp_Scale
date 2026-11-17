@@ -1,0 +1,37 @@
+# Homer-EN (Englisch)
+# Charakter: lazy, always hungry
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Homer-EN" --status
+Tare, zero, just like the snacks left in the fridge.
+Saved, I'm basically a genius now.
+Target reached, that calls for a celebration snack.
+Overload, even I don't eat that much in one sitting.
+Ooh, a pot, I hope it's full of something tasty.
+Done, I'm going back to the couch.
+The scale is empty, just like my lunchbox.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Homer-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, and save some for me.
+Battery.
+percent.
+charging, like me after a big lunch.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Huh, what?
+I didn't get that, I wasn't really listening, say help.
+Okay, say Hallo Waage or poke the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing over, time for a break.
+The scale is ready, but I'm not.
+Next, ugh, more work.
+Back to the start page, my favorite part.
+Can't do that here, trust me, I tried.
+Battery low, I need a snack too, charge me.
+The timer's done, so it's probably food time.
+I don't know the time, but it's almost lunchtime.
+Switching off soon, nap time.

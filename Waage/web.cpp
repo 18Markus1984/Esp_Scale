@@ -23,6 +23,7 @@
 #include "update_online.h"
 #include "refcheck.h"
 #include "voice.h"
+#include "voice_own.h"
 #include "kws.h"
 #include "zipw.h"
 #include "crash.h"
@@ -921,6 +922,108 @@ static void h_score_add() {
                 xunit.c_str()));
 }
 
+// ---- Eigene Stimme: Ansagen selbst aufnehmen (Handy-Aufnahme hochladen oder Mikrofon der Waage) ----
+static void h_own() {
+  const own_slot_t *sl;
+  int n = own_slots(&sl);
+  String s = "{\"pack\":\"" + esc(own_pack()) + "\",\"exists\":" + (own_exists() ? "true" : "false") +
+             ",\"use\":" + (strcmp(g_set.voice, own_pack()) == 0 ? "true" : "false") + ",\"voice\":\"" +
+             esc(g_set.voice) + "\",\"rec\":" + voice_rec_state() + ",\"prog\":" + String(voice_rec_progress(), 2) +
+             ",\"slots\":[";
+  bool ex = own_exists();
+  for (int i = 0; i < n; i++) {
+    if (i) s += ",";
+    s += "{\"f\":\"" + String(sl[i].file) + "\",\"t\":\"" + esc(sl[i].text) + "\",\"g\":" + sl[i].group +
+         ",\"s\":" + sl[i].max_s + ",\"m\":" + (ex && own_is_mine(sl[i].file) ? "1" : "0") + "}";
+  }
+  send_json(s + "]}");
+}
+
+static bool own_slot_ok(const String &f) {
+  const own_slot_t *sl;
+  int n = own_slots(&sl);
+  for (int i = 0; i < n; i++)
+    if (f == sl[i].file) return true;
+  return false;
+}
+
+static void h_own_create() {
+  hit();
+  ok(own_create(s_server.arg("from").c_str()), "Kopieren fehlgeschlagen (SD-Karte?)");
+}
+
+static void h_own_use() {
+  if (!own_exists()) {
+    ok(false, "Erst anlegen");
+    return;
+  }
+  strncpy(g_set.voice, own_pack(), sizeof(g_set.voice) - 1);
+  g_set.voice[sizeof(g_set.voice) - 1] = 0;
+  settings_save();
+  sound_voice_set(g_set.voice);
+  ok(true);
+}
+
+// nach dem Hochladen einer Handy-Aufnahme (Browser rechnet sie in 16 kHz WAV um)
+static void h_own_mark() {
+  String f = s_server.arg("f");
+  if (!own_slot_ok(f)) {
+    ok(false, "Unbekannte Ansage");
+    return;
+  }
+  own_mark(f.c_str());
+  ok(true);
+}
+
+static void h_own_play() {
+  String f = s_server.arg("f");
+  if (!own_slot_ok(f)) {
+    ok(false, "Unbekannte Ansage");
+    return;
+  }
+  sound_preview(own_pack(), f.c_str());
+  ok(true);
+}
+
+// Mit dem Mikrofon der Waage aufnehmen, gesteuert vom Handy
+static String s_own_rec_f;
+static void h_own_rec() {
+  String f = s_server.arg("f");
+  const own_slot_t *sl;
+  int n = own_slots(&sl), maxs = 6;
+  for (int i = 0; i < n; i++)
+    if (f == sl[i].file) maxs = sl[i].max_s;
+  if (!own_slot_ok(f) || !own_exists()) {
+    ok(false, "Erst anlegen");
+    return;
+  }
+  char path[96];
+  own_path(path, sizeof(path), f.c_str());
+  voice_rec_session(true);
+  sound_play_tone(SND_PARK);
+  bool good = voice_rec_file(path, maxs * 1000);
+  if (good) s_own_rec_f = f;
+  else voice_rec_session(false);
+  ok(good, "Mikrofon nicht bereit");
+}
+
+static void h_own_rec_stop() {
+  voice_rec_stop();
+  ok(true);
+}
+
+// im Web-Takt: fertige Aufnahme merken, Mikrofon wieder freigeben
+void web_own_tick() {
+  if (!s_own_rec_f.length()) return;
+  int st = voice_rec_state();
+  if (st == 4) own_mark(s_own_rec_f.c_str());
+  if (st == 4 || st < 0 || st == 0) {
+    if (st == 4) sound_preview(own_pack(), s_own_rec_f.c_str());
+    s_own_rec_f = "";
+    voice_rec_session(false);
+  }
+}
+
 static void h_player_add() {
   String name = jval(s_server.arg("plain"), "name");
   if (!name.length()) name = s_server.arg("name");
@@ -1346,6 +1449,13 @@ static void routes() {
   s_server.on("/api/players", HTTP_POST, h_players_save);
   s_server.on("/api/player_add", h_player_add);
   s_server.on("/api/scores", HTTP_GET, h_scores);
+  s_server.on("/api/own", HTTP_GET, h_own);
+  s_server.on("/api/own/create", h_own_create);
+  s_server.on("/api/own/use", h_own_use);
+  s_server.on("/api/own/mark", h_own_mark);
+  s_server.on("/api/own/play", h_own_play);
+  s_server.on("/api/own/rec", h_own_rec);
+  s_server.on("/api/own/rec_stop", h_own_rec_stop);
   s_server.on("/api/scores", HTTP_POST, h_score_add);
   s_server.on("/api/msa", HTTP_POST, h_msa_save);
   s_server.on("/api/recipes", h_recipes);
@@ -1521,6 +1631,7 @@ void web_loop() {
     drop_idle_client();
     s_server.handleClient();
   } while (millis() - t0 < 6 && s_server.client() && s_server.client().connected());
+  web_own_tick();
   if (s_park_goal > 0) sound_parking(scale_net(), s_park_goal, 2.0f);  // Parkpiepser für den Browser
   if (millis() - s_last_hit > IDLE_OFF_MS) web_stop();
 }

@@ -1,0 +1,37 @@
+# Peter-EN (Englisch)
+# Charakter: loud, clueless family dad
+# Jede Zeile = eine WAV-Datei. Abschnitte einzeln kopieren, die #-Zeilen nicht mitlesen lassen.
+
+## 1. Statusansagen (7 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Peter-EN" --status
+Tare, zero, just like the planning I put into my day.
+Saved, put that one on the fridge.
+Target reached, best day since the last best day.
+Overload, whoa, did somebody put the whole couch on here.
+A pot, sweet, somebody's making dinner.
+Done, I'm heading to the bar with the guys.
+The scale's empty, kind of like my work inbox, because I never check it.
+
+## 2. Sprachsteuerung (22 Zeilen) -> python stimme_schneiden.py aufnahme.mp3 "Peter-EN" --ansagen --lang en
+## (die ersten Zeilen sind Bausteine, die mit Zahlen zusammengesetzt werden: kurz und neutral sprechen)
+Target.
+Fill it in now, go go go.
+Battery.
+percent.
+charging, the scale's on a coffee break.
+o'clock.
+Volume.
+to go.
+too much.
+milliliters.
+Yeah, what?
+I have no idea what you just said, say help.
+Alright, listen up, say Hallo Waage or tap the top twice, then for example tare, how much, save, two hundred grams, stop, next, back, again, louder, quieter, battery or time.
+Target weighing stopped, that's enough of that.
+Scale ready, let's do this.
+Next, keep it rolling.
+Back to the start page, like nothing ever happened.
+Can't do that here, not even I'm that dumb.
+Battery low, plug me in before I pass out.
+The timer went off, I hope it's pie.
+I don't know the time, I just go by when I'm hungry.
+Switching off soon, nighty night.

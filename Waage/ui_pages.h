@@ -23,6 +23,8 @@ lv_obj_t *page_muenzen_create();                      // Münzzähler / Kassenst
 lv_obj_t *page_blind_create();                        // Spiel Blindgießen
 lv_obj_t *page_halb_create();                         // Spiel Halbe-Halbe (in der Mitte teilen)
 lv_obj_t *page_ex_create();                           // Spiel Ex (Glas auf Zeit leeren)
+lv_obj_t *page_kaffee_create();                       // Kaffee: Filter und Espresso
+lv_obj_t *page_voice_own_create();                    // Setup -> Ton -> Eigene Stimme (Ansagen selbst aufnehmen)
 lv_obj_t *page_zaehlen_create();                      // Zählen + Bluetooth
 lv_obj_t *page_porto_create();                        // Portoklasse
 lv_obj_t *page_rezept_create();                       // Rezepte von der SD-Karte

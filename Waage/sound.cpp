@@ -1,3 +1,4 @@
+#include "voice.h"
 #include "sound.h"
 #include "settings.h"
 #include "hal.h"
@@ -22,6 +23,12 @@ void sound_parking_reset() {
 void sound_parking(float grams, float goal, float tol) {
   if (goal <= 0) return;
   uint32_t now = hal_millis();
+  // Nach "Hallo Waage" (oder Doppeltipp) wartet die Erkennung auf den Befehl: dann nicht
+  // dazwischenpiepen, sonst geht "Stopp" oder "Tara" im Piepen unter
+  if (voice_awake()) {
+    s_park_last = now;
+    return;
+  }
   float rest = goal - grams;
   int state = rest > tol ? 0 : (rest >= -tol ? 1 : 2);
 
@@ -191,8 +198,13 @@ static void play_note(uint16_t freq, uint16_t ms, cat_t cat) {
 // gemeinsamen Ordner _Zusatz bzw. _Zusatz-EN. Dort liegen die Ansagen der
 // Sprachsteuerung ("Ja?", "Nicht verstanden", Hilfe …) für Pakete, die
 // diese Sätze (noch) nicht haben.
+// Vorhören einer eigenen Aufnahme: Paket der laufenden Vorhör-Ansage (sonst NULL)
+static char s_prev_pack[24];
+static volatile const char *s_cur_pack = NULL;
+
 static void word_path(char *path, int len, const char *name, bool extra) {
-  if (extra) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.lang == LANG_EN ? "_Zusatz-EN" : "_Zusatz", name);
+  if (s_cur_pack) snprintf(path, len, VOICE_DIR "/%s/%s.wav", (const char *)s_cur_pack, name);
+  else if (extra) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.lang == LANG_EN ? "_Zusatz-EN" : "_Zusatz", name);
   else if (g_set.voice[0]) snprintf(path, len, VOICE_DIR "/%s/%s.wav", g_set.voice, name);
   else snprintf(path, len, VOICE_DIR "/%s.wav", name);
 }
@@ -428,7 +440,9 @@ static void sound_task(void *arg) {
       s_abort = false;
       s_abort_speech = false;
       s_speaking = true;
+      s_cur_pack = m.type == 3 ? s_prev_pack : NULL;  // Vorhören: genau diese Datei, kein Ersatz
       for (int i = 0; i < m.count && !s_abort_speech; i++) play_wav(m.words[i]);
+      s_cur_pack = NULL;
       play_note(0, 15, CAT_SIGNAL);
       s_speaking = false;
     } else {
@@ -614,6 +628,15 @@ bool sound_speaking() {
 // Kommt gerade etwas aus dem Lautsprecher? (Spracherkennung hört dann weg)
 bool sound_busy() {
   return sound_speaking() || s_playing_long || millis() - s_last_ms < 450;
+}
+
+// Nur ein kurzer Ton (Klick, Parkpiepser) und keine Ansage: die Spracherkennung muss dann nicht
+// 450 ms + Nachhall pausieren, sonst hört sie beim Parkpiepser (Ton alle 0,1–1 s) fast nie zu.
+bool sound_speech_busy() {
+  return sound_speaking() || s_playing_long;
+}
+bool sound_tone_recent(uint32_t ms) {
+  return millis() - s_last_ms < ms;
 }
 
 void sound_speak_stop() {
@@ -841,6 +864,20 @@ bool sound_repeat() {
   return say_msg(&m, true);
 }
 
+// Eine Datei eines bestimmten Pakets abspielen (eigene Aufnahme vorhören)
+void sound_preview(const char *pack, const char *name) {
+  static msg_t m;
+  if (!s_speechq || !pack || !name || g_set.volume <= 0) return;
+  sound_speak_stop();
+  strncpy(s_prev_pack, pack, sizeof(s_prev_pack) - 1);
+  s_prev_pack[sizeof(s_prev_pack) - 1] = 0;
+  m.count = 0;
+  add_word(&m, name);
+  m.type = 3;
+  xQueueSend(s_speechq, &m, 0);
+  if (s_task) xTaskNotifyGive(s_task);
+}
+
 void sound_speak_word(const char *file) {
   static msg_t m;
   m.type = 1;
@@ -890,6 +927,7 @@ bool sound_speak_rest(float rest_g, bool now) {  // Testumgebung
 }
 void sound_speak_count(int pieces) { if (getenv("SPKDBG")) printf("ANSAGE %d Stueck\n", pieces); }  // Testumgebung
 void sound_speak_word(const char *file) { (void)file; }
+void sound_preview(const char *pack, const char *name) { if (getenv("SPKDBG")) printf("VORHOEREN %s/%s\n", pack, name); }
 static bool sim_say(const char *what) {
   if (getenv("SPKDBG")) printf("ANSAGE %s\n", what);
   return true;
@@ -904,6 +942,7 @@ int sound_missing(char *out, int len) { if (len) out[0] = 0; return getenv("SIM_
 void sound_speak_weight_word(float grams, int unit, const char *word) { (void)grams; (void)unit; (void)word; }
 void sound_play_tone(sound_t s) { (void)s; }
 bool sound_speaking() { return false; } bool sound_busy() { return false; }
+bool sound_speech_busy() { return false; } bool sound_tone_recent(uint32_t ms) { return false; }
 void sound_speak_stop() {}
 int sound_voice_packs(char names[][24], int max) {
   static char dirs[64][STORAGE_NAME_LEN];

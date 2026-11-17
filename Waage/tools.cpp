@@ -65,6 +65,24 @@ bool timer_running(int i) {
   return i >= 0 && i < TIMER_COUNT && s_kt[i].running;
 }
 
+static void alarm_off();
+
+bool timer_any_active() {
+  for (int i = 0; i < TIMER_COUNT; i++)
+    if (s_kt[i].running) return true;
+  return false;
+}
+
+bool timer_any_ringing() {
+  for (int i = 0; i < TIMER_COUNT; i++)
+    if (s_kt[i].running && s_kt[i].ringing) return true;
+  return false;
+}
+
+void timer_alarm_off() {
+  alarm_off();
+}
+
 bool timer_ringing(int i) {
   return timer_running(i) && s_kt[i].ringing;
 }
