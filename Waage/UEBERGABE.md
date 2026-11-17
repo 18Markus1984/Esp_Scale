@@ -1204,3 +1204,19 @@ Geprüft: check.sh BUILD_OK, Simulator de/en (eigen_start, eigen_schritt1/2, eig
 eigen_schritt_lang), Web mit Mock de/en (Anlegen, Halten -> gespeichert, Gruppe fertig, Liste; keine JS-Fehler),
 Design-Review (Knopfbreiten im Kreis, „Später“ statt „Überspringen“, Halten-Hinweis im Knopf).
 Am Gerät prüfen: Aufnahme halten/loslassen, Vorhören, Wiedergabe mit Vorlage-Ersatz für nicht Aufgenommenes.
+
+### Stand 17.11.2026 (nachts, 2): Eigene Stimme mit dem Handy-Mikrofon im Browser
+Browser geben das Mikrofon nur auf https frei, die Waage läuft über http. Lösung ohne https auf der Waage:
+**Aufnahmeseite auf GitHub Pages** `docs/aufnahme/index.html` -> https://18markus1984.github.io/Esp_Scale/aufnahme/
+(Pages: main / docs, von Markus eingerichtet). Ablauf: Weboberfläche `#/eigen` -> „Mit dem Handy-Mikrofon aufnehmen“
+öffnet die Seite per `window.open(…?o=<location.origin>)` (ohne noopener). Nachrichten (postMessage):
+Seite -> Waage `{t:"hallo"}`, `{t:"wav",f,buf}` (ArrayBuffer, übertragen), `{t:"fertig",g}`;
+Waage -> Seite `{t:"slots",pack,slots,cur,lang}`, `{t:"ok",f}`, `{t:"err",f,msg}`. Beide Seiten prüfen die Herkunft
+(Waage: Origin github.io + `e.source` = geöffnetes Fenster; Seite: Origin aus Parameter `o`). Die Seite nimmt mit
+MediaRecorder auf (Halten, 300 ms Nachlauf, Pegel, max. Länge der Ansage), rechnet in 16 kHz Mono-WAV (Stille weg,
+normalisiert), spielt sofort im Handy vor; „Passt ›“ schickt die Datei, die Waage-Seite lädt nach `/upload?dir=` und
+ruft `/api/own/mark`. Am Ende der Gruppe zeigt die Waage-Seite die Abschlussseite. Demo ohne Waage: `?demo`.
+Ohne Internet: weiterhin Mikrofon der Waage oder „Sprachmemo hochladen“ (aufklappbar). Firmware unverändert.
+Mock: `/upload` (multipart) wird angenommen, `/api/mock/uploads` zeigt sie. Geprüft: Playwright mit Fake-Mikrofon,
+GitHub-Adresse auf die lokale Datei umgeleitet, de/en: Popup verbunden, Aufnahme -> WAV (RIFF, ~39 KB) hochgeladen,
+Ansage markiert, Abschlussseite; keine JS-Fehler. Am echten Handy (iPhone/Android) noch prüfen.

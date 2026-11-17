@@ -19,6 +19,7 @@ OWN={"exists":not os.environ.get("MOCK_OWN_NEW"),"use":False,"f":None,"t":0,"sto
   {"f":"ziel_erreicht","t":"Ziel erreicht","g":0,"s":6,"m":0,"w":"wenn das Zielgewicht erreicht ist"},
   {"f":"ja","t":"Ja?","g":1,"s":3,"m":0,"w":"nach „Hallo Waage“: sie hört jetzt zu"},{"f":"hilfe","t":"Sag Hallo Waage, dann zum Beispiel Tara, wie viel, speichern …","g":1,"s":20,"m":0,"w":"auf „Hilfe“: erklärt, was man sagen kann"},
   {"f":"ziel","t":"Ziel","g":2,"s":3,"m":0,"w":"Baustein: „Ziel“ 250 Gramm"},{"f":"null","t":"null","g":3,"s":3,"m":0,"w":"Zahl, wird mit anderen zusammengesetzt"}]}
+UPLOADS=[]
 def own_rec():
     if not OWN["f"]: return 0
     if not OWN["stop"]: return 2
@@ -141,6 +142,7 @@ class H(http.server.BaseHTTPRequestHandler):
             return self.j({"dir":d,"dirs":[],"files":[{"name":"pfannkuchen.txt","size":118},{"name":"waffeln.txt","size":142},{"name":"pizzateig.txt","size":131}],"total":31000000,"used":2400000})
         # Eigene Stimme: Zustand wie an der Waage (rec 1/2 -> 3 -> 4), MOCK_OWN_NEW=1 = noch nicht angelegt
         if p=="/api/own": return self.j({"pack":"Eigene Stimme","exists":OWN["exists"],"use":OWN["use"],"voice":"Roboter","rec":own_rec(),"prog":0,"slots":OWN["slots"]})
+        if p=="/api/mock/uploads": return self.j([{"p":a,"n":b,"wav":c} for a,b,c in UPLOADS])
         if p=="/api/own/state":
             r=own_rec(); return self.j({"rec":r,"prog":min(1,(time.time()-OWN["t"])/6) if r==2 else 0})
         if p=="/api/own/create": OWN["exists"]=True; return self.j({"ok":1})
@@ -164,7 +166,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if p=="/api/players": return self.j(st.get("names",["Lena","Tom","Mia"]))
         self.j({"err":p},404)
     def do_POST(self):
-        n=int(self.headers.get("Content-Length",0)); body=json.loads(self.rfile.read(n) or b"{}"); p=self.path
+        n=int(self.headers.get("Content-Length",0)); raw=self.rfile.read(n); p=self.path
+        if p.startswith("/upload"):  # Datei hochladen (multipart), wie h_upload: nur merken
+            UPLOADS.append((p,len(raw),raw.find(b"RIFF")>=0)); return self.j({"ok":1})
+        body=json.loads(raw or b"{}")
         if p=="/api/pots": st["pots"]=body["pots"]; st["spools"]=body["spools"]
         if p=="/api/msa":  # wie msa_store.cpp (vereinfacht)
             nm=time.strftime("%Y-%m-%d_%H%M")+".csv"; v=body.get("vals",[])
